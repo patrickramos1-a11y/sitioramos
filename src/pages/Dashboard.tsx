@@ -3,6 +3,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { AreaStatusChart } from "@/components/dashboard/AreaStatusChart";
 import { CostDistributionChart } from "@/components/dashboard/CostDistributionChart";
 import { FinancialEvolutionChart } from "@/components/dashboard/FinancialEvolutionChart";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -12,13 +14,28 @@ const formatCurrency = (value: number) => {
 };
 
 export default function Dashboard() {
-  // Mock data - será substituído por dados reais do banco
-  const stats = {
-    areasAtivas: 14.0,
-    capitalInvestido: 45000,
-    dividaTotal: 15000,
-    balancoGeral: 8500,
-  };
+  const { data: stats, isLoading } = useDashboardStats();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Visão Geral</h1>
+          <p className="text-muted-foreground">Resumo da gestão do Sítio Ramos</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-[350px] rounded-xl" />
+          <Skeleton className="h-[350px] rounded-xl" />
+        </div>
+        <Skeleton className="h-[350px] rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -36,43 +53,41 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Áreas Ativas"
-          value={`${stats.areasAtivas} ha`}
-          description="Total em produção"
+          value={`${stats?.totalHectares.toFixed(1) || 0} ha`}
+          description={`${stats?.areasAtivas || 0} área${(stats?.areasAtivas || 0) !== 1 ? "s" : ""} em operação`}
           icon={MapPin}
           variant="success"
         />
         <StatCard
           title="Capital Investido"
-          value={formatCurrency(stats.capitalInvestido)}
+          value={formatCurrency(stats?.capitalInvestido || 0)}
           description="Soma de todos os investimentos"
           icon={DollarSign}
-          trend={{ value: 12, isPositive: true }}
         />
         <StatCard
-          title="Dívida Total"
-          value={formatCurrency(stats.dividaTotal)}
-          description="Empréstimos pendentes"
+          title="Dívida Pendente"
+          value={formatCurrency(stats?.dividaTotal || 0)}
+          description="Parcelas não pagas"
           icon={Landmark}
-          variant="warning"
+          variant={stats?.dividaTotal && stats.dividaTotal > 0 ? "warning" : "default"}
         />
         <StatCard
           title="Balanço Geral"
-          value={formatCurrency(stats.balancoGeral)}
+          value={formatCurrency(stats?.balancoGeral || 0)}
           description="Receitas - Custos"
           icon={TrendingUp}
-          trend={{ value: 8, isPositive: true }}
-          variant="success"
+          variant={stats?.balancoGeral && stats.balancoGeral >= 0 ? "success" : "destructive"}
         />
       </div>
 
       {/* Charts Grid */}
       <div className="grid gap-4 md:grid-cols-2">
-        <AreaStatusChart />
-        <CostDistributionChart />
+        <AreaStatusChart data={stats?.areasByStatus || []} />
+        <CostDistributionChart data={stats?.costsByType || []} />
       </div>
 
       {/* Full width chart */}
-      <FinancialEvolutionChart />
+      <FinancialEvolutionChart data={stats?.monthlyData || []} />
     </div>
   );
 }

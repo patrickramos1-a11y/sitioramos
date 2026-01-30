@@ -1,37 +1,303 @@
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Landmark, Plus } from "lucide-react";
+import { Landmark, Plus, Calendar, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useLoans, Loan, LoanInsert } from "@/hooks/useLoans";
+import { useAreas } from "@/hooks/useAreas";
+import { useCycles } from "@/hooks/useCycles";
+import { LoanForm } from "@/components/loans/LoanForm";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { MoreVertical, Pencil, Trash2, Eye } from "lucide-react";
 
-const Emprestimos = () => {
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
+
+export default function Emprestimos() {
+  const { loans, isLoading, createLoan, updateLoan, deleteLoan, payInstallment } = useLoans();
+  const { areas } = useAreas();
+  const { cycles } = useCycles();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [loanToDelete, setLoanToDelete] = useState<Loan | null>(null);
+  const [viewingLoan, setViewingLoan] = useState<any | null>(null);
+
+  const totalDebt = loans.reduce((sum: number, loan: any) => {
+    const paidAmount = loan.installments
+      ?.filter((i: any) => i.status === "paga")
+      .reduce((s: number, i: any) => s + Number(i.valor), 0) || 0;
+    return sum + (Number(loan.valor_total) - paidAmount);
+  }, 0);
+
+  const handleCreate = () => {
+    setEditingLoan(null);
+    setFormOpen(true);
+  };
+
+  const handleEdit = (loan: Loan) => {
+    setEditingLoan(loan);
+    setFormOpen(true);
+  };
+
+  const handleDeleteClick = (loan: Loan) => {
+    setLoanToDelete(loan);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (loanToDelete) {
+      deleteLoan.mutate(loanToDelete.id);
+    }
+    setDeleteDialogOpen(false);
+    setLoanToDelete(null);
+  };
+
+  const handleSubmit = (data: LoanInsert) => {
+    if (editingLoan) {
+      updateLoan.mutate({ ...data, id: editingLoan.id });
+    } else {
+      createLoan.mutate(data);
+    }
+    setFormOpen(false);
+    setEditingLoan(null);
+  };
+
+  const handlePayInstallment = (installmentId: string) => {
+    payInstallment.mutate({
+      id: installmentId,
+      dataPagamento: new Date().toISOString().split('T')[0],
+    });
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Empréstimos</h1>
-            <p className="text-muted-foreground">Controle seus empréstimos e parcelas</p>
+            <p className="text-muted-foreground">
+              {loans.length} empréstimo{loans.length !== 1 ? "s" : ""} • Dívida pendente: {formatCurrency(totalDebt)}
+            </p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={handleCreate}>
             <Plus className="h-4 w-4" />
             Novo Empréstimo
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Landmark className="h-5 w-5" />
-              Seus Empréstimos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Nenhum empréstimo registrado ainda.</p>
-          </CardContent>
-        </Card>
+        {/* Content */}
+        {isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-48 rounded-xl" />
+            ))}
+          </div>
+        ) : loans.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="rounded-full bg-muted p-4 mb-4">
+                <Landmark className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium">Nenhum empréstimo encontrado</h3>
+              <p className="text-muted-foreground mb-4">
+                Registre seu primeiro empréstimo.
+              </p>
+              <Button onClick={handleCreate} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Empréstimo
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {loans.map((loan: any) => {
+              const paidCount = loan.installments?.filter((i: any) => i.status === "paga").length || 0;
+              const totalCount = loan.installments?.length || 0;
+              const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+              const isQuitado = loan.status === "quitado" || progress === 100;
+              
+              return (
+                <Card key={loan.id} className="transition-all hover:shadow-md">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`rounded-lg p-2 ${isQuitado ? "bg-success/10" : "bg-warning/10"}`}>
+                          <Landmark className={`h-4 w-4 ${isQuitado ? "text-success" : "text-warning"}`} />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{loan.origem_credor}</CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            {formatCurrency(Number(loan.valor_total))}
+                          </p>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setViewingLoan(loan)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver Parcelas
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(loan)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteClick(loan)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={isQuitado ? "default" : "secondary"}>
+                        {isQuitado ? "Quitado" : "Ativo"}
+                      </Badge>
+                      {loan.juros_percentual > 0 && (
+                        <Badge variant="outline">{loan.juros_percentual}% juros</Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>
+                        {format(new Date(loan.data), "dd/MM/yyyy", { locale: ptBR })}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Parcelas pagas</span>
+                        <span className="font-medium">{paidCount} de {totalCount}</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                    </div>
+
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Valor parcela: </span>
+                      <span className="font-medium">{formatCurrency(Number(loan.valor_parcela))}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Form Dialog */}
+      <LoanForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        loan={editingLoan}
+        areas={areas}
+        cycles={cycles as any}
+        onSubmit={handleSubmit}
+        isSubmitting={createLoan.isPending || updateLoan.isPending}
+      />
+
+      {/* View Installments Dialog */}
+      <Dialog open={!!viewingLoan} onOpenChange={() => setViewingLoan(null)}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Parcelas - {viewingLoan?.origem_credor}</DialogTitle>
+          </DialogHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nº</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-10"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {viewingLoan?.installments
+                ?.sort((a: any, b: any) => a.numero_parcela - b.numero_parcela)
+                .map((installment: any) => (
+                <TableRow key={installment.id}>
+                  <TableCell>{installment.numero_parcela}</TableCell>
+                  <TableCell>
+                    {format(new Date(installment.data_vencimento), "dd/MM/yyyy", { locale: ptBR })}
+                  </TableCell>
+                  <TableCell>{formatCurrency(Number(installment.valor))}</TableCell>
+                  <TableCell>
+                    <Badge variant={
+                      installment.status === "paga" ? "default" : 
+                      installment.status === "atrasada" ? "destructive" : "secondary"
+                    }>
+                      {installment.status === "paga" ? "Paga" : 
+                       installment.status === "atrasada" ? "Atrasada" : "Pendente"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {installment.status !== "paga" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handlePayInstallment(installment.id)}
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingLoan(null)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir empréstimo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O empréstimo e todas as parcelas serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
-};
-
-export default Emprestimos;
+}
