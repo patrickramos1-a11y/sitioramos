@@ -26,13 +26,13 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/areas" element={<ProtectedRoute><Areas /></ProtectedRoute>} />
-            <Route path="/ciclos" element={<ProtectedRoute><Ciclos /></ProtectedRoute>} />
-            <Route path="/custos" element={<ProtectedRoute><Custos /></ProtectedRoute>} />
-            <Route path="/investimentos" element={<ProtectedRoute><Investimentos /></ProtectedRoute>} />
-            <Route path="/receitas" element={<ProtectedRoute><Receitas /></ProtectedRoute>} />
-            <Route path="/emprestimos" element={<ProtectedRoute><Emprestimos /></ProtectedRoute>} />
+            <Route path="/" element={<Index />} />
+            <Route path="/areas" element={<Areas />} />
+            <Route path="/ciclos" element={<Ciclos />} />
+            <Route path="/custos" element={<Custos />} />
+            <Route path="/investimentos" element={<Investimentos />} />
+            <Route path="/receitas" element={<Receitas />} />
+            <Route path="/emprestimos" element={<Emprestimos />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
