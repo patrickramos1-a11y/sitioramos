@@ -57,12 +57,14 @@ export default function Dashboard() {
           description={`${stats?.areasAtivas || 0} área${(stats?.areasAtivas || 0) !== 1 ? "s" : ""} em operação`}
           icon={MapPin}
           variant="success"
+          href="/areas"
         />
         <StatCard
           title="Capital Investido"
           value={formatCurrency(stats?.capitalInvestido || 0)}
           description="Soma de todos os investimentos"
           icon={DollarSign}
+          href="/investimentos"
         />
         <StatCard
           title="Dívida Pendente"
@@ -70,6 +72,7 @@ export default function Dashboard() {
           description="Parcelas não pagas"
           icon={Landmark}
           variant={stats?.dividaTotal && stats.dividaTotal > 0 ? "warning" : "default"}
+          href="/emprestimos"
         />
         <StatCard
           title="Balanço Geral"
@@ -77,6 +80,7 @@ export default function Dashboard() {
           description="Receitas - Custos"
           icon={TrendingUp}
           variant={stats?.balancoGeral && stats.balancoGeral >= 0 ? "success" : "destructive"}
+          href="/receitas"
         />
       </div>
 
