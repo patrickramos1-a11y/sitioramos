@@ -13,6 +13,8 @@ import { Investment, InvestmentInsert } from "@/hooks/useInvestments";
 import { Area } from "@/hooks/useAreas";
 import { Loader2 } from "lucide-react";
 
+const EMPTY_SELECT_VALUE = "__none__";
+
 const investmentSchema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
   tipo: z.enum(["legalizacao", "escritura", "contratos", "projetos", "infraestrutura", "outros"]),
@@ -51,7 +53,7 @@ export function InvestmentForm({ open, onOpenChange, investment, areas, onSubmit
       tipo: "outros",
       descricao: "",
       valor: 0,
-      area_id: "",
+      area_id: EMPTY_SELECT_VALUE,
       rateado: false,
       observacoes: "",
     },
@@ -64,7 +66,7 @@ export function InvestmentForm({ open, onOpenChange, investment, areas, onSubmit
         tipo: investment.tipo,
         descricao: investment.descricao,
         valor: Number(investment.valor),
-        area_id: investment.area_id || "",
+        area_id: investment.area_id || EMPTY_SELECT_VALUE,
         rateado: investment.rateado,
         observacoes: investment.observacoes || "",
       });
@@ -74,7 +76,7 @@ export function InvestmentForm({ open, onOpenChange, investment, areas, onSubmit
         tipo: "outros",
         descricao: "",
         valor: 0,
-        area_id: "",
+        area_id: EMPTY_SELECT_VALUE,
         rateado: false,
         observacoes: "",
       });
@@ -87,7 +89,7 @@ export function InvestmentForm({ open, onOpenChange, investment, areas, onSubmit
       tipo: data.tipo,
       descricao: data.descricao,
       valor: data.valor,
-      area_id: data.area_id || null,
+      area_id: data.area_id && data.area_id !== EMPTY_SELECT_VALUE ? data.area_id : null,
       rateado: data.rateado,
       observacoes: data.observacoes || null,
     });
@@ -177,14 +179,17 @@ export function InvestmentForm({ open, onOpenChange, investment, areas, onSubmit
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Área (Opcional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || EMPTY_SELECT_VALUE}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Geral" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Geral (todas)</SelectItem>
+                        <SelectItem value={EMPTY_SELECT_VALUE}>Geral (todas)</SelectItem>
                         {areas.map((area) => (
                           <SelectItem key={area.id} value={area.id}>
                             {area.nome}
