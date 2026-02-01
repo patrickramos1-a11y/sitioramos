@@ -50,6 +50,113 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_transactions: {
+        Row: {
+          area_id: string | null
+          categoria: string
+          cost_id: string | null
+          created_at: string
+          cycle_id: string | null
+          data: string
+          descricao: string | null
+          id: string
+          installment_id: string | null
+          investment_id: string | null
+          loan_id: string | null
+          observacoes: string | null
+          revenue_id: string | null
+          tipo: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          area_id?: string | null
+          categoria: string
+          cost_id?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          data: string
+          descricao?: string | null
+          id?: string
+          installment_id?: string | null
+          investment_id?: string | null
+          loan_id?: string | null
+          observacoes?: string | null
+          revenue_id?: string | null
+          tipo: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          area_id?: string | null
+          categoria?: string
+          cost_id?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          data?: string
+          descricao?: string | null
+          id?: string
+          installment_id?: string | null
+          investment_id?: string | null
+          loan_id?: string | null
+          observacoes?: string | null
+          revenue_id?: string | null
+          tipo?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_transactions_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_cost_id_fkey"
+            columns: ["cost_id"]
+            isOneToOne: false
+            referencedRelation: "costs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_investment_id_fkey"
+            columns: ["investment_id"]
+            isOneToOne: false
+            referencedRelation: "investments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_revenue_id_fkey"
+            columns: ["revenue_id"]
+            isOneToOne: false
+            referencedRelation: "revenues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       costs: {
         Row: {
           area_id: string
@@ -166,6 +273,8 @@ export type Database = {
           status: Database["public"]["Enums"]["installment_status"]
           updated_at: string
           valor: number
+          valor_juros: number | null
+          valor_principal: number | null
         }
         Insert: {
           created_at?: string
@@ -178,6 +287,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["installment_status"]
           updated_at?: string
           valor: number
+          valor_juros?: number | null
+          valor_principal?: number | null
         }
         Update: {
           created_at?: string
@@ -190,6 +301,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["installment_status"]
           updated_at?: string
           valor?: number
+          valor_juros?: number | null
+          valor_principal?: number | null
         }
         Relationships: [
           {
@@ -252,6 +365,7 @@ export type Database = {
         Row: {
           area_id: string | null
           created_at: string
+          creditado_caixa: boolean | null
           cycle_id: string | null
           data: string
           id: string
@@ -261,12 +375,15 @@ export type Database = {
           origem_credor: string
           status: Database["public"]["Enums"]["loan_status"]
           updated_at: string
+          valor_juros_total: number | null
           valor_parcela: number
+          valor_principal: number | null
           valor_total: number
         }
         Insert: {
           area_id?: string | null
           created_at?: string
+          creditado_caixa?: boolean | null
           cycle_id?: string | null
           data: string
           id?: string
@@ -276,12 +393,15 @@ export type Database = {
           origem_credor: string
           status?: Database["public"]["Enums"]["loan_status"]
           updated_at?: string
+          valor_juros_total?: number | null
           valor_parcela: number
+          valor_principal?: number | null
           valor_total: number
         }
         Update: {
           area_id?: string | null
           created_at?: string
+          creditado_caixa?: boolean | null
           cycle_id?: string | null
           data?: string
           id?: string
@@ -291,7 +411,9 @@ export type Database = {
           origem_credor?: string
           status?: Database["public"]["Enums"]["loan_status"]
           updated_at?: string
+          valor_juros_total?: number | null
           valor_parcela?: number
+          valor_principal?: number | null
           valor_total?: number
         }
         Relationships: [
@@ -376,7 +498,14 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      cash_balance: {
+        Row: {
+          saldo_atual: number | null
+          total_entradas: number | null
+          total_saidas: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
@@ -397,6 +526,8 @@ export type Database = {
         | "combustivel"
         | "trator"
         | "outros"
+        | "juros_bancarios"
+        | "tarifas_bancarias"
       cycle_status: "planejamento" | "ativo" | "finalizado"
       installment_status: "pendente" | "paga" | "atrasada"
       investment_type:
@@ -552,6 +683,8 @@ export const Constants = {
         "combustivel",
         "trator",
         "outros",
+        "juros_bancarios",
+        "tarifas_bancarias",
       ],
       cycle_status: ["planejamento", "ativo", "finalizado"],
       installment_status: ["pendente", "paga", "atrasada"],
