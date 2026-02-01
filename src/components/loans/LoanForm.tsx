@@ -13,6 +13,8 @@ import { Area } from "@/hooks/useAreas";
 import { Cycle } from "@/hooks/useCycles";
 import { Loader2 } from "lucide-react";
 
+const EMPTY_SELECT_VALUE = "__none__";
+
 const loanSchema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
   origem_credor: z.string().min(1, "Credor é obrigatório").max(100, "Credor muito longo"),
@@ -45,14 +47,17 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       valor_total: 0,
       juros_percentual: 0,
       numero_parcelas: 1,
-      area_id: "",
-      cycle_id: "",
+      area_id: EMPTY_SELECT_VALUE,
+      cycle_id: EMPTY_SELECT_VALUE,
       observacoes: "",
     },
   });
 
   const selectedAreaId = form.watch("area_id");
-  const filteredCycles = cycles.filter(c => c.area_id === selectedAreaId);
+  const filteredCycles =
+    selectedAreaId && selectedAreaId !== EMPTY_SELECT_VALUE
+      ? cycles.filter((c) => c.area_id === selectedAreaId)
+      : [];
   
   const valorTotal = form.watch("valor_total");
   const numeroParcelas = form.watch("numero_parcelas");
@@ -66,8 +71,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         valor_total: Number(loan.valor_total),
         juros_percentual: Number(loan.juros_percentual) || 0,
         numero_parcelas: loan.numero_parcelas,
-        area_id: loan.area_id || "",
-        cycle_id: loan.cycle_id || "",
+        area_id: loan.area_id || EMPTY_SELECT_VALUE,
+        cycle_id: loan.cycle_id || EMPTY_SELECT_VALUE,
         observacoes: loan.observacoes || "",
       });
     } else {
@@ -77,12 +82,19 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         valor_total: 0,
         juros_percentual: 0,
         numero_parcelas: 1,
-        area_id: "",
-        cycle_id: "",
+        area_id: EMPTY_SELECT_VALUE,
+        cycle_id: EMPTY_SELECT_VALUE,
         observacoes: "",
       });
     }
   }, [loan, form]);
+
+  useEffect(() => {
+    // Se voltar para "Geral", limpar ciclo.
+    if (selectedAreaId === EMPTY_SELECT_VALUE) {
+      form.setValue("cycle_id", EMPTY_SELECT_VALUE, { shouldDirty: true });
+    }
+  }, [form, selectedAreaId]);
 
   const handleSubmit = (data: LoanFormData) => {
     onSubmit({
@@ -92,8 +104,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       valor_parcela: valorParcela,
       juros_percentual: data.juros_percentual || 0,
       numero_parcelas: data.numero_parcelas,
-      area_id: data.area_id || null,
-      cycle_id: data.cycle_id || null,
+      area_id: data.area_id && data.area_id !== EMPTY_SELECT_VALUE ? data.area_id : null,
+      cycle_id: data.cycle_id && data.cycle_id !== EMPTY_SELECT_VALUE ? data.cycle_id : null,
       observacoes: data.observacoes || null,
     });
   };
@@ -199,14 +211,17 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Área (Opcional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || EMPTY_SELECT_VALUE}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Geral" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Geral</SelectItem>
+                        <SelectItem value={EMPTY_SELECT_VALUE}>Geral</SelectItem>
                         {areas.map((area) => (
                           <SelectItem key={area.id} value={area.id}>
                             {area.nome}
@@ -225,13 +240,17 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Ciclo (Opcional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || EMPTY_SELECT_VALUE}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Nenhum" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value={EMPTY_SELECT_VALUE}>Nenhum</SelectItem>
                         {filteredCycles.map((cycle) => (
                           <SelectItem key={cycle.id} value={cycle.id}>
                             {cycle.cultura}
