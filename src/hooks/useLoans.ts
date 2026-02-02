@@ -29,22 +29,27 @@ export function useLoans() {
   });
 
   const createLoan = useMutation({
-    mutationFn: async (newLoan: LoanInsert) => {
+    mutationFn: async (newLoan: LoanInsert & { creditarCaixa?: boolean }) => {
+      const { creditarCaixa, ...loanData } = newLoan;
+      
       const { data, error } = await supabase
         .from("loans")
-        .insert(newLoan)
+        .insert({
+          ...loanData,
+          creditado_caixa: creditarCaixa || false,
+        })
         .select()
         .single();
       
       if (error) throw error;
       
       // Create installments
-      if (data && newLoan.numero_parcelas > 0) {
+      if (data && loanData.numero_parcelas > 0) {
         const installments: InstallmentInsert[] = [];
-        const valorParcela = Number(newLoan.valor_parcela);
-        const dataInicio = new Date(newLoan.data);
+        const valorParcela = Number(loanData.valor_parcela);
+        const dataInicio = new Date(loanData.data);
         
-        for (let i = 1; i <= newLoan.numero_parcelas; i++) {
+        for (let i = 1; i <= loanData.numero_parcelas; i++) {
           const dataVencimento = new Date(dataInicio);
           dataVencimento.setMonth(dataVencimento.getMonth() + i);
           
@@ -63,11 +68,30 @@ export function useLoans() {
         
         if (installmentError) throw installmentError;
       }
+
+      // If creditarCaixa is true, create a cash transaction for the loan entry
+      if (creditarCaixa && data) {
+        const { error: cashError } = await supabase
+          .from("cash_transactions")
+          .insert({
+            data: loanData.data,
+            tipo: "entrada",
+            categoria: "emprestimo_entrada",
+            valor: Number(loanData.valor_total),
+            descricao: `Recebimento de empréstimo: ${loanData.origem_credor}`,
+            loan_id: data.id,
+          });
+        
+        if (cashError) throw cashError;
+      }
       
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loans"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Empréstimo registrado",
         description: "O empréstimo foi cadastrado com sucesso.",
@@ -112,7 +136,15 @@ export function useLoans() {
 
   const deleteLoan = useMutation({
     mutationFn: async (id: string) => {
-      // First delete all installments
+      // First delete all cash transactions related to this loan
+      const { error: cashError } = await supabase
+        .from("cash_transactions")
+        .delete()
+        .eq("loan_id", id);
+      
+      if (cashError) throw cashError;
+
+      // Then delete all installments
       const { error: installmentError } = await supabase
         .from("installments")
         .delete()
@@ -129,6 +161,9 @@ export function useLoans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loans"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Empréstimo excluído",
         description: "O empréstimo foi removido com sucesso.",
@@ -144,7 +179,16 @@ export function useLoans() {
   });
 
   const payInstallment = useMutation({
-    mutationFn: async ({ id, dataPagamento }: { id: string; dataPagamento: string }) => {
+    mutationFn: async ({ id, dataPagamento, registrarCaixa = true }: { id: string; dataPagamento: string; registrarCaixa?: boolean }) => {
+      // Get installment details first
+      const { data: installment, error: fetchError } = await supabase
+        .from("installments")
+        .select("*, loans(origem_credor)")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+
       const { data, error } = await supabase
         .from("installments")
         .update({
@@ -156,18 +200,107 @@ export function useLoans() {
         .single();
       
       if (error) throw error;
+
+      // Create cash transaction for the installment payment
+      if (registrarCaixa && installment) {
+        const loanName = (installment.loans as any)?.origem_credor || "Empréstimo";
+        const { error: cashError } = await supabase
+          .from("cash_transactions")
+          .insert({
+            data: dataPagamento,
+            tipo: "saida",
+            categoria: "parcela_emprestimo",
+            valor: Number(installment.valor),
+            descricao: `Parcela ${installment.numero_parcela} - ${loanName}`,
+            loan_id: installment.loan_id,
+            installment_id: id,
+          });
+        
+        if (cashError) throw cashError;
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loans"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Parcela paga",
-        description: "A parcela foi marcada como paga.",
+        description: "A parcela foi marcada como paga e registrada no caixa.",
       });
     },
     onError: (error) => {
       toast({
         title: "Erro ao pagar parcela",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const quitarEmprestimo = useMutation({
+    mutationFn: async ({ loanId, valorQuitacao, dataPagamento }: { loanId: string; valorQuitacao: number; dataPagamento: string }) => {
+      // Get loan details
+      const { data: loan, error: fetchError } = await supabase
+        .from("loans")
+        .select("*, installments(*)")
+        .eq("id", loanId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+
+      // Update all pending installments to paid
+      const pendingInstallments = (loan.installments || []).filter((i: any) => i.status !== "paga");
+      
+      for (const installment of pendingInstallments) {
+        await supabase
+          .from("installments")
+          .update({
+            status: "paga",
+            data_pagamento: dataPagamento,
+          })
+          .eq("id", installment.id);
+      }
+
+      // Update loan status
+      const { error: updateError } = await supabase
+        .from("loans")
+        .update({ status: "quitado" })
+        .eq("id", loanId);
+      
+      if (updateError) throw updateError;
+
+      // Create cash transaction for the early payoff
+      const { error: cashError } = await supabase
+        .from("cash_transactions")
+        .insert({
+          data: dataPagamento,
+          tipo: "saida",
+          categoria: "quitacao_emprestimo",
+          valor: valorQuitacao,
+          descricao: `Quitação antecipada: ${loan.origem_credor}`,
+          loan_id: loanId,
+        });
+      
+      if (cashError) throw cashError;
+
+      return loan;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["loans"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast({
+        title: "Empréstimo quitado",
+        description: "O empréstimo foi quitado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao quitar empréstimo",
         description: error.message,
         variant: "destructive",
       });
@@ -182,5 +315,6 @@ export function useLoans() {
     updateLoan,
     deleteLoan,
     payInstallment,
+    quitarEmprestimo,
   };
 }

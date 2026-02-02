@@ -1,22 +1,25 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Landmark, Plus, Calendar, CheckCircle2 } from "lucide-react";
+import { Landmark, Plus, Calendar, CheckCircle2, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useLoans, Loan, LoanInsert } from "@/hooks/useLoans";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
 import { LoanForm } from "@/components/loans/LoanForm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MoreVertical, Pencil, Trash2, Eye } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Eye, CreditCard } from "lucide-react";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -26,7 +29,7 @@ const formatCurrency = (value: number) => {
 };
 
 export default function Emprestimos() {
-  const { loans, isLoading, createLoan, updateLoan, deleteLoan, payInstallment } = useLoans();
+  const { loans, isLoading, createLoan, updateLoan, deleteLoan, payInstallment, quitarEmprestimo } = useLoans();
   const { areas } = useAreas();
   const { cycles } = useCycles();
   const [formOpen, setFormOpen] = useState(false);
@@ -34,6 +37,11 @@ export default function Emprestimos() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loanToDelete, setLoanToDelete] = useState<Loan | null>(null);
   const [viewingLoan, setViewingLoan] = useState<any | null>(null);
+  const [quitacaoDialogOpen, setQuitacaoDialogOpen] = useState(false);
+  const [loanToQuitar, setLoanToQuitar] = useState<any | null>(null);
+  const [valorQuitacao, setValorQuitacao] = useState("");
+  const [dataQuitacao, setDataQuitacao] = useState(new Date().toISOString().split("T")[0]);
+  const [creditarCaixa, setCreditarCaixa] = useState(true);
 
   const totalDebt = loans.reduce((sum: number, loan: any) => {
     const paidAmount = loan.installments
@@ -69,10 +77,11 @@ export default function Emprestimos() {
     if (editingLoan) {
       updateLoan.mutate({ ...data, id: editingLoan.id });
     } else {
-      createLoan.mutate(data);
+      createLoan.mutate({ ...data, creditarCaixa });
     }
     setFormOpen(false);
     setEditingLoan(null);
+    setCreditarCaixa(true);
   };
 
   const handlePayInstallment = (installmentId: string) => {
@@ -80,6 +89,31 @@ export default function Emprestimos() {
       id: installmentId,
       dataPagamento: new Date().toISOString().split('T')[0],
     });
+  };
+
+  const handleQuitarClick = (loan: any) => {
+    const paidAmount = loan.installments
+      ?.filter((i: any) => i.status === "paga")
+      .reduce((s: number, i: any) => s + Number(i.valor), 0) || 0;
+    const pendingAmount = Number(loan.valor_total) - paidAmount;
+    
+    setLoanToQuitar(loan);
+    setValorQuitacao(pendingAmount.toString());
+    setDataQuitacao(new Date().toISOString().split("T")[0]);
+    setQuitacaoDialogOpen(true);
+  };
+
+  const handleConfirmQuitacao = () => {
+    if (loanToQuitar && valorQuitacao) {
+      quitarEmprestimo.mutate({
+        loanId: loanToQuitar.id,
+        valorQuitacao: Number(valorQuitacao),
+        dataPagamento: dataQuitacao,
+      });
+    }
+    setQuitacaoDialogOpen(false);
+    setLoanToQuitar(null);
+    setValorQuitacao("");
   };
 
   return (
@@ -129,6 +163,10 @@ export default function Emprestimos() {
               const totalCount = loan.installments?.length || 0;
               const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
               const isQuitado = loan.status === "quitado" || progress === 100;
+              const paidAmount = loan.installments
+                ?.filter((i: any) => i.status === "paga")
+                .reduce((s: number, i: any) => s + Number(i.valor), 0) || 0;
+              const pendingAmount = Number(loan.valor_total) - paidAmount;
               
               return (
                 <Card key={loan.id} className="transition-all hover:shadow-md">
@@ -156,6 +194,13 @@ export default function Emprestimos() {
                             <Eye className="mr-2 h-4 w-4" />
                             Ver Parcelas
                           </DropdownMenuItem>
+                          {!isQuitado && (
+                            <DropdownMenuItem onClick={() => handleQuitarClick(loan)}>
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              Quitar Empréstimo
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleEdit(loan)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
@@ -179,6 +224,12 @@ export default function Emprestimos() {
                       {loan.juros_percentual > 0 && (
                         <Badge variant="outline">{loan.juros_percentual}% juros</Badge>
                       )}
+                      {loan.creditado_caixa && (
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                          <Banknote className="h-3 w-3 mr-1" />
+                          No caixa
+                        </Badge>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -196,9 +247,15 @@ export default function Emprestimos() {
                       <Progress value={progress} className="h-2" />
                     </div>
 
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Valor parcela: </span>
-                      <span className="font-medium">{formatCurrency(Number(loan.valor_parcela))}</span>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Valor parcela: </span>
+                        <span className="font-medium">{formatCurrency(Number(loan.valor_parcela))}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Pendente: </span>
+                        <span className="font-medium text-warning">{formatCurrency(pendingAmount)}</span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -261,6 +318,7 @@ export default function Emprestimos() {
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => handlePayInstallment(installment.id)}
+                        title="Marcar como paga (sai do caixa)"
                       >
                         <CheckCircle2 className="h-4 w-4 text-success" />
                       </Button>
@@ -273,6 +331,52 @@ export default function Emprestimos() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewingLoan(null)}>
               Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quitação Dialog */}
+      <Dialog open={quitacaoDialogOpen} onOpenChange={setQuitacaoDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Quitar Empréstimo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Empréstimo: <strong>{loanToQuitar?.origem_credor}</strong>
+            </p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="valorQuitacao">Valor da Quitação (R$)</Label>
+              <Input
+                id="valorQuitacao"
+                type="number"
+                step="0.01"
+                value={valorQuitacao}
+                onChange={(e) => setValorQuitacao(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Informe o valor negociado para quitação antecipada
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dataQuitacao">Data do Pagamento</Label>
+              <Input
+                id="dataQuitacao"
+                type="date"
+                value={dataQuitacao}
+                onChange={(e) => setDataQuitacao(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuitacaoDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmQuitacao} disabled={!valorQuitacao || quitarEmprestimo.isPending}>
+              Confirmar Quitação
             </Button>
           </DialogFooter>
         </DialogContent>

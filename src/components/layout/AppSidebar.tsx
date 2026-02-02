@@ -6,7 +6,9 @@ import {
   FileText, 
   TrendingUp, 
   Landmark,
-  Sprout
+  Sprout,
+  Wallet,
+  BarChart3
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -26,6 +28,11 @@ const navigationItems = [
     title: "Visão Geral",
     url: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Fluxo de Caixa",
+    url: "/caixa",
+    icon: Wallet,
   },
   {
     title: "Áreas",
@@ -56,6 +63,11 @@ const navigationItems = [
     title: "Empréstimos",
     url: "/emprestimos",
     icon: Landmark,
+  },
+  {
+    title: "Relatórios",
+    url: "/relatorios",
+    icon: BarChart3,
   },
 ];
 

@@ -1,4 +1,4 @@
-import { MapPin, DollarSign, Landmark, TrendingUp } from "lucide-react";
+import { MapPin, DollarSign, Landmark, TrendingUp, Wallet } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AreaStatusChart } from "@/components/dashboard/AreaStatusChart";
 import { CostDistributionChart } from "@/components/dashboard/CostDistributionChart";
@@ -23,8 +23,8 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Visão Geral</h1>
           <p className="text-muted-foreground">Resumo da gestão do Sítio Ramos</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
@@ -36,6 +36,8 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const saldoCaixa = stats?.saldoCaixa || 0;
 
   return (
     <div className="space-y-6">
@@ -50,7 +52,15 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <StatCard
+          title="Saldo em Caixa"
+          value={formatCurrency(saldoCaixa)}
+          description="Disponível em conta"
+          icon={Wallet}
+          variant={saldoCaixa >= 0 ? "success" : "destructive"}
+          href="/caixa"
+        />
         <StatCard
           title="Áreas Ativas"
           value={`${stats?.totalHectares.toFixed(1) || 0} ha`}

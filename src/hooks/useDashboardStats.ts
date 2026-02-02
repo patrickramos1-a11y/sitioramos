@@ -9,6 +9,7 @@ interface DashboardStats {
   totalReceitas: number;
   dividaTotal: number;
   balancoGeral: number;
+  saldoCaixa: number;
   areasByStatus: { status: string; hectares: number }[];
   costsByType: { name: string; value: number }[];
   monthlyData: { month: string; receitas: number; custos: number; investimentos: number }[];
@@ -30,6 +31,8 @@ const costTypeLabels: Record<string, string> = {
   mao_obra: "Mão de obra",
   combustivel: "Combustível",
   trator: "Trator",
+  juros_bancarios: "Juros Bancários",
+  tarifas_bancarias: "Tarifas Bancárias",
   outros: "Outros",
 };
 
@@ -38,13 +41,14 @@ export function useDashboardStats() {
     queryKey: ["dashboard-stats"],
     queryFn: async (): Promise<DashboardStats> => {
       // Fetch all data in parallel
-      const [areasRes, costsRes, revenuesRes, investmentsRes, loansRes, installmentsRes] = await Promise.all([
+      const [areasRes, costsRes, revenuesRes, investmentsRes, loansRes, installmentsRes, cashBalanceRes] = await Promise.all([
         supabase.from("areas").select("*"),
         supabase.from("costs").select("*"),
         supabase.from("revenues").select("*"),
         supabase.from("investments").select("*"),
         supabase.from("loans").select("*"),
         supabase.from("installments").select("*"),
+        supabase.from("cash_balance").select("*").maybeSingle(),
       ]);
 
       const areas = areasRes.data || [];
@@ -53,6 +57,7 @@ export function useDashboardStats() {
       const investments = investmentsRes.data || [];
       const loans = loansRes.data || [];
       const installments = installmentsRes.data || [];
+      const cashBalance = cashBalanceRes.data;
 
       // Calculate totals
       const totalHectares = areas.reduce((sum, a) => sum + Number(a.tamanho_hectares), 0);
@@ -69,6 +74,7 @@ export function useDashboardStats() {
       const dividaTotal = totalLoans - paidAmount;
       
       const balancoGeral = totalReceitas - totalCustos;
+      const saldoCaixa = cashBalance?.saldo_atual || 0;
 
       // Group areas by status
       const areasByStatus = Object.entries(
@@ -129,6 +135,7 @@ export function useDashboardStats() {
         totalReceitas,
         dividaTotal,
         balancoGeral,
+        saldoCaixa,
         areasByStatus,
         costsByType,
         monthlyData,
