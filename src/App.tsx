@@ -13,6 +13,8 @@ import Custos from "./pages/Custos";
 import Investimentos from "./pages/Investimentos";
 import Receitas from "./pages/Receitas";
 import Emprestimos from "./pages/Emprestimos";
+import Caixa from "./pages/Caixa";
+import Relatorios from "./pages/Relatorios";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,12 +29,14 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
+            <Route path="/caixa" element={<Caixa />} />
             <Route path="/areas" element={<Areas />} />
             <Route path="/ciclos" element={<Ciclos />} />
             <Route path="/custos" element={<Custos />} />
             <Route path="/investimentos" element={<Investimentos />} />
             <Route path="/receitas" element={<Receitas />} />
             <Route path="/emprestimos" element={<Emprestimos />} />
+            <Route path="/relatorios" element={<Relatorios />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

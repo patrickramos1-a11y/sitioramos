@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loan, LoanInsert } from "@/hooks/useLoans";
 import { Area } from "@/hooks/useAreas";
 import { Cycle } from "@/hooks/useCycles";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 
 const EMPTY_SELECT_VALUE = "__none__";
 
@@ -24,6 +25,7 @@ const loanSchema = z.object({
   area_id: z.string().optional().nullable(),
   cycle_id: z.string().optional().nullable(),
   observacoes: z.string().max(500).optional().nullable(),
+  creditarCaixa: z.boolean().optional(),
 });
 
 type LoanFormData = z.infer<typeof loanSchema>;
@@ -34,11 +36,13 @@ interface LoanFormProps {
   loan?: Loan | null;
   areas: Area[];
   cycles: Cycle[];
-  onSubmit: (data: LoanInsert) => void;
+  onSubmit: (data: LoanInsert & { creditarCaixa?: boolean }) => void;
   isSubmitting?: boolean;
 }
 
 export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, isSubmitting }: LoanFormProps) {
+  const [creditarCaixa, setCreditarCaixa] = useState(true);
+
   const form = useForm<LoanFormData>({
     resolver: zodResolver(loanSchema),
     defaultValues: {
@@ -50,6 +54,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       area_id: EMPTY_SELECT_VALUE,
       cycle_id: EMPTY_SELECT_VALUE,
       observacoes: "",
+      creditarCaixa: true,
     },
   });
 
@@ -75,6 +80,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         cycle_id: loan.cycle_id || EMPTY_SELECT_VALUE,
         observacoes: loan.observacoes || "",
       });
+      setCreditarCaixa(false); // Don't show for editing
     } else {
       form.reset({
         data: new Date().toISOString().split('T')[0],
@@ -86,6 +92,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         cycle_id: EMPTY_SELECT_VALUE,
         observacoes: "",
       });
+      setCreditarCaixa(true);
     }
   }, [loan, form]);
 
@@ -107,6 +114,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       area_id: data.area_id && data.area_id !== EMPTY_SELECT_VALUE ? data.area_id : null,
       cycle_id: data.cycle_id && data.cycle_id !== EMPTY_SELECT_VALUE ? data.cycle_id : null,
       observacoes: data.observacoes || null,
+      creditarCaixa: !loan ? creditarCaixa : undefined,
     });
   };
 
@@ -203,6 +211,25 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
               <p className="text-sm text-muted-foreground">Valor por Parcela</p>
               <p className="text-xl font-bold text-primary">{formatCurrency(valorParcela)}</p>
             </div>
+
+            {!loan && (
+              <div className="flex items-center space-x-2 rounded-lg border p-3 bg-success/5 border-success/20">
+                <Checkbox
+                  id="creditarCaixa"
+                  checked={creditarCaixa}
+                  onCheckedChange={(checked) => setCreditarCaixa(checked as boolean)}
+                />
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-success" />
+                  <label
+                    htmlFor="creditarCaixa"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Creditar valor no caixa (entrada de dinheiro)
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
