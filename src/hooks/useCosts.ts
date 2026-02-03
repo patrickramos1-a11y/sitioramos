@@ -10,7 +10,7 @@ export type CostUpdate = TablesUpdate<"costs">;
 interface CostFilters {
   areaId?: string;
   cycleId?: string;
-  tipo?: "preparo_solo" | "mudas" | "adubacao" | "herbicida" | "mao_obra" | "combustivel" | "trator" | "outros";
+  tipo?: "preparo_solo" | "mudas" | "adubacao" | "herbicida" | "mao_obra" | "combustivel" | "trator" | "outros" | "juros_bancarios" | "tarifas_bancarias";
   startDate?: string;
   endDate?: string;
 }
@@ -51,20 +51,47 @@ export function useCosts(filters?: CostFilters) {
 
   const createCost = useMutation({
     mutationFn: async (newCost: CostInsert) => {
-      const { data, error } = await supabase
+      // 1. Create the cost record
+      const { data: costData, error: costError } = await supabase
         .from("costs")
         .insert(newCost)
         .select()
         .single();
       
-      if (error) throw error;
-      return data;
+      if (costError) throw costError;
+
+      // 2. If paid with cash (dinheiro), create a cash transaction (exit)
+      if (newCost.forma_pagamento === "dinheiro") {
+        const { error: txError } = await supabase
+          .from("cash_transactions")
+          .insert({
+            data: newCost.data,
+            tipo: "saida",
+            categoria: "custo_operacional",
+            valor: newCost.valor,
+            descricao: newCost.descricao || `Custo: ${newCost.tipo}`,
+            cost_id: costData.id,
+            area_id: newCost.area_id,
+            cycle_id: newCost.cycle_id || null,
+          });
+        
+        if (txError) {
+          // Rollback the cost if transaction fails
+          await supabase.from("costs").delete().eq("id", costData.id);
+          throw txError;
+        }
+      }
+
+      return costData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["costs"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Custo registrado",
-        description: "O custo foi cadastrado com sucesso.",
+        description: "O custo foi cadastrado e o caixa atualizado.",
       });
     },
     onError: (error) => {
@@ -78,6 +105,13 @@ export function useCosts(filters?: CostFilters) {
 
   const updateCost = useMutation({
     mutationFn: async ({ id, ...updates }: CostUpdate & { id: string }) => {
+      // Get the old cost to check if we need to update cash transaction
+      const { data: oldCost } = await supabase
+        .from("costs")
+        .select("*")
+        .eq("id", id)
+        .single();
+
       const { data, error } = await supabase
         .from("costs")
         .update(updates)
@@ -86,10 +120,34 @@ export function useCosts(filters?: CostFilters) {
         .single();
       
       if (error) throw error;
+
+      // Update the related cash transaction if exists
+      if (oldCost?.forma_pagamento === "dinheiro" || updates.forma_pagamento === "dinheiro") {
+        // Delete existing transaction
+        await supabase.from("cash_transactions").delete().eq("cost_id", id);
+
+        // Create new one if still dinheiro
+        if (updates.forma_pagamento === "dinheiro" || (updates.forma_pagamento === undefined && oldCost?.forma_pagamento === "dinheiro")) {
+          await supabase.from("cash_transactions").insert({
+            data: updates.data || oldCost?.data,
+            tipo: "saida",
+            categoria: "custo_operacional",
+            valor: updates.valor || oldCost?.valor,
+            descricao: updates.descricao || oldCost?.descricao || `Custo: ${updates.tipo || oldCost?.tipo}`,
+            cost_id: id,
+            area_id: updates.area_id || oldCost?.area_id,
+            cycle_id: updates.cycle_id || oldCost?.cycle_id || null,
+          });
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["costs"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Custo atualizado",
         description: "As alterações foram salvas.",
@@ -106,6 +164,9 @@ export function useCosts(filters?: CostFilters) {
 
   const deleteCost = useMutation({
     mutationFn: async (id: string) => {
+      // Delete related cash transaction first
+      await supabase.from("cash_transactions").delete().eq("cost_id", id);
+      
       const { error } = await supabase
         .from("costs")
         .delete()
@@ -115,9 +176,12 @@ export function useCosts(filters?: CostFilters) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["costs"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Custo excluído",
-        description: "O custo foi removido com sucesso.",
+        description: "O custo foi removido e o caixa atualizado.",
       });
     },
     onError: (error) => {

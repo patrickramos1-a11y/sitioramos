@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Cost, CostInsert } from "@/hooks/useCosts";
 import { Area } from "@/hooks/useAreas";
 import { Cycle } from "@/hooks/useCycles";
-import { Loader2 } from "lucide-react";
+import { costTypeConfig } from "@/lib/categoryConfig";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const costSchema = z.object({
   area_id: z.string().min(1, "Área é obrigatória"),
@@ -25,24 +27,6 @@ const costSchema = z.object({
 });
 
 type CostFormData = z.infer<typeof costSchema>;
-
-const tipoOptions = [
-  { value: "preparo_solo", label: "Preparo de Solo" },
-  { value: "mudas", label: "Mudas/Sementes" },
-  { value: "adubacao", label: "Adubação" },
-  { value: "herbicida", label: "Herbicida" },
-  { value: "mao_obra", label: "Mão de Obra" },
-  { value: "combustivel", label: "Combustível" },
-  { value: "trator", label: "Trator" },
-  { value: "juros_bancarios", label: "💳 Juros Bancários" },
-  { value: "tarifas_bancarias", label: "💳 Tarifas Bancárias" },
-  { value: "outros", label: "Outros" },
-];
-
-const pagamentoOptions = [
-  { value: "dinheiro", label: "Dinheiro" },
-  { value: "emprestimo", label: "Empréstimo" },
-];
 
 interface CostFormProps {
   open: boolean;
@@ -70,6 +54,7 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
   });
 
   const selectedAreaId = form.watch("area_id");
+  const formaPagamento = form.watch("forma_pagamento");
   const filteredCycles = cycles.filter(c => c.area_id === selectedAreaId);
 
   useEffect(() => {
@@ -119,6 +104,25 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {/* Alert about cash impact */}
+            {formaPagamento === "dinheiro" && (
+              <Alert className="bg-destructive/10 border-destructive/30">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <AlertDescription className="text-destructive">
+                  Este custo será registrado como <strong>saída do caixa</strong>.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {formaPagamento === "emprestimo" && (
+              <Alert className="bg-warning/10 border-warning/30">
+                <AlertCircle className="h-4 w-4 text-warning" />
+                <AlertDescription className="text-warning">
+                  Custo via empréstimo não impacta o caixa diretamente.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -199,11 +203,19 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {tipoOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
+                        {Object.entries(costTypeConfig).map(([value, config]) => {
+                          const Icon = config.icon;
+                          return (
+                            <SelectItem key={value} value={value}>
+                              <div className="flex items-center gap-2">
+                                <div className={`rounded p-1 ${config.bgColor}`}>
+                                  <Icon className={`h-3.5 w-3.5 ${config.color}`} />
+                                </div>
+                                <span>{config.label}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -240,13 +252,21 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {pagamentoOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="dinheiro">
+                          <div className="flex items-center gap-2">
+                            💰 Dinheiro
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="emprestimo">
+                          <div className="flex items-center gap-2">
+                            🏦 Empréstimo
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormDescription className="text-xs">
+                      Dinheiro impacta o caixa; empréstimo não.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

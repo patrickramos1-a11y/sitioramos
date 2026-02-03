@@ -134,6 +134,9 @@ export default function Receitas() {
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
                 Registro de Receitas
+                <Badge variant="outline" className="ml-2 bg-success/10 text-success border-success/30">
+                  Impacta o Caixa
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -159,7 +162,9 @@ export default function Receitas() {
                           {format(new Date(revenue.data), "dd/MM/yyyy", { locale: ptBR })}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{revenue.produto}</Badge>
+                          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                            🌱 {revenue.produto}
+                          </Badge>
                         </TableCell>
                         <TableCell>{revenue.areas?.nome}</TableCell>
                         <TableCell>
@@ -170,7 +175,7 @@ export default function Receitas() {
                           {revenue.cliente || "-"}
                         </TableCell>
                         <TableCell className="text-right font-medium text-success">
-                          {formatCurrency(total)}
+                          +{formatCurrency(total)}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -221,7 +226,7 @@ export default function Receitas() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir receita?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A receita será removida permanentemente.
+              Esta ação não pode ser desfeita. A receita será removida e o caixa atualizado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

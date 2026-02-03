@@ -13,20 +13,10 @@ import { useCosts, Cost, CostInsert } from "@/hooks/useCosts";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
 import { CostForm } from "@/components/costs/CostForm";
+import { costTypeConfig } from "@/lib/categoryConfig";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-
-const tipoLabels: Record<string, string> = {
-  preparo_solo: "Preparo de Solo",
-  mudas: "Mudas/Sementes",
-  adubacao: "Adubação",
-  herbicida: "Herbicida",
-  mao_obra: "Mão de Obra",
-  combustivel: "Combustível",
-  trator: "Trator",
-  outros: "Outros",
-};
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -105,14 +95,22 @@ export default function Custos() {
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={tipoFilter} onValueChange={setTipoFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-56">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os tipos</SelectItem>
-              {Object.entries(tipoLabels).map(([value, label]) => (
-                <SelectItem key={value} value={value}>{label}</SelectItem>
-              ))}
+              {Object.entries(costTypeConfig).map(([value, config]) => {
+                const Icon = config.icon;
+                return (
+                  <SelectItem key={value} value={value}>
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-4 w-4 ${config.color}`} />
+                      {config.label}
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -158,6 +156,9 @@ export default function Custos() {
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
                 Registro de Custos
+                <Badge variant="outline" className="ml-2 bg-destructive/10 text-destructive border-destructive/30">
+                  Impacta o Caixa
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -174,50 +175,60 @@ export default function Custos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCosts.map((cost: any) => (
-                    <TableRow key={cost.id}>
-                      <TableCell>
-                        {format(new Date(cost.data), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{tipoLabels[cost.tipo]}</Badge>
-                      </TableCell>
-                      <TableCell>{cost.areas?.nome}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {cost.descricao || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={cost.forma_pagamento === "dinheiro" ? "secondary" : "destructive"}>
-                          {cost.forma_pagamento === "dinheiro" ? "Dinheiro" : "Empréstimo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(cost.valor))}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(cost)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteClick(cost)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredCosts.map((cost: any) => {
+                    const typeConfig = costTypeConfig[cost.tipo];
+                    const Icon = typeConfig?.icon || DollarSign;
+                    
+                    return (
+                      <TableRow key={cost.id}>
+                        <TableCell>
+                          {format(new Date(cost.data), "dd/MM/yyyy", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className={`rounded-md p-1.5 ${typeConfig?.bgColor || 'bg-muted'}`}>
+                              <Icon className={`h-3.5 w-3.5 ${typeConfig?.color || 'text-muted-foreground'}`} />
+                            </div>
+                            <span className="text-sm">{typeConfig?.label || cost.tipo}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{cost.areas?.nome}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {cost.descricao || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={cost.forma_pagamento === "dinheiro" ? "secondary" : "destructive"}>
+                            {cost.forma_pagamento === "dinheiro" ? "💰 Dinheiro" : "🏦 Empréstimo"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-destructive">
+                          -{formatCurrency(Number(cost.valor))}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(cost)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteClick(cost)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -242,7 +253,7 @@ export default function Custos() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir custo?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O custo será removido permanentemente.
+              Esta ação não pode ser desfeita. O custo será removido e o caixa atualizado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
