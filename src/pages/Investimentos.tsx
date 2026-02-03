@@ -11,18 +11,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useInvestments, Investment, InvestmentInsert } from "@/hooks/useInvestments";
 import { useAreas } from "@/hooks/useAreas";
 import { InvestmentForm } from "@/components/investments/InvestmentForm";
+import { investmentTypeConfig } from "@/lib/categoryConfig";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-
-const tipoLabels: Record<string, string> = {
-  legalizacao: "Legalização",
-  escritura: "Escritura",
-  contratos: "Contratos",
-  projetos: "Projetos",
-  infraestrutura: "Infraestrutura",
-  outros: "Outros",
-};
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -120,6 +112,9 @@ export default function Investimentos() {
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Registro de Investimentos
+                <Badge variant="outline" className="ml-2 bg-destructive/10 text-destructive border-destructive/30">
+                  Impacta o Caixa
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -136,52 +131,62 @@ export default function Investimentos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {investments.map((investment: any) => (
-                    <TableRow key={investment.id}>
-                      <TableCell>
-                        {format(new Date(investment.data), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{tipoLabels[investment.tipo]}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {investment.descricao}
-                      </TableCell>
-                      <TableCell>{investment.areas?.nome || "Geral"}</TableCell>
-                      <TableCell>
-                        {investment.rateado ? (
-                          <Badge variant="secondary">Sim</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">Não</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(investment.valor))}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(investment)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteClick(investment)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {investments.map((investment: any) => {
+                    const typeConfig = investmentTypeConfig[investment.tipo];
+                    const Icon = typeConfig?.icon || FileText;
+                    
+                    return (
+                      <TableRow key={investment.id}>
+                        <TableCell>
+                          {format(new Date(investment.data), "dd/MM/yyyy", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className={`rounded-md p-1.5 ${typeConfig?.bgColor || 'bg-muted'}`}>
+                              <Icon className={`h-3.5 w-3.5 ${typeConfig?.color || 'text-muted-foreground'}`} />
+                            </div>
+                            <span className="text-sm">{typeConfig?.label || investment.tipo}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {investment.descricao}
+                        </TableCell>
+                        <TableCell>{investment.areas?.nome || "Geral"}</TableCell>
+                        <TableCell>
+                          {investment.rateado ? (
+                            <Badge variant="secondary">Sim</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">Não</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-destructive">
+                          -{formatCurrency(Number(investment.valor))}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(investment)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteClick(investment)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -205,7 +210,7 @@ export default function Investimentos() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir investimento?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O investimento será removido permanentemente.
+              Esta ação não pode ser desfeita. O investimento será removido e o caixa atualizado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

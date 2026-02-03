@@ -1,21 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CashCategory, cashCategoryConfig } from "@/lib/categoryConfig";
 
 export interface CashTransaction {
   id: string;
   data: string;
   tipo: "entrada" | "saida";
-  categoria: 
-    | "emprestimo_entrada"
-    | "receita_venda"
-    | "aporte"
-    | "custo_operacional"
-    | "investimento"
-    | "parcela_emprestimo"
-    | "quitacao_emprestimo"
-    | "despesa_financeira"
-    | "transferencia";
+  categoria: CashCategory;
   valor: number;
   descricao: string | null;
   loan_id: string | null;
@@ -28,12 +20,16 @@ export interface CashTransaction {
   observacoes: string | null;
   created_at: string;
   updated_at: string;
+  // Joined data
+  areas?: { nome: string } | null;
+  loans?: { origem_credor: string } | null;
+  cycles?: { cultura: string } | null;
 }
 
 export interface CashTransactionInsert {
   data: string;
   tipo: "entrada" | "saida";
-  categoria: CashTransaction["categoria"];
+  categoria: CashCategory;
   valor: number;
   descricao?: string | null;
   loan_id?: string | null;
@@ -52,35 +48,55 @@ export interface CashBalance {
   saldo_atual: number;
 }
 
-const categoriaLabels: Record<CashTransaction["categoria"], string> = {
-  emprestimo_entrada: "Recebimento de Empréstimo",
-  receita_venda: "Receita de Venda",
-  aporte: "Aporte de Capital",
-  custo_operacional: "Custo Operacional",
-  investimento: "Investimento",
-  parcela_emprestimo: "Pagamento de Parcela",
-  quitacao_emprestimo: "Quitação de Empréstimo",
-  despesa_financeira: "Despesa Financeira",
-  transferencia: "Transferência",
-};
+export interface CashFilters {
+  categoria?: CashCategory;
+  areaId?: string;
+  cycleId?: string;
+  tipo?: "entrada" | "saida";
+  startDate?: string;
+  endDate?: string;
+}
 
-export { categoriaLabels };
+// Re-export for backward compatibility
+export const categoriaLabels = Object.fromEntries(
+  Object.entries(cashCategoryConfig).map(([key, val]) => [key, val.label])
+) as Record<CashCategory, string>;
 
-export function useCashTransactions() {
+export function useCashTransactions(filters?: CashFilters) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: transactions = [], isLoading, error } = useQuery({
-    queryKey: ["cash-transactions"],
+    queryKey: ["cash-transactions", filters],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("cash_transactions")
-        .select("*, areas(nome), loans(origem_credor)")
+        .select("*, areas(nome), loans(origem_credor), cycles(cultura)")
         .order("data", { ascending: false })
         .order("created_at", { ascending: false });
       
+      if (filters?.categoria) {
+        query = query.eq("categoria", filters.categoria);
+      }
+      if (filters?.areaId) {
+        query = query.eq("area_id", filters.areaId);
+      }
+      if (filters?.cycleId) {
+        query = query.eq("cycle_id", filters.cycleId);
+      }
+      if (filters?.tipo) {
+        query = query.eq("tipo", filters.tipo);
+      }
+      if (filters?.startDate) {
+        query = query.gte("data", filters.startDate);
+      }
+      if (filters?.endDate) {
+        query = query.lte("data", filters.endDate);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
-      return data as (CashTransaction & { areas?: { nome: string } | null; loans?: { origem_credor: string } | null })[];
+      return data as CashTransaction[];
     },
   });
 
@@ -96,6 +112,16 @@ export function useCashTransactions() {
       return data as CashBalance | null;
     },
   });
+
+  // Get filtered totals (for when filters are applied)
+  const filteredTotals = {
+    totalEntradas: transactions
+      .filter(t => t.tipo === "entrada")
+      .reduce((sum, t) => sum + Number(t.valor), 0),
+    totalSaidas: transactions
+      .filter(t => t.tipo === "saida")
+      .reduce((sum, t) => sum + Number(t.valor), 0),
+  };
 
   const createTransaction = useMutation({
     mutationFn: async (newTransaction: CashTransactionInsert) => {
@@ -156,6 +182,7 @@ export function useCashTransactions() {
   return {
     transactions,
     balance,
+    filteredTotals,
     isLoading,
     error,
     createTransaction,

@@ -1,10 +1,11 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { BarChart3, MapPin, Leaf, TrendingUp, Landmark, DollarSign } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart3, MapPin, Leaf, TrendingUp, Landmark, DollarSign, Wallet, ArrowDownCircle, ArrowUpCircle, Info } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAreas } from "@/hooks/useAreas";
 import { useCosts } from "@/hooks/useCosts";
 import { useRevenues } from "@/hooks/useRevenues";
@@ -12,6 +13,7 @@ import { useInvestments } from "@/hooks/useInvestments";
 import { useLoans } from "@/hooks/useLoans";
 import { useCycles } from "@/hooks/useCycles";
 import { useCashTransactions } from "@/hooks/useCashTransactions";
+import { costTypeConfig } from "@/lib/categoryConfig";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const formatCurrency = (value: number) => {
@@ -19,19 +21,6 @@ const formatCurrency = (value: number) => {
     style: "currency",
     currency: "BRL",
   }).format(value);
-};
-
-const costTypeLabels: Record<string, string> = {
-  preparo_solo: "Preparo de solo",
-  mudas: "Mudas/Sementes",
-  adubacao: "Adubação",
-  herbicida: "Herbicida",
-  mao_obra: "Mão de obra",
-  combustivel: "Combustível",
-  trator: "Trator",
-  juros_bancarios: "Juros Bancários",
-  tarifas_bancarias: "Tarifas Bancárias",
-  outros: "Outros",
 };
 
 export default function Relatorios() {
@@ -83,23 +72,41 @@ export default function Relatorios() {
     };
   });
 
-  // Calculate loan status
+  // Calculate loan status with detailed breakdown
   const emprestimosStatus = loans.map((loan: any) => {
-    const paidAmount = loan.installments
-      ?.filter((i: any) => i.status === "paga")
-      .reduce((sum: number, i: any) => sum + Number(i.valor), 0) || 0;
-    const pendingAmount = Number(loan.valor_total) - paidAmount;
-    const paidCount = loan.installments?.filter((i: any) => i.status === "paga").length || 0;
+    // Value received (credited to cash)
+    const valorContratado = Number(loan.valor_total);
+    const valorPrincipal = Number(loan.valor_principal) || valorContratado;
+    const valorRecebidoNoCaixa = loan.creditado_caixa ? valorPrincipal : 0;
+    
+    // Value paid
+    const parcelasPagas = loan.installments?.filter((i: any) => i.status === "paga") || [];
+    const valorPago = parcelasPagas.reduce((sum: number, i: any) => sum + Number(i.valor), 0);
+    const jurosPagos = parcelasPagas.reduce((sum: number, i: any) => sum + (Number(i.valor_juros) || 0), 0);
+    const principalPago = parcelasPagas.reduce((sum: number, i: any) => sum + (Number(i.valor_principal) || 0), 0);
+    
+    // Pending
+    const pendingAmount = valorContratado - valorPago;
+    const paidCount = parcelasPagas.length;
     const totalCount = loan.installments?.length || 0;
     const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+    
+    // Cost of loan (difference between paid and received)
+    const custoFinanceiro = valorRecebidoNoCaixa > 0 ? valorPago - valorRecebidoNoCaixa : 0;
 
     return {
       loan,
-      paidAmount,
+      valorContratado,
+      valorPrincipal,
+      valorRecebidoNoCaixa,
+      valorPago,
+      jurosPagos,
+      principalPago,
       pendingAmount,
       progress,
       paidCount,
       totalCount,
+      custoFinanceiro,
     };
   });
 
@@ -133,7 +140,7 @@ export default function Relatorios() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Relatórios Financeiros</h1>
           <p className="text-muted-foreground">
-            Análise consolidada do Sítio Ramos
+            Análise consolidada derivada do Fluxo de Caixa
           </p>
         </div>
 
@@ -146,26 +153,29 @@ export default function Relatorios() {
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">{formatCurrency(totalInvestido)}</div>
+              <p className="text-xs text-muted-foreground">Ativos de longo prazo</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Custos</CardTitle>
-              <TrendingUp className="h-4 w-4 text-destructive" />
+              <ArrowDownCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold text-destructive">{formatCurrency(totalCustos)}</div>
+              <p className="text-xs text-muted-foreground">Custos operacionais</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Receitas</CardTitle>
-              <TrendingUp className="h-4 w-4 text-success" />
+              <ArrowUpCircle className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold text-success">{formatCurrency(totalReceitas)}</div>
+              <p className="text-xs text-muted-foreground">Vendas realizadas</p>
             </CardContent>
           </Card>
 
@@ -176,18 +186,20 @@ export default function Relatorios() {
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold text-warning">{formatCurrency(dividaTotal)}</div>
+              <p className="text-xs text-muted-foreground">Parcelas a pagar</p>
             </CardContent>
           </Card>
 
-          <Card className={saldoCaixa >= 0 ? "border-success/50" : "border-destructive/50"}>
+          <Card className={saldoCaixa >= 0 ? "border-success/50 bg-success/5" : "border-destructive/50 bg-destructive/5"}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Saldo em Caixa</CardTitle>
-              <BarChart3 className={`h-4 w-4 ${saldoCaixa >= 0 ? "text-success" : "text-destructive"}`} />
+              <Wallet className={`h-4 w-4 ${saldoCaixa >= 0 ? "text-success" : "text-destructive"}`} />
             </CardHeader>
             <CardContent>
               <div className={`text-xl font-bold ${saldoCaixa >= 0 ? "text-success" : "text-destructive"}`}>
                 {formatCurrency(saldoCaixa)}
               </div>
+              <p className="text-xs text-muted-foreground">Disponível real</p>
             </CardContent>
           </Card>
         </div>
@@ -217,6 +229,9 @@ export default function Relatorios() {
                   <MapPin className="h-5 w-5" />
                   Custo por Área e por Hectare
                 </CardTitle>
+                <CardDescription>
+                  Detalhamento de custos por área com ícones de categoria
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {custosPorArea.length === 0 ? (
@@ -231,7 +246,7 @@ export default function Relatorios() {
                             <p className="text-sm text-muted-foreground">{Number(area.tamanho_hectares).toFixed(2)} ha</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-lg">{formatCurrency(totalCost)}</p>
+                            <p className="font-bold text-lg text-destructive">{formatCurrency(totalCost)}</p>
                             <p className="text-sm text-muted-foreground">
                               {formatCurrency(costPerHectare)}/ha
                             </p>
@@ -240,12 +255,21 @@ export default function Relatorios() {
                         
                         {Object.keys(byType).length > 0 && (
                           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            {Object.entries(byType).map(([tipo, valor]) => (
-                              <div key={tipo} className="flex justify-between text-sm p-2 bg-muted/50 rounded">
-                                <span>{costTypeLabels[tipo] || tipo}</span>
-                                <span className="font-medium">{formatCurrency(valor)}</span>
-                              </div>
-                            ))}
+                            {Object.entries(byType).map(([tipo, valor]) => {
+                              const config = costTypeConfig[tipo];
+                              const Icon = config?.icon || DollarSign;
+                              return (
+                                <div key={tipo} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`rounded p-1 ${config?.bgColor || 'bg-muted'}`}>
+                                      <Icon className={`h-3.5 w-3.5 ${config?.color || 'text-muted-foreground'}`} />
+                                    </div>
+                                    <span>{config?.label || tipo}</span>
+                                  </div>
+                                  <span className="font-medium">{formatCurrency(valor)}</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -264,6 +288,9 @@ export default function Relatorios() {
                   <Leaf className="h-5 w-5" />
                   Resultado por Ciclo Produtivo
                 </CardTitle>
+                <CardDescription>
+                  Comparação entre custos e receitas de cada ciclo
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {resultadosPorCiclo.length === 0 ? (
@@ -283,21 +310,26 @@ export default function Relatorios() {
                     <TableBody>
                       {resultadosPorCiclo.map(({ cycle, totalCost, totalRevenue, result, areaName }) => (
                         <TableRow key={cycle.id}>
-                          <TableCell className="font-medium">{cycle.cultura}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">🌱</span>
+                              {cycle.cultura}
+                            </div>
+                          </TableCell>
                           <TableCell>{areaName}</TableCell>
                           <TableCell>
-                            <Badge variant={cycle.status === "finalizado" ? "default" : "secondary"}>
-                              {cycle.status === "planejamento" ? "Planejamento" : cycle.status === "ativo" ? "Ativo" : "Finalizado"}
+                            <Badge variant={cycle.status === "finalizado" ? "default" : cycle.status === "ativo" ? "secondary" : "outline"}>
+                              {cycle.status === "planejamento" ? "📋 Planejamento" : cycle.status === "ativo" ? "🚜 Ativo" : "✅ Finalizado"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right text-destructive">
-                            {formatCurrency(totalCost)}
+                          <TableCell className="text-right text-destructive font-medium">
+                            -{formatCurrency(totalCost)}
                           </TableCell>
-                          <TableCell className="text-right text-success">
-                            {formatCurrency(totalRevenue)}
+                          <TableCell className="text-right text-success font-medium">
+                            +{formatCurrency(totalRevenue)}
                           </TableCell>
                           <TableCell className={`text-right font-bold ${result >= 0 ? "text-success" : "text-destructive"}`}>
-                            {formatCurrency(result)}
+                            {result >= 0 ? "📈" : "📉"} {formatCurrency(result)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -308,53 +340,145 @@ export default function Relatorios() {
             </Card>
           </TabsContent>
 
-          {/* Loans Status */}
+          {/* Loans Status - Enhanced */}
           <TabsContent value="emprestimos">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Landmark className="h-5 w-5" />
-                  Saldo Devedor por Empréstimo
+                  Análise Detalhada de Empréstimos
                 </CardTitle>
+                <CardDescription>
+                  Valor contratado vs. recebido vs. pago e custo financeiro real
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {emprestimosStatus.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">Nenhum empréstimo cadastrado</p>
                 ) : (
-                  <div className="space-y-4">
-                    {emprestimosStatus.map(({ loan, paidAmount, pendingAmount, progress, paidCount, totalCount }) => (
-                      <div key={loan.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="space-y-6">
+                    {emprestimosStatus.map(({ 
+                      loan, 
+                      valorContratado, 
+                      valorRecebidoNoCaixa, 
+                      valorPago, 
+                      pendingAmount, 
+                      progress, 
+                      paidCount, 
+                      totalCount,
+                      custoFinanceiro 
+                    }) => (
+                      <div key={loan.id} className="border rounded-lg p-4 space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h3 className="font-semibold">{loan.origem_credor}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              Valor total: {formatCurrency(Number(loan.valor_total))}
-                            </p>
+                            <h3 className="font-semibold text-lg flex items-center gap-2">
+                              🏦 {loan.origem_credor}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              {loan.juros_percentual > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {loan.juros_percentual}% juros
+                                </Badge>
+                              )}
+                              {loan.creditado_caixa && (
+                                <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
+                                  💰 Creditado no caixa
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          <Badge variant={pendingAmount === 0 ? "default" : "secondary"}>
-                            {pendingAmount === 0 ? "Quitado" : "Ativo"}
+                          <Badge variant={pendingAmount === 0 ? "default" : "secondary"} className="text-sm">
+                            {pendingAmount === 0 ? "✅ Quitado" : "📊 Ativo"}
                           </Badge>
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-3">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Pago</p>
-                            <p className="font-semibold text-success">{formatCurrency(paidAmount)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Pendente</p>
-                            <p className="font-semibold text-warning">{formatCurrency(pendingAmount)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Parcelas</p>
-                            <p className="font-semibold">{paidCount} de {totalCount}</p>
-                          </div>
+                        {/* Financial breakdown - Key info */}
+                        <div className="grid gap-4 md:grid-cols-4 bg-muted/30 rounded-lg p-4">
+                          <TooltipProvider>
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm text-muted-foreground">Valor Contratado</p>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Info className="h-3 w-3 text-muted-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Valor total do contrato do empréstimo</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <p className="font-bold text-lg">{formatCurrency(valorContratado)}</p>
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm text-muted-foreground">Recebido no Caixa</p>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Info className="h-3 w-3 text-muted-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Valor líquido que entrou na conta</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <p className="font-bold text-lg text-success">
+                                {valorRecebidoNoCaixa > 0 ? formatCurrency(valorRecebidoNoCaixa) : "—"}
+                              </p>
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm text-muted-foreground">Total Pago</p>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Info className="h-3 w-3 text-muted-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Soma de todas as parcelas pagas</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <p className="font-bold text-lg text-destructive">{formatCurrency(valorPago)}</p>
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm text-muted-foreground">Pendente</p>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Info className="h-3 w-3 text-muted-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Valor restante a pagar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <p className="font-bold text-lg text-warning">{formatCurrency(pendingAmount)}</p>
+                            </div>
+                          </TooltipProvider>
                         </div>
 
-                        <div className="space-y-1">
+                        {/* Cost analysis - if loan was credited */}
+                        {valorRecebidoNoCaixa > 0 && valorPago > 0 && (
+                          <div className={`rounded-lg p-3 ${custoFinanceiro > 0 ? 'bg-destructive/10 border border-destructive/30' : 'bg-success/10 border border-success/30'}`}>
+                            <p className="text-sm font-medium">
+                              {custoFinanceiro > 0 ? '💸 Custo Financeiro do Empréstimo' : '💰 Economia até agora'}
+                            </p>
+                            <p className={`text-lg font-bold ${custoFinanceiro > 0 ? 'text-destructive' : 'text-success'}`}>
+                              {custoFinanceiro > 0 ? '-' : '+'}{formatCurrency(Math.abs(custoFinanceiro))}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Diferença entre o que foi pago ({formatCurrency(valorPago)}) e o que foi recebido ({formatCurrency(valorRecebidoNoCaixa)})
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Progress */}
+                        <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span>Progresso</span>
-                            <span>{progress.toFixed(0)}%</span>
+                            <span>Parcelas: {paidCount} de {totalCount}</span>
+                            <span className="font-medium">{progress.toFixed(0)}%</span>
                           </div>
                           <Progress value={progress} className="h-2" />
                         </div>

@@ -26,20 +26,50 @@ export function useRevenues() {
 
   const createRevenue = useMutation({
     mutationFn: async (newRevenue: RevenueInsert) => {
-      const { data, error } = await supabase
+      const valorTotal = Number(newRevenue.quantidade) * Number(newRevenue.preco_unitario);
+      
+      // 1. Create the revenue record
+      const { data: revData, error: revError } = await supabase
         .from("revenues")
-        .insert(newRevenue)
+        .insert({
+          ...newRevenue,
+          valor_total: valorTotal,
+        })
         .select()
         .single();
       
-      if (error) throw error;
-      return data;
+      if (revError) throw revError;
+
+      // 2. Create a cash transaction (entry) for the revenue
+      const { error: txError } = await supabase
+        .from("cash_transactions")
+        .insert({
+          data: newRevenue.data,
+          tipo: "entrada",
+          categoria: "receita_venda",
+          valor: valorTotal,
+          descricao: `Venda: ${newRevenue.produto}${newRevenue.cliente ? ` - ${newRevenue.cliente}` : ""}`,
+          revenue_id: revData.id,
+          area_id: newRevenue.area_id,
+          cycle_id: newRevenue.cycle_id || null,
+        });
+      
+      if (txError) {
+        // Rollback the revenue if transaction fails
+        await supabase.from("revenues").delete().eq("id", revData.id);
+        throw txError;
+      }
+
+      return revData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["revenues"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Receita registrada",
-        description: "A receita foi cadastrada com sucesso.",
+        description: "A receita foi cadastrada e o caixa atualizado.",
       });
     },
     onError: (error) => {
@@ -53,18 +83,48 @@ export function useRevenues() {
 
   const updateRevenue = useMutation({
     mutationFn: async ({ id, ...updates }: RevenueUpdate & { id: string }) => {
+      const { data: oldRev } = await supabase
+        .from("revenues")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      const quantidade = updates.quantidade ?? oldRev?.quantidade ?? 0;
+      const precoUnitario = updates.preco_unitario ?? oldRev?.preco_unitario ?? 0;
+      const valorTotal = Number(quantidade) * Number(precoUnitario);
+
       const { data, error } = await supabase
         .from("revenues")
-        .update(updates)
+        .update({
+          ...updates,
+          valor_total: valorTotal,
+        })
         .eq("id", id)
         .select()
         .single();
       
       if (error) throw error;
+
+      // Update the related cash transaction
+      await supabase.from("cash_transactions").delete().eq("revenue_id", id);
+      await supabase.from("cash_transactions").insert({
+        data: updates.data || oldRev?.data,
+        tipo: "entrada",
+        categoria: "receita_venda",
+        valor: valorTotal,
+        descricao: `Venda: ${updates.produto || oldRev?.produto}${(updates.cliente || oldRev?.cliente) ? ` - ${updates.cliente || oldRev?.cliente}` : ""}`,
+        revenue_id: id,
+        area_id: updates.area_id || oldRev?.area_id,
+        cycle_id: updates.cycle_id || oldRev?.cycle_id || null,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["revenues"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Receita atualizada",
         description: "As alterações foram salvas.",
@@ -81,6 +141,9 @@ export function useRevenues() {
 
   const deleteRevenue = useMutation({
     mutationFn: async (id: string) => {
+      // Delete related cash transaction first
+      await supabase.from("cash_transactions").delete().eq("revenue_id", id);
+      
       const { error } = await supabase
         .from("revenues")
         .delete()
@@ -90,9 +153,12 @@ export function useRevenues() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["revenues"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Receita excluída",
-        description: "A receita foi removida com sucesso.",
+        description: "A receita foi removida e o caixa atualizado.",
       });
     },
     onError: (error) => {
