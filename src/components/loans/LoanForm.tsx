@@ -20,6 +20,8 @@ const loanSchema = z.object({
   data: z.string().min(1, "Data é obrigatória"),
   origem_credor: z.string().min(1, "Credor é obrigatório").max(100, "Credor muito longo"),
   valor_total: z.coerce.number().positive("Valor deve ser maior que 0"),
+  valor_recebido: z.coerce.number().min(0, "Valor recebido não pode ser negativo").optional(),
+  descontos_iniciais: z.coerce.number().min(0, "Descontos não podem ser negativos").optional(),
   juros_percentual: z.coerce.number().min(0, "Juros não pode ser negativo").optional(),
   numero_parcelas: z.coerce.number().int().positive("Número de parcelas deve ser maior que 0"),
   area_id: z.string().optional().nullable(),
@@ -49,6 +51,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       data: new Date().toISOString().split('T')[0],
       origem_credor: "",
       valor_total: 0,
+      valor_recebido: 0,
+      descontos_iniciais: 0,
       juros_percentual: 0,
       numero_parcelas: 1,
       area_id: EMPTY_SELECT_VALUE,
@@ -74,6 +78,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         data: loan.data,
         origem_credor: loan.origem_credor,
         valor_total: Number(loan.valor_total),
+        valor_recebido: Number((loan as any).valor_recebido) || Number(loan.valor_total),
+        descontos_iniciais: Number((loan as any).descontos_iniciais) || 0,
         juros_percentual: Number(loan.juros_percentual) || 0,
         numero_parcelas: loan.numero_parcelas,
         area_id: loan.area_id || EMPTY_SELECT_VALUE,
@@ -86,6 +92,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         data: new Date().toISOString().split('T')[0],
         origem_credor: "",
         valor_total: 0,
+        valor_recebido: 0,
+        descontos_iniciais: 0,
         juros_percentual: 0,
         numero_parcelas: 1,
         area_id: EMPTY_SELECT_VALUE,
@@ -104,6 +112,13 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
   }, [form, selectedAreaId]);
 
   const handleSubmit = (data: LoanFormData) => {
+    const valorRecebidoFinal = creditarCaixa && data.valor_recebido 
+      ? data.valor_recebido 
+      : data.valor_total;
+    const descontosIniciaisFinal = creditarCaixa && data.descontos_iniciais 
+      ? data.descontos_iniciais 
+      : 0;
+    
     onSubmit({
       data: data.data,
       origem_credor: data.origem_credor,
@@ -115,7 +130,9 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       cycle_id: data.cycle_id && data.cycle_id !== EMPTY_SELECT_VALUE ? data.cycle_id : null,
       observacoes: data.observacoes || null,
       creditarCaixa: !loan ? creditarCaixa : undefined,
-    });
+      valorRecebido: valorRecebidoFinal,
+      descontosIniciais: descontosIniciaisFinal,
+    } as any);
   };
 
   const formatCurrency = (value: number) => {
@@ -213,22 +230,74 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
             </div>
 
             {!loan && (
-              <div className="flex items-center space-x-2 rounded-lg border p-3 bg-success/5 border-success/20">
-                <Checkbox
-                  id="creditarCaixa"
-                  checked={creditarCaixa}
-                  onCheckedChange={(checked) => setCreditarCaixa(checked as boolean)}
-                />
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-success" />
-                  <label
-                    htmlFor="creditarCaixa"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Creditar valor no caixa (entrada de dinheiro)
-                  </label>
+              <>
+                <div className="flex items-center space-x-2 rounded-lg border p-3 bg-success/5 border-success/20">
+                  <Checkbox
+                    id="creditarCaixa"
+                    checked={creditarCaixa}
+                    onCheckedChange={(checked) => setCreditarCaixa(checked as boolean)}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-success" />
+                    <label
+                      htmlFor="creditarCaixa"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Creditar valor no caixa (entrada de dinheiro)
+                    </label>
+                  </div>
                 </div>
-              </div>
+
+                {creditarCaixa && (
+                  <div className="grid grid-cols-2 gap-4 p-3 border rounded-lg bg-muted/30">
+                    <FormField
+                      control={form.control}
+                      name="valor_recebido"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Valor Recebido (R$)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              min="0" 
+                              placeholder="Líquido na conta"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Valor que entrou efetivamente na conta
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="descontos_iniciais"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descontos Iniciais (R$)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              min="0" 
+                              placeholder="Juros/tarifas"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Juros ou tarifas cobrados na origem
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             <div className="grid grid-cols-2 gap-4">

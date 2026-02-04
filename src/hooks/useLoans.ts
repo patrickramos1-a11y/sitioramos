@@ -29,14 +29,24 @@ export function useLoans() {
   });
 
   const createLoan = useMutation({
-    mutationFn: async (newLoan: LoanInsert & { creditarCaixa?: boolean }) => {
-      const { creditarCaixa, ...loanData } = newLoan;
+    mutationFn: async (newLoan: LoanInsert & { 
+      creditarCaixa?: boolean; 
+      valorRecebido?: number;
+      descontosIniciais?: number;
+    }) => {
+      const { creditarCaixa, valorRecebido, descontosIniciais, ...loanData } = newLoan;
+      
+      // Calculate received amount (defaults to total if not specified)
+      const valorRecebidoFinal = valorRecebido ?? Number(loanData.valor_total);
+      const descontosIniciaisFinal = descontosIniciais ?? 0;
       
       const { data, error } = await supabase
         .from("loans")
         .insert({
           ...loanData,
           creditado_caixa: creditarCaixa || false,
+          valor_recebido: valorRecebidoFinal,
+          descontos_iniciais: descontosIniciaisFinal,
         })
         .select()
         .single();
@@ -69,20 +79,37 @@ export function useLoans() {
         if (installmentError) throw installmentError;
       }
 
-      // If creditarCaixa is true, create a cash transaction for the loan entry
+      // If creditarCaixa is true, create cash transactions
       if (creditarCaixa && data) {
-        const { error: cashError } = await supabase
+        // Entry for the received amount
+        const { error: cashEntryError } = await supabase
           .from("cash_transactions")
           .insert({
             data: loanData.data,
             tipo: "entrada",
             categoria: "emprestimo_entrada",
-            valor: Number(loanData.valor_total),
+            valor: valorRecebidoFinal,
             descricao: `Recebimento de empréstimo: ${loanData.origem_credor}`,
             loan_id: data.id,
           });
         
-        if (cashError) throw cashError;
+        if (cashEntryError) throw cashEntryError;
+
+        // Exit for initial discounts/fees if any
+        if (descontosIniciaisFinal > 0) {
+          const { error: cashDiscountError } = await supabase
+            .from("cash_transactions")
+            .insert({
+              data: loanData.data,
+              tipo: "saida",
+              categoria: "despesa_financeira",
+              valor: descontosIniciaisFinal,
+              descricao: `Descontos iniciais empréstimo: ${loanData.origem_credor}`,
+              loan_id: data.id,
+            });
+          
+          if (cashDiscountError) throw cashDiscountError;
+        }
       }
       
       return data;

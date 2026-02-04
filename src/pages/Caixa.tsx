@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Wallet, Plus, ArrowUpCircle, ArrowDownCircle, TrendingUp, TrendingDown, Banknote, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,12 @@ const categoriaOptions = Object.entries(cashCategoryConfig).map(([value, config]
 }));
 
 export default function Caixa() {
-  const [filters, setFilters] = useState<CashFilters>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+  const areaFromUrl = searchParams.get("area");
+  
+  const [filters, setFilters] = useState<CashFilters>(() => ({
+    areaId: areaFromUrl || undefined,
+  }));
   const { transactions, balance, filteredTotals, isLoading, createTransaction, deleteTransaction } = useCashTransactions(filters);
   const { areas } = useAreas();
   const { loans } = useLoans();
@@ -112,7 +118,18 @@ export default function Caixa() {
 
   const clearFilters = () => {
     setFilters({});
+    setSearchParams({});
   };
+
+  // Sync URL params with filters
+  useEffect(() => {
+    if (areaFromUrl && areaFromUrl !== filters.areaId) {
+      setFilters(f => ({ ...f, areaId: areaFromUrl }));
+    }
+  }, [areaFromUrl]);
+
+  // Get selected area name for header
+  const selectedArea = filters.areaId ? areas.find(a => a.id === filters.areaId) : null;
 
   // Get available cycles for selected area
   const availableCycles = formData.area_id
@@ -125,9 +142,14 @@ export default function Caixa() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Fluxo de Caixa</h1>
+            <h1 className="text-2xl font-bold text-foreground">
+              {selectedArea ? `Caixa: ${selectedArea.nome}` : "Fluxo de Caixa"}
+            </h1>
             <p className="text-muted-foreground">
-              Base financeira única - todas as movimentações
+              {selectedArea 
+                ? `Movimentações da área ${selectedArea.nome} (${Number(selectedArea.tamanho_hectares).toFixed(2)} ha)`
+                : "Base financeira única - todas as movimentações"
+              }
             </p>
           </div>
           <Button className="gap-2" onClick={() => setFormOpen(true)}>

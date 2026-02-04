@@ -74,10 +74,12 @@ export default function Relatorios() {
 
   // Calculate loan status with detailed breakdown
   const emprestimosStatus = loans.map((loan: any) => {
-    // Value received (credited to cash)
+    // Value received (credited to cash) - now using the new fields
     const valorContratado = Number(loan.valor_total);
-    const valorPrincipal = Number(loan.valor_principal) || valorContratado;
-    const valorRecebidoNoCaixa = loan.creditado_caixa ? valorPrincipal : 0;
+    const valorRecebidoNoCaixa = loan.creditado_caixa 
+      ? (Number(loan.valor_recebido) || valorContratado)
+      : 0;
+    const descontosIniciais = Number(loan.descontos_iniciais) || 0;
     
     // Value paid
     const parcelasPagas = loan.installments?.filter((i: any) => i.status === "paga") || [];
@@ -91,14 +93,17 @@ export default function Relatorios() {
     const totalCount = loan.installments?.length || 0;
     const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
     
-    // Cost of loan (difference between paid and received)
-    const custoFinanceiro = valorRecebidoNoCaixa > 0 ? valorPago - valorRecebidoNoCaixa : 0;
+    // Cost of loan (difference between what was paid and what was received)
+    // This now correctly accounts for initial discounts
+    const custoFinanceiro = valorRecebidoNoCaixa > 0 
+      ? (valorPago + descontosIniciais) - valorRecebidoNoCaixa 
+      : 0;
 
     return {
       loan,
       valorContratado,
-      valorPrincipal,
       valorRecebidoNoCaixa,
+      descontosIniciais,
       valorPago,
       jurosPagos,
       principalPago,
@@ -361,6 +366,7 @@ export default function Relatorios() {
                       loan, 
                       valorContratado, 
                       valorRecebidoNoCaixa, 
+                      descontosIniciais,
                       valorPago, 
                       pendingAmount, 
                       progress, 
@@ -426,6 +432,23 @@ export default function Relatorios() {
                                 {valorRecebidoNoCaixa > 0 ? formatCurrency(valorRecebidoNoCaixa) : "—"}
                               </p>
                             </div>
+
+                            {descontosIniciais > 0 && (
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <p className="text-sm text-muted-foreground">Descontos Iniciais</p>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Info className="h-3 w-3 text-muted-foreground" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Juros/tarifas cobrados na origem</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                                <p className="font-bold text-lg text-orange-600">{formatCurrency(descontosIniciais)}</p>
+                              </div>
+                            )}
                             
                             <div>
                               <div className="flex items-center gap-1">
