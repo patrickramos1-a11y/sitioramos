@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MapPin, MoreVertical, Pencil, Trash2, Calendar, Sprout } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { MapPin, MoreVertical, Pencil, Trash2, Calendar, Sprout, Wallet, Eye } from "lucide-react";
 import { Area } from "@/hooks/useAreas";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   planejamento: { label: "Planejamento", variant: "secondary" },
@@ -22,7 +23,12 @@ interface AreaCardProps {
 }
 
 export function AreaCard({ area, onEdit, onDelete }: AreaCardProps) {
+  const navigate = useNavigate();
   const status = statusConfig[area.status] || statusConfig.planejamento;
+
+  const handleViewCaixa = () => {
+    navigate(`/caixa?area=${area.id}`);
+  };
 
   return (
     <Card className="transition-all hover:shadow-md">
@@ -46,6 +52,11 @@ export function AreaCard({ area, onEdit, onDelete }: AreaCardProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleViewCaixa}>
+                <Wallet className="mr-2 h-4 w-4" />
+                Ver Fluxo de Caixa
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onEdit(area)}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Editar

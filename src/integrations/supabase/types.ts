@@ -368,6 +368,7 @@ export type Database = {
           creditado_caixa: boolean | null
           cycle_id: string | null
           data: string
+          descontos_iniciais: number | null
           id: string
           juros_percentual: number | null
           numero_parcelas: number
@@ -378,6 +379,7 @@ export type Database = {
           valor_juros_total: number | null
           valor_parcela: number
           valor_principal: number | null
+          valor_recebido: number | null
           valor_total: number
         }
         Insert: {
@@ -386,6 +388,7 @@ export type Database = {
           creditado_caixa?: boolean | null
           cycle_id?: string | null
           data: string
+          descontos_iniciais?: number | null
           id?: string
           juros_percentual?: number | null
           numero_parcelas?: number
@@ -396,6 +399,7 @@ export type Database = {
           valor_juros_total?: number | null
           valor_parcela: number
           valor_principal?: number | null
+          valor_recebido?: number | null
           valor_total: number
         }
         Update: {
@@ -404,6 +408,7 @@ export type Database = {
           creditado_caixa?: boolean | null
           cycle_id?: string | null
           data?: string
+          descontos_iniciais?: number | null
           id?: string
           juros_percentual?: number | null
           numero_parcelas?: number
@@ -414,6 +419,7 @@ export type Database = {
           valor_juros_total?: number | null
           valor_parcela?: number
           valor_principal?: number | null
+          valor_recebido?: number | null
           valor_total?: number
         }
         Relationships: [
