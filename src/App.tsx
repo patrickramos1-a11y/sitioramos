@@ -4,17 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Areas from "./pages/Areas";
-import Ciclos from "./pages/Ciclos";
-import Custos from "./pages/Custos";
-import Investimentos from "./pages/Investimentos";
-import Receitas from "./pages/Receitas";
+import AreaDetalhe from "./pages/AreaDetalhe";
 import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
-import Relatorios from "./pages/Relatorios";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,12 +26,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/caixa" element={<Caixa />} />
             <Route path="/areas" element={<Areas />} />
-            <Route path="/ciclos" element={<Ciclos />} />
-            <Route path="/custos" element={<Custos />} />
-            <Route path="/investimentos" element={<Investimentos />} />
-            <Route path="/receitas" element={<Receitas />} />
+            <Route path="/areas/:id" element={<AreaDetalhe />} />
             <Route path="/emprestimos" element={<Emprestimos />} />
-            <Route path="/relatorios" element={<Relatorios />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
