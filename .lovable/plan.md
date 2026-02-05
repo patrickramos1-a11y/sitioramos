@@ -1,210 +1,255 @@
 
-# Plano: Refazer o Painel Sítio Ramos com Funcionalidade Completa
+# Reestruturação Completa da Plataforma Sítio Ramos
 
-## Situação Atual
+## Resumo Executivo
 
-O banco de dados está pronto com 7 tabelas vazias:
-- areas, cycles, costs, investments, revenues, loans, installments
-
-Porém o frontend:
-- Usa dados fictícios (mock) nos gráficos
-- Páginas de módulos são apenas placeholders vazios
-- Não há formulários para cadastrar dados
-- Não há integração real com o banco
+Vou reorganizar a navegação e arquitetura da plataforma para torná-la mais intuitiva e alinhada com a lógica de negócio agrícola, onde **Áreas** são o centro da operação e **Ciclos** são sub-entidades dentro delas.
 
 ---
 
-## O Que Será Feito
-
-### 1. Sistema de Login (sem cadastro)
-
-**Arquivos a criar:**
-- `src/pages/Auth.tsx` - Página de login simples (só email/senha)
-- `src/contexts/AuthContext.tsx` - Gerenciamento de sessão
-- `src/components/auth/ProtectedRoute.tsx` - Proteção de rotas
-
-**Comportamento:**
-- Se não logado, redireciona para /auth
-- Login via email/senha (sem tela de cadastro)
-- Você cria o usuário manualmente no backend depois
-
----
-
-### 2. Dados de Exemplo
-
-Inserir dados fictícios para o painel funcionar:
-- 3 áreas com diferentes status
-- 2 ciclos produtivos
-- 8 custos variados
-- 3 investimentos
-- 2 receitas
-- 1 empréstimo com parcelas
-
-Isso vai preencher os gráficos automaticamente.
-
----
-
-### 3. Módulo de Áreas (Completo)
-
-**Página /areas com:**
-- Lista de áreas em cards (buscando do banco)
-- Botão "Nova Área" abre modal de formulário
-- Campos: Nome, Tamanho (ha), Status, Cultura, Data início, Observações
-- Cada card mostra indicadores (custos, receitas da área)
-- Botão editar/excluir em cada card
-- Filtro por status
-
-**Arquivos:**
-- `src/hooks/useAreas.ts` - Hook com TanStack Query para CRUD
-- `src/components/areas/AreaCard.tsx` - Card de área
-- `src/components/areas/AreaForm.tsx` - Formulário modal
-- `src/components/areas/AreaList.tsx` - Lista com filtros
-- `src/pages/Areas.tsx` - Reescrita completa
-
----
-
-### 4. Módulo de Ciclos (Completo)
-
-**Página /ciclos com:**
-- Lista de ciclos agrupados por área
-- Formulário: Área (select), Cultura, Datas, Status
-- Vinculação obrigatória a uma área
-
-**Arquivos:**
-- `src/hooks/useCycles.ts`
-- `src/components/cycles/CycleCard.tsx`
-- `src/components/cycles/CycleForm.tsx`
-- `src/pages/Ciclos.tsx`
-
----
-
-### 5. Módulo de Custos (Completo)
-
-**Página /custos com:**
-- Tabela de custos com filtros (área, ciclo, tipo, período)
-- Formulário: Data, Tipo, Valor, Forma pagamento, Área, Ciclo, Descrição
-- Totalizador por categoria
-
-**Arquivos:**
-- `src/hooks/useCosts.ts`
-- `src/components/costs/CostForm.tsx`
-- `src/components/costs/CostTable.tsx`
-- `src/pages/Custos.tsx`
-
----
-
-### 6. Módulo de Investimentos
-
-**Página /investimentos com:**
-- Lista de investimentos (legalização, estrutura, etc.)
-- Formulário: Data, Tipo, Valor, Descrição, Área (opcional), Rateado
-- Separação: custos produtivos vs não-produtivos
-
-**Arquivos:**
-- `src/hooks/useInvestments.ts`
-- `src/components/investments/InvestmentForm.tsx`
-- `src/pages/Investimentos.tsx`
-
----
-
-### 7. Módulo de Receitas
-
-**Página /receitas com:**
-- Lista de vendas/receitas
-- Formulário: Data, Produto, Quantidade, Unidade, Preço, Área, Ciclo, Cliente
-- Valor total calculado automaticamente
-
-**Arquivos:**
-- `src/hooks/useRevenues.ts`
-- `src/components/revenues/RevenueForm.tsx`
-- `src/pages/Receitas.tsx`
-
----
-
-### 8. Módulo de Empréstimos
-
-**Página /emprestimos com:**
-- Lista de empréstimos com status
-- Formulário: Credor, Valor, Data, Juros, Parcelas, Área, Ciclo
-- Lista de parcelas com status (Paga/Pendente/Atrasada)
-- Marcar parcela como paga
-
-**Arquivos:**
-- `src/hooks/useLoans.ts`
-- `src/components/loans/LoanForm.tsx`
-- `src/components/loans/InstallmentList.tsx`
-- `src/pages/Emprestimos.tsx`
-
----
-
-### 9. Dashboard com Dados Reais
-
-**Atualizar Dashboard para:**
-- Buscar totais reais do banco (áreas, custos, receitas, empréstimos)
-- Gráficos dinâmicos baseados nos dados cadastrados
-- Cards de resumo calculados em tempo real
-
-**Arquivos a modificar:**
-- `src/pages/Dashboard.tsx`
-- `src/components/dashboard/StatCard.tsx`
-- `src/components/dashboard/AreaStatusChart.tsx`
-- `src/components/dashboard/CostDistributionChart.tsx`
-- `src/components/dashboard/FinancialEvolutionChart.tsx`
-
-**Novo hook:**
-- `src/hooks/useDashboardStats.ts` - Agregação de dados para o dashboard
-
----
-
-## Estrutura Técnica
-
-### Hooks com TanStack Query
-
-Cada módulo terá um hook reutilizável:
+## Nova Estrutura de Navegação
 
 ```text
-useAreas() -> { areas, isLoading, createArea, updateArea, deleteArea }
-useCycles(areaId?) -> { cycles, ... }
-useCosts(filters?) -> { costs, ... }
-useInvestments() -> { investments, ... }
-useRevenues() -> { revenues, ... }
-useLoans() -> { loans, ... }
+MENU PRINCIPAL (Sidebar)
++----------------------------------+
+|  [Logo] Sítio Ramos              |
+|                                  |
+|  - Visão Geral (Dashboard)       |  <-- KPIs + Relatórios integrados
+|  - Áreas                         |  <-- Principal, com ciclos dentro
+|  - Fluxo de Caixa                |  <-- Submenu: Custos/Invest/Receitas
+|  - Empréstimos                   |  <-- Gestão de dívidas
++----------------------------------+
 ```
 
-### Formulários
+### Mudancas Principais:
 
-Usando React Hook Form + Zod para validação:
-- Campos obrigatórios validados
-- Selects para enums (status, tipo, etc.)
-- Selects dinâmicos para áreas/ciclos
+1. **Visão Geral** absorve os Relatórios
+2. **Áreas** contém Ciclos (hierarquia correta)
+3. **Fluxo de Caixa** agrupa Custos, Investimentos e Receitas como filtros/abas
+4. **Relatórios** deixa de existir como aba separada
+5. **Ciclos** deixa de existir como aba separada (vai para dentro de Áreas)
 
-### Ordem de Implementação
+---
 
+## 1. Nova Visão Geral (Dashboard + Relatórios)
+
+### O que muda:
+- Absorve os relatórios que estavam em aba separada
+- Mostra KPIs principais com navegação direta
+- Adiciona seção de análise consolidada (antes em /relatorios)
+
+### Nova estrutura:
 ```text
-Etapa 1: Auth + Dados de exemplo
-        |
-        v
-Etapa 2: Áreas (módulo base)
-        |
-        v
-Etapa 3: Ciclos (depende de Áreas)
-        |
-        v
-Etapa 4: Custos + Investimentos
-        |
-        v
-Etapa 5: Receitas + Empréstimos
-        |
-        v
-Etapa 6: Dashboard dinâmico
+VISÃO GERAL
++------------------------------------------+
+|  CARDS DE KPIs (clicáveis)               |
+|  [Saldo Caixa] [Áreas] [Investido]       |
+|  [Dívida] [Resultado Líquido]            |
+|                                          |
+|  GRÁFICOS                                |
+|  [Status das Áreas]  [Custos por Tipo]   |
+|  [Evolução Mensal]                       |
+|                                          |
+|  ANÁLISE DETALHADA (ex-Relatórios)       |
+|  Tabs: [Por Área] [Por Ciclo] [Dívidas]  |
++------------------------------------------+
 ```
+
+### Correção do "Balanço Geral":
+- Renomear para **"Resultado Líquido"**
+- Descrição: "Receitas - Custos - Juros"
+- Incluir juros de empréstimo no cálculo
+
+---
+
+## 2. Nova Página de Áreas com Ciclos Integrados
+
+### O que muda:
+- Cada card de área mostra resumo financeiro
+- Ao clicar, abre página de detalhe da área
+- Ciclos aparecem dentro da área (não em aba separada)
+
+### Estrutura do Card de Área:
+```text
++----------------------------------------+
+|  [Icon] ÁREA NOME           [Menu ▼]   |
+|  10.5 ha | Status: Plantada            |
+|                                        |
+|  Financeiro:                           |
+|  Custos: R$ 15.000  | Receitas: R$ 20k |
+|  Investido: R$ 5.000                   |
+|                                        |
+|  2 ciclos ativos                       |
+|                                        |
+|  [Ver Detalhes] [Fluxo de Caixa]      |
++----------------------------------------+
+```
+
+### Página de Detalhe da Área (nova):
+```text
+ÁREA: TALHÃO 1
++------------------------------------------+
+|  Resumo: 10.5 ha | Status: Plantada      |
+|                                          |
+|  RESUMO FINANCEIRO                       |
+|  [Custos] [Investimentos] [Receitas]     |
+|                                          |
+|  CICLOS PRODUTIVOS                       |
+|  +------------------------------------+  |
+|  | Ciclo Milho 2025                  |  |
+|  | Status: Ativo | Custos: R$ 8.000  |  |
+|  +------------------------------------+  |
+|  | Ciclo Soja 2024                   |  |
+|  | Status: Finalizado | Lucro: R$ 5k |  |
+|  +------------------------------------+  |
+|                                          |
+|  [+ Novo Ciclo]                          |
++------------------------------------------+
+```
+
+---
+
+## 3. Fluxo de Caixa com Submenu/Abas
+
+### O que muda:
+- Página única com abas para filtrar por tipo
+- Custos, Investimentos e Receitas viram subviews
+- Formulários de lançamento integrados
+
+### Estrutura:
+```text
+FLUXO DE CAIXA
++------------------------------------------+
+|  SALDO: R$ 152.810,00                    |
+|  Entradas: R$ 260k | Saídas: R$ 107k     |
+|                                          |
+|  TABS:                                   |
+|  [Todos] [Custos] [Investimentos]        |
+|  [Receitas] [Empréstimos]                |
+|                                          |
+|  FILTROS: Área | Ciclo | Período         |
+|                                          |
+|  TABELA DE TRANSAÇÕES                    |
+|  ...                                     |
+|                                          |
+|  [+ Nova Movimentação]                   |
++------------------------------------------+
+```
+
+### Rotas simplificadas:
+- `/caixa` - Fluxo completo
+- `/caixa?tab=custos` - Filtrado por custos
+- `/caixa?tab=investimentos` - Filtrado por investimentos
+- `/caixa?tab=receitas` - Filtrado por receitas
+
+---
+
+## 4. Logo Oficial
+
+Vou copiar e integrar o logo fornecido na sidebar.
+
+---
+
+## Arquivos que Serão Alterados
+
+### Novos:
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/pages/AreaDetalhe.tsx` | Página de detalhe da área com ciclos |
+| `src/assets/logo.png` | Logo oficial copiado |
+
+### Modificados:
+| Arquivo | Mudança |
+|---------|---------|
+| `src/App.tsx` | Remover rotas /ciclos, /custos, /investimentos, /receitas, /relatorios. Adicionar /areas/:id |
+| `src/components/layout/AppSidebar.tsx` | Nova estrutura de menu, logo oficial, submenu Caixa |
+| `src/pages/Dashboard.tsx` | Absorver conteúdo de Relatórios (tabs analíticos) |
+| `src/pages/Areas.tsx` | Cards com resumo financeiro, link para detalhe |
+| `src/components/areas/AreaCard.tsx` | Adicionar dados financeiros, ciclos vinculados |
+| `src/pages/Caixa.tsx` | Adicionar tabs para tipos de transação |
+| `src/hooks/useDashboardStats.ts` | Corrigir "Balanço Geral" para incluir juros |
+
+### Removidos (conteúdo migrado):
+| Arquivo | Destino do Conteúdo |
+|---------|---------------------|
+| `src/pages/Ciclos.tsx` | Migrado para AreaDetalhe.tsx |
+| `src/pages/Custos.tsx` | Migrado para Caixa.tsx (tab) |
+| `src/pages/Investimentos.tsx` | Migrado para Caixa.tsx (tab) |
+| `src/pages/Receitas.tsx` | Migrado para Caixa.tsx (tab) |
+| `src/pages/Relatorios.tsx` | Migrado para Dashboard.tsx |
+
+---
+
+## Detalhamento Tecnico
+
+### 1. Nova Sidebar com Submenu
+```typescript
+const navigationItems = [
+  {
+    title: "Visão Geral",
+    url: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Áreas",
+    url: "/areas",
+    icon: MapPin,
+  },
+  {
+    title: "Fluxo de Caixa",
+    icon: Wallet,
+    submenu: [
+      { title: "Todos", url: "/caixa" },
+      { title: "Custos", url: "/caixa?tab=custos" },
+      { title: "Investimentos", url: "/caixa?tab=investimentos" },
+      { title: "Receitas", url: "/caixa?tab=receitas" },
+    ],
+  },
+  {
+    title: "Empréstimos",
+    url: "/emprestimos",
+    icon: Landmark,
+  },
+];
+```
+
+### 2. Dashboard com Relatórios Integrados
+- Adicionar `<Tabs>` após os gráficos
+- Migrar conteúdo de `Relatorios.tsx` (por área, por ciclo, empréstimos)
+- Corrigir cálculo do balanço geral:
+```typescript
+// Antes
+const balancoGeral = totalReceitas - totalCustos;
+
+// Depois  
+const jurosEmprestimos = installments
+  .filter(i => i.status === "paga")
+  .reduce((sum, i) => sum + Number(i.valor_juros || 0), 0);
+const resultadoLiquido = totalReceitas - totalCustos - jurosEmprestimos;
+```
+
+### 3. Área com Ciclos Integrados
+- Nova rota: `/areas/:id`
+- Página `AreaDetalhe.tsx` com:
+  - Dados da área
+  - Resumo financeiro (custos, investimentos, receitas)
+  - Lista de ciclos com CRUD
+  - Link para caixa filtrado
+
+### 4. Caixa com Tabs
+- Usar `useSearchParams` para ler `tab`
+- Tabs: Todos, Custos, Investimentos, Receitas
+- Formulários de cada tipo acessíveis via modal
 
 ---
 
 ## Resultado Final
 
-- Login funcional
-- Todas as 6 páginas com CRUD completo
-- Dados de exemplo para visualizar
-- Dashboard com indicadores reais
-- Sistema 100% integrado com o banco
+| Antes | Depois |
+|-------|--------|
+| 9 itens no menu | 4 itens no menu |
+| Relatórios separados | Integrados na Visão Geral |
+| Ciclos soltos | Dentro de cada Área |
+| Custos/Invest/Receitas separados | Abas do Fluxo de Caixa |
+| Balanço = Receitas - Custos | Resultado = Receitas - Custos - Juros |
+| Logo genérico | Logo oficial do Sítio Ramos |
