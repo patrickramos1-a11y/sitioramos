@@ -8,7 +8,8 @@ interface DashboardStats {
   totalCustos: number;
   totalReceitas: number;
   dividaTotal: number;
-  balancoGeral: number;
+  resultadoLiquido: number;
+  jurosEmprestimos: number;
   saldoCaixa: number;
   areasByStatus: { status: string; hectares: number }[];
   costsByType: { name: string; value: number }[];
@@ -73,7 +74,11 @@ export function useDashboardStats() {
       const totalLoans = loans.reduce((sum, l) => sum + Number(l.valor_total), 0);
       const dividaTotal = totalLoans - paidAmount;
       
-      const balancoGeral = totalReceitas - totalCustos;
+      // Calculate loan interest paid (for resultado líquido)
+      const jurosEmprestimos = paidInstallments.reduce((sum, i) => sum + Number(i.valor_juros || 0), 0);
+      
+      // Resultado Líquido = Receitas - Custos - Juros pagos
+      const resultadoLiquido = totalReceitas - totalCustos - jurosEmprestimos;
       const saldoCaixa = cashBalance?.saldo_atual || 0;
 
       // Group areas by status
@@ -134,7 +139,8 @@ export function useDashboardStats() {
         totalCustos,
         totalReceitas,
         dividaTotal,
-        balancoGeral,
+        resultadoLiquido,
+        jurosEmprestimos,
         saldoCaixa,
         areasByStatus,
         costsByType,
