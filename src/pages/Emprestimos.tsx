@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Landmark, Plus, Calendar, CheckCircle2, Banknote } from "lucide-react";
+import { Landmark, Plus, Calendar, CheckCircle2, Banknote, TrendingDown, TrendingUp, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useLoans, Loan, LoanInsert } from "@/hooks/useLoans";
+import { useLoans, Loan } from "@/hooks/useLoans";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
-import { LoanForm } from "@/components/loans/LoanForm";
+import { LoanForm, LoanFormSubmitData } from "@/components/loans/LoanForm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MoreVertical, Pencil, Trash2, Eye, CreditCard } from "lucide-react";
@@ -41,14 +40,18 @@ export default function Emprestimos() {
   const [loanToQuitar, setLoanToQuitar] = useState<any | null>(null);
   const [valorQuitacao, setValorQuitacao] = useState("");
   const [dataQuitacao, setDataQuitacao] = useState(new Date().toISOString().split("T")[0]);
-  const [creditarCaixa, setCreditarCaixa] = useState(true);
 
-  const totalDebt = loans.reduce((sum: number, loan: any) => {
+  // Summary metrics
+  const totalContratado = loans.reduce((sum: number, loan: any) => sum + Number(loan.valor_principal || loan.valor_total), 0);
+  const totalRecebido = loans.reduce((sum: number, loan: any) => sum + Number(loan.valor_recebido || loan.valor_principal || loan.valor_total), 0);
+  const totalAPagar = loans.reduce((sum: number, loan: any) => sum + Number(loan.valor_total), 0);
+  const totalPago = loans.reduce((sum: number, loan: any) => {
     const paidAmount = loan.installments
       ?.filter((i: any) => i.status === "paga")
       .reduce((s: number, i: any) => s + Number(i.valor), 0) || 0;
-    return sum + (Number(loan.valor_total) - paidAmount);
+    return sum + paidAmount;
   }, 0);
+  const totalPendente = totalAPagar - totalPago;
 
   const handleCreate = () => {
     setEditingLoan(null);
@@ -73,15 +76,14 @@ export default function Emprestimos() {
     setLoanToDelete(null);
   };
 
-  const handleSubmit = (data: LoanInsert) => {
+  const handleSubmit = (data: LoanFormSubmitData) => {
     if (editingLoan) {
       updateLoan.mutate({ ...data, id: editingLoan.id });
     } else {
-      createLoan.mutate({ ...data, creditarCaixa });
+      createLoan.mutate(data);
     }
     setFormOpen(false);
     setEditingLoan(null);
-    setCreditarCaixa(true);
   };
 
   const handlePayInstallment = (installmentId: string) => {
@@ -124,7 +126,7 @@ export default function Emprestimos() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Empréstimos</h1>
             <p className="text-muted-foreground">
-              {loans.length} empréstimo{loans.length !== 1 ? "s" : ""} • Dívida pendente: {formatCurrency(totalDebt)}
+              {loans.length} empréstimo{loans.length !== 1 ? "s" : ""} registrado{loans.length !== 1 ? "s" : ""}
             </p>
           </div>
           <Button className="gap-2" onClick={handleCreate}>
@@ -133,11 +135,53 @@ export default function Emprestimos() {
           </Button>
         </div>
 
+        {/* Summary Cards */}
+        {loans.length > 0 && (
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Landmark className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Contratado</p>
+                </div>
+                <p className="text-xl font-bold">{formatCurrency(totalContratado)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="h-4 w-4 text-success" />
+                  <p className="text-sm text-muted-foreground">Recebido</p>
+                </div>
+                <p className="text-xl font-bold text-success">{formatCurrency(totalRecebido)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <ArrowUpDown className="h-4 w-4 text-warning" />
+                  <p className="text-sm text-muted-foreground">Total a Pagar</p>
+                </div>
+                <p className="text-xl font-bold text-warning">{formatCurrency(totalAPagar)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                  <p className="text-sm text-muted-foreground">Pendente</p>
+                </div>
+                <p className="text-xl font-bold text-destructive">{formatCurrency(totalPendente)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Content */}
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-48 rounded-xl" />
+              <Skeleton key={i} className="h-64 rounded-xl" />
             ))}
           </div>
         ) : loans.length === 0 ? (
@@ -159,6 +203,13 @@ export default function Emprestimos() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {loans.map((loan: any) => {
+              const valorPrincipal = Number(loan.valor_principal || loan.valor_total);
+              const valorRecebido = Number(loan.valor_recebido || valorPrincipal);
+              const valorTotalPagar = Number(loan.valor_total);
+              const valorParcela = Number(loan.valor_parcela);
+              const descontos = Number(loan.descontos_iniciais || 0);
+              const juros = Number(loan.juros_percentual || 0);
+              
               const paidCount = loan.installments?.filter((i: any) => i.status === "paga").length || 0;
               const totalCount = loan.installments?.length || 0;
               const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
@@ -166,7 +217,8 @@ export default function Emprestimos() {
               const paidAmount = loan.installments
                 ?.filter((i: any) => i.status === "paga")
                 .reduce((s: number, i: any) => s + Number(i.valor), 0) || 0;
-              const pendingAmount = Number(loan.valor_total) - paidAmount;
+              const pendingAmount = valorTotalPagar - paidAmount;
+              const custoFinanceiro = valorTotalPagar - valorPrincipal;
               
               return (
                 <Card key={loan.id} className="transition-all hover:shadow-md">
@@ -178,9 +230,14 @@ export default function Emprestimos() {
                         </div>
                         <div>
                           <CardTitle className="text-lg">{loan.origem_credor}</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            {formatCurrency(Number(loan.valor_total))}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant={isQuitado ? "default" : "secondary"}>
+                              {isQuitado ? "Quitado" : "Ativo"}
+                            </Badge>
+                            {juros > 0 && (
+                              <Badge variant="outline">{juros}% juros</Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <DropdownMenu>
@@ -217,28 +274,50 @@ export default function Emprestimos() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={isQuitado ? "default" : "secondary"}>
-                        {isQuitado ? "Quitado" : "Ativo"}
-                      </Badge>
-                      {loan.juros_percentual > 0 && (
-                        <Badge variant="outline">{loan.juros_percentual}% juros</Badge>
-                      )}
-                      {loan.creditado_caixa && (
-                        <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                          <Banknote className="h-3 w-3 mr-1" />
-                          No caixa
-                        </Badge>
-                      )}
-                    </div>
-                    
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span>
-                        {format(new Date(loan.data), "dd/MM/yyyy", { locale: ptBR })}
-                      </span>
+                      <span>{format(new Date(loan.data), "dd/MM/yyyy", { locale: ptBR })}</span>
                     </div>
 
+                    {/* Key Financial Metrics */}
+                    <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Contratado:</span>
+                        <span className="font-semibold">{formatCurrency(valorPrincipal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3 text-success" />
+                          Recebido:
+                        </span>
+                        <span className="font-semibold text-success">{formatCurrency(valorRecebido)}</span>
+                      </div>
+                      {descontos > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <TrendingDown className="h-3 w-3 text-destructive" />
+                            Descontos:
+                          </span>
+                          <span className="font-semibold text-destructive">-{formatCurrency(descontos)}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between">
+                        <span className="text-muted-foreground">Valor Parcela:</span>
+                        <span className="font-semibold">{formatCurrency(valorParcela)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total a Pagar:</span>
+                        <span className="font-bold text-warning">{formatCurrency(valorTotalPagar)}</span>
+                      </div>
+                      {custoFinanceiro > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Custo Financeiro:</span>
+                          <span className="font-semibold text-destructive">{formatCurrency(custoFinanceiro)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Progress */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Parcelas pagas</span>
@@ -247,16 +326,12 @@ export default function Emprestimos() {
                       <Progress value={progress} className="h-2" />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Valor parcela: </span>
-                        <span className="font-medium">{formatCurrency(Number(loan.valor_parcela))}</span>
+                    {!isQuitado && (
+                      <div className="flex justify-between text-sm pt-1">
+                        <span className="text-muted-foreground">Saldo Pendente:</span>
+                        <span className="font-bold text-destructive">{formatCurrency(pendingAmount)}</span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Pendente: </span>
-                        <span className="font-medium text-warning">{formatCurrency(pendingAmount)}</span>
-                      </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -388,7 +463,7 @@ export default function Emprestimos() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir empréstimo?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O empréstimo e todas as parcelas serão removidos permanentemente.
+              Esta ação não pode ser desfeita. O empréstimo, parcelas e todas as transações vinculadas no caixa serão removidos permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

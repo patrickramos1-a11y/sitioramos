@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+import type { LoanFormSubmitData } from "@/components/loans/LoanForm";
 
 export type Loan = Tables<"loans">;
 export type LoanInsert = TablesInsert<"loans">;
@@ -29,24 +30,25 @@ export function useLoans() {
   });
 
   const createLoan = useMutation({
-    mutationFn: async (newLoan: LoanInsert & { 
-      creditarCaixa?: boolean; 
-      valorRecebido?: number;
-      descontosIniciais?: number;
-    }) => {
-      const { creditarCaixa, valorRecebido, descontosIniciais, ...loanData } = newLoan;
-      
-      // Calculate received amount (defaults to total if not specified)
-      const valorRecebidoFinal = valorRecebido ?? Number(loanData.valor_total);
-      const descontosIniciaisFinal = descontosIniciais ?? 0;
-      
+    mutationFn: async (formData: LoanFormSubmitData) => {
+      // Insert the loan record
       const { data, error } = await supabase
         .from("loans")
         .insert({
-          ...loanData,
-          creditado_caixa: creditarCaixa || false,
-          valor_recebido: valorRecebidoFinal,
-          descontos_iniciais: descontosIniciaisFinal,
+          data: formData.data,
+          origem_credor: formData.origem_credor,
+          valor_principal: formData.valor_principal,
+          valor_total: formData.valor_total,
+          valor_parcela: formData.valor_parcela,
+          valor_recebido: formData.valor_recebido,
+          descontos_iniciais: formData.descontos_iniciais,
+          valor_juros_total: formData.valor_juros_total,
+          juros_percentual: formData.juros_percentual,
+          numero_parcelas: formData.numero_parcelas,
+          area_id: formData.area_id,
+          cycle_id: formData.cycle_id,
+          observacoes: formData.observacoes,
+          creditado_caixa: true, // Always credit cash
         })
         .select()
         .single();
@@ -54,19 +56,18 @@ export function useLoans() {
       if (error) throw error;
       
       // Create installments
-      if (data && loanData.numero_parcelas > 0) {
+      if (data && formData.numero_parcelas > 0) {
         const installments: InstallmentInsert[] = [];
-        const valorParcela = Number(loanData.valor_parcela);
-        const dataInicio = new Date(loanData.data);
+        const dataInicio = new Date(formData.data);
         
-        for (let i = 1; i <= loanData.numero_parcelas; i++) {
+        for (let i = 1; i <= formData.numero_parcelas; i++) {
           const dataVencimento = new Date(dataInicio);
           dataVencimento.setMonth(dataVencimento.getMonth() + i);
           
           installments.push({
             loan_id: data.id,
             numero_parcela: i,
-            valor: valorParcela,
+            valor: formData.valor_parcela,
             data_vencimento: dataVencimento.toISOString().split('T')[0],
             status: "pendente",
           });
@@ -79,37 +80,41 @@ export function useLoans() {
         if (installmentError) throw installmentError;
       }
 
-      // If creditarCaixa is true, create cash transactions
-      if (creditarCaixa && data) {
-        // Entry for the received amount
+      // ALWAYS create cash transactions:
+      // 1. Entry for the received amount (valor_recebido)
+      if (data && formData.valor_recebido > 0) {
         const { error: cashEntryError } = await supabase
           .from("cash_transactions")
           .insert({
-            data: loanData.data,
+            data: formData.data,
             tipo: "entrada",
             categoria: "emprestimo_entrada",
-            valor: valorRecebidoFinal,
-            descricao: `Recebimento de empréstimo: ${loanData.origem_credor}`,
+            valor: formData.valor_recebido,
+            descricao: `Recebimento de empréstimo: ${formData.origem_credor}`,
             loan_id: data.id,
+            area_id: formData.area_id,
+            cycle_id: formData.cycle_id,
           });
         
         if (cashEntryError) throw cashEntryError;
+      }
 
-        // Exit for initial discounts/fees if any
-        if (descontosIniciaisFinal > 0) {
-          const { error: cashDiscountError } = await supabase
-            .from("cash_transactions")
-            .insert({
-              data: loanData.data,
-              tipo: "saida",
-              categoria: "despesa_financeira",
-              valor: descontosIniciaisFinal,
-              descricao: `Descontos iniciais empréstimo: ${loanData.origem_credor}`,
-              loan_id: data.id,
-            });
-          
-          if (cashDiscountError) throw cashDiscountError;
-        }
+      // 2. Exit for initial discounts/bank fees (if any)
+      if (data && formData.descontos_iniciais > 0) {
+        const { error: cashDiscountError } = await supabase
+          .from("cash_transactions")
+          .insert({
+            data: formData.data,
+            tipo: "saida",
+            categoria: "tarifas_bancarias",
+            valor: formData.descontos_iniciais,
+            descricao: `Descontos iniciais empréstimo: ${formData.origem_credor}`,
+            loan_id: data.id,
+            area_id: formData.area_id,
+            cycle_id: formData.cycle_id,
+          });
+        
+        if (cashDiscountError) throw cashDiscountError;
       }
       
       return data;
@@ -121,7 +126,7 @@ export function useLoans() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Empréstimo registrado",
-        description: "O empréstimo foi cadastrado com sucesso.",
+        description: "O empréstimo foi cadastrado e as transações foram lançadas no caixa.",
       });
     },
     onError: (error) => {
@@ -134,10 +139,25 @@ export function useLoans() {
   });
 
   const updateLoan = useMutation({
-    mutationFn: async ({ id, ...updates }: LoanUpdate & { id: string }) => {
+    mutationFn: async (formData: LoanFormSubmitData & { id: string }) => {
+      const { id, ...updates } = formData;
       const { data, error } = await supabase
         .from("loans")
-        .update(updates)
+        .update({
+          data: updates.data,
+          origem_credor: updates.origem_credor,
+          valor_principal: updates.valor_principal,
+          valor_total: updates.valor_total,
+          valor_parcela: updates.valor_parcela,
+          valor_recebido: updates.valor_recebido,
+          descontos_iniciais: updates.descontos_iniciais,
+          valor_juros_total: updates.valor_juros_total,
+          juros_percentual: updates.juros_percentual,
+          numero_parcelas: updates.numero_parcelas,
+          area_id: updates.area_id,
+          cycle_id: updates.cycle_id,
+          observacoes: updates.observacoes,
+        })
         .eq("id", id)
         .select()
         .single();
@@ -193,7 +213,7 @@ export function useLoans() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({
         title: "Empréstimo excluído",
-        description: "O empréstimo foi removido com sucesso.",
+        description: "O empréstimo, parcelas e transações vinculadas foram removidos.",
       });
     },
     onError: (error) => {
@@ -206,11 +226,11 @@ export function useLoans() {
   });
 
   const payInstallment = useMutation({
-    mutationFn: async ({ id, dataPagamento, registrarCaixa = true }: { id: string; dataPagamento: string; registrarCaixa?: boolean }) => {
+    mutationFn: async ({ id, dataPagamento }: { id: string; dataPagamento: string }) => {
       // Get installment details first
       const { data: installment, error: fetchError } = await supabase
         .from("installments")
-        .select("*, loans(origem_credor)")
+        .select("*, loans(origem_credor, area_id, cycle_id)")
         .eq("id", id)
         .single();
       
@@ -229,8 +249,9 @@ export function useLoans() {
       if (error) throw error;
 
       // Create cash transaction for the installment payment
-      if (registrarCaixa && installment) {
-        const loanName = (installment.loans as any)?.origem_credor || "Empréstimo";
+      if (installment) {
+        const loanData = installment.loans as any;
+        const loanName = loanData?.origem_credor || "Empréstimo";
         const { error: cashError } = await supabase
           .from("cash_transactions")
           .insert({
@@ -241,6 +262,8 @@ export function useLoans() {
             descricao: `Parcela ${installment.numero_parcela} - ${loanName}`,
             loan_id: installment.loan_id,
             installment_id: id,
+            area_id: loanData?.area_id || null,
+            cycle_id: loanData?.cycle_id || null,
           });
         
         if (cashError) throw cashError;
@@ -309,6 +332,8 @@ export function useLoans() {
           valor: valorQuitacao,
           descricao: `Quitação antecipada: ${loan.origem_credor}`,
           loan_id: loanId,
+          area_id: loan.area_id,
+          cycle_id: loan.cycle_id,
         });
       
       if (cashError) throw cashError;
