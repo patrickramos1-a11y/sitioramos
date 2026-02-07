@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Area, AreaInsert } from "@/hooks/useAreas";
 import { Loader2 } from "lucide-react";
 
@@ -15,6 +15,9 @@ const areaSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
   tamanho_hectares: z.coerce.number().positive("Tamanho deve ser maior que 0"),
   status: z.enum(["planejamento", "preparo", "plantada", "producao", "colhida"]),
+  tipo: z.string().min(1, "Tipo é obrigatório"),
+  area_app_hectares: z.coerce.number().min(0, "APP não pode ser negativa"),
+  metros_rio: z.coerce.number().min(0, "Metros de rio não podem ser negativos"),
   cultura_principal: z.string().max(100).optional().nullable(),
   data_inicio: z.string().optional().nullable(),
   observacoes: z.string().max(500).optional().nullable(),
@@ -28,6 +31,12 @@ const statusOptions = [
   { value: "plantada", label: "Plantada" },
   { value: "producao", label: "Em produção" },
   { value: "colhida", label: "Colhida" },
+];
+
+const tipoOptions = [
+  { value: "produtiva", label: "Produtiva" },
+  { value: "ambiental", label: "Ambiental" },
+  { value: "administrativa", label: "Administrativa" },
 ];
 
 interface AreaFormProps {
@@ -45,6 +54,9 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
       nome: "",
       tamanho_hectares: 0,
       status: "planejamento",
+      tipo: "produtiva",
+      area_app_hectares: 0,
+      metros_rio: 0,
       cultura_principal: "",
       data_inicio: "",
       observacoes: "",
@@ -57,6 +69,9 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
         nome: area.nome,
         tamanho_hectares: Number(area.tamanho_hectares),
         status: area.status,
+        tipo: (area as any).tipo || "produtiva",
+        area_app_hectares: Number((area as any).area_app_hectares || 0),
+        metros_rio: Number((area as any).metros_rio || 0),
         cultura_principal: area.cultura_principal || "",
         data_inicio: area.data_inicio || "",
         observacoes: area.observacoes || "",
@@ -66,6 +81,9 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
         nome: "",
         tamanho_hectares: 0,
         status: "planejamento",
+        tipo: "produtiva",
+        area_app_hectares: 0,
+        metros_rio: 0,
         cultura_principal: "",
         data_inicio: "",
         observacoes: "",
@@ -81,12 +99,18 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
       cultura_principal: data.cultura_principal || null,
       data_inicio: data.data_inicio || null,
       observacoes: data.observacoes || null,
+      // These fields are in the DB but not in the generated types yet
+      ...({ 
+        tipo: data.tipo,
+        area_app_hectares: data.area_app_hectares,
+        metros_rio: data.metros_rio,
+      } as any),
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{area ? "Editar Área" : "Nova Área"}</DialogTitle>
         </DialogHeader>
@@ -106,7 +130,7 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="tamanho_hectares"
@@ -116,6 +140,31 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
                     <FormControl>
                       <Input type="number" step="0.01" min="0" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="tipo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {tipoOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -141,6 +190,39 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Environmental fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="area_app_hectares"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>APP (ha)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" min="0" {...field} />
+                    </FormControl>
+                    <FormDescription>Preservação Permanente</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="metros_rio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Metros de Rio</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="1" min="0" {...field} />
+                    </FormControl>
+                    <FormDescription>Extensão de rio na área</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

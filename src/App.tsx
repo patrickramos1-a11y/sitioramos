@@ -10,6 +10,7 @@ import Areas from "./pages/Areas";
 import AreaDetalhe from "./pages/AreaDetalhe";
 import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
+import Propriedade from "./pages/Propriedade";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
+            <Route path="/propriedade" element={<Propriedade />} />
             <Route path="/caixa" element={<Caixa />} />
             <Route path="/areas" element={<Areas />} />
             <Route path="/areas/:id" element={<AreaDetalhe />} />

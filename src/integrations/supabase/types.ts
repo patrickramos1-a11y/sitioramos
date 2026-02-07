@@ -16,39 +16,59 @@ export type Database = {
     Tables: {
       areas: {
         Row: {
+          area_app_hectares: number
           created_at: string
           cultura_principal: string | null
           data_inicio: string | null
           id: string
+          metros_rio: number
           nome: string
           observacoes: string | null
+          propriedade_id: string | null
           status: Database["public"]["Enums"]["area_status"]
           tamanho_hectares: number
+          tipo: string
           updated_at: string
         }
         Insert: {
+          area_app_hectares?: number
           created_at?: string
           cultura_principal?: string | null
           data_inicio?: string | null
           id?: string
+          metros_rio?: number
           nome: string
           observacoes?: string | null
+          propriedade_id?: string | null
           status?: Database["public"]["Enums"]["area_status"]
           tamanho_hectares: number
+          tipo?: string
           updated_at?: string
         }
         Update: {
+          area_app_hectares?: number
           created_at?: string
           cultura_principal?: string | null
           data_inicio?: string | null
           id?: string
+          metros_rio?: number
           nome?: string
           observacoes?: string | null
+          propriedade_id?: string | null
           status?: Database["public"]["Enums"]["area_status"]
           tamanho_hectares?: number
+          tipo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "areas_propriedade_id_fkey"
+            columns: ["propriedade_id"]
+            isOneToOne: false
+            referencedRelation: "propriedade"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cash_transactions: {
         Row: {
@@ -65,6 +85,7 @@ export type Database = {
           loan_id: string | null
           observacoes: string | null
           revenue_id: string | null
+          talhao_id: string | null
           tipo: string
           updated_at: string
           valor: number
@@ -83,6 +104,7 @@ export type Database = {
           loan_id?: string | null
           observacoes?: string | null
           revenue_id?: string | null
+          talhao_id?: string | null
           tipo: string
           updated_at?: string
           valor: number
@@ -101,6 +123,7 @@ export type Database = {
           loan_id?: string | null
           observacoes?: string | null
           revenue_id?: string | null
+          talhao_id?: string | null
           tipo?: string
           updated_at?: string
           valor?: number
@@ -155,6 +178,13 @@ export type Database = {
             referencedRelation: "revenues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cash_transactions_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       costs: {
@@ -167,6 +197,7 @@ export type Database = {
           forma_pagamento: Database["public"]["Enums"]["payment_method"]
           id: string
           observacoes: string | null
+          talhao_id: string | null
           tipo: Database["public"]["Enums"]["cost_type"]
           updated_at: string
           valor: number
@@ -180,6 +211,7 @@ export type Database = {
           forma_pagamento?: Database["public"]["Enums"]["payment_method"]
           id?: string
           observacoes?: string | null
+          talhao_id?: string | null
           tipo: Database["public"]["Enums"]["cost_type"]
           updated_at?: string
           valor: number
@@ -193,6 +225,7 @@ export type Database = {
           forma_pagamento?: Database["public"]["Enums"]["payment_method"]
           id?: string
           observacoes?: string | null
+          talhao_id?: string | null
           tipo?: Database["public"]["Enums"]["cost_type"]
           updated_at?: string
           valor?: number
@@ -212,6 +245,13 @@ export type Database = {
             referencedRelation: "cycles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "costs_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cycles: {
@@ -225,6 +265,7 @@ export type Database = {
           id: string
           observacoes: string | null
           status: Database["public"]["Enums"]["cycle_status"]
+          talhao_id: string | null
           updated_at: string
         }
         Insert: {
@@ -237,6 +278,7 @@ export type Database = {
           id?: string
           observacoes?: string | null
           status?: Database["public"]["Enums"]["cycle_status"]
+          talhao_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -249,6 +291,7 @@ export type Database = {
           id?: string
           observacoes?: string | null
           status?: Database["public"]["Enums"]["cycle_status"]
+          talhao_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -257,6 +300,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cycles_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
             referencedColumns: ["id"]
           },
         ]
@@ -323,6 +373,7 @@ export type Database = {
           id: string
           observacoes: string | null
           rateado: boolean
+          talhao_id: string | null
           tipo: Database["public"]["Enums"]["investment_type"]
           updated_at: string
           valor: number
@@ -335,6 +386,7 @@ export type Database = {
           id?: string
           observacoes?: string | null
           rateado?: boolean
+          talhao_id?: string | null
           tipo: Database["public"]["Enums"]["investment_type"]
           updated_at?: string
           valor: number
@@ -347,6 +399,7 @@ export type Database = {
           id?: string
           observacoes?: string | null
           rateado?: boolean
+          talhao_id?: string | null
           tipo?: Database["public"]["Enums"]["investment_type"]
           updated_at?: string
           valor?: number
@@ -357,6 +410,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investments_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
             referencedColumns: ["id"]
           },
         ]
@@ -439,6 +499,39 @@ export type Database = {
           },
         ]
       }
+      propriedade: {
+        Row: {
+          area_app_hectares: number
+          area_total_hectares: number
+          created_at: string
+          id: string
+          metros_rio_total: number
+          nome: string
+          observacoes: string | null
+          updated_at: string
+        }
+        Insert: {
+          area_app_hectares?: number
+          area_total_hectares: number
+          created_at?: string
+          id?: string
+          metros_rio_total?: number
+          nome: string
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area_app_hectares?: number
+          area_total_hectares?: number
+          created_at?: string
+          id?: string
+          metros_rio_total?: number
+          nome?: string
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       revenues: {
         Row: {
           area_id: string
@@ -451,6 +544,7 @@ export type Database = {
           preco_unitario: number
           produto: string
           quantidade: number
+          talhao_id: string | null
           unidade: Database["public"]["Enums"]["unit_type"]
           updated_at: string
           valor_total: number | null
@@ -466,6 +560,7 @@ export type Database = {
           preco_unitario: number
           produto: string
           quantidade: number
+          talhao_id?: string | null
           unidade?: Database["public"]["Enums"]["unit_type"]
           updated_at?: string
           valor_total?: number | null
@@ -481,6 +576,7 @@ export type Database = {
           preco_unitario?: number
           produto?: string
           quantidade?: number
+          talhao_id?: string | null
           unidade?: Database["public"]["Enums"]["unit_type"]
           updated_at?: string
           valor_total?: number | null
@@ -500,7 +596,94 @@ export type Database = {
             referencedRelation: "cycles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "revenues_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      talhoes: {
+        Row: {
+          area_app_hectares: number
+          area_id: string
+          area_produtiva_hectares: number
+          area_total_hectares: number
+          created_at: string
+          id: string
+          metros_rio: number
+          nome: string
+          observacoes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          area_app_hectares?: number
+          area_id: string
+          area_produtiva_hectares?: number
+          area_total_hectares: number
+          created_at?: string
+          id?: string
+          metros_rio?: number
+          nome: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          area_app_hectares?: number
+          area_id?: string
+          area_produtiva_hectares?: number
+          area_total_hectares?: number
+          created_at?: string
+          id?: string
+          metros_rio?: number
+          nome?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talhoes_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      territorial_events: {
+        Row: {
+          created_at: string
+          dados_antes: Json | null
+          dados_depois: Json | null
+          descricao: string
+          entidades_envolvidas: Json | null
+          id: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          descricao: string
+          entidades_envolvidas?: Json | null
+          id?: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          descricao?: string
+          entidades_envolvidas?: Json | null
+          id?: string
+          tipo?: string
+        }
+        Relationships: []
       }
     }
     Views: {

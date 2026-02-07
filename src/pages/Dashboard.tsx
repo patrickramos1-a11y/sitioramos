@@ -1,4 +1,4 @@
-import { MapPin, DollarSign, Landmark, TrendingUp, Wallet, Leaf, ArrowDownCircle, ArrowUpCircle, Info } from "lucide-react";
+import { MapPin, DollarSign, Landmark, TrendingUp, Wallet, Leaf, ArrowDownCircle, ArrowUpCircle, Info, Home, TreePine, Droplets, Grid3X3 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AreaStatusChart } from "@/components/dashboard/AreaStatusChart";
 import { CostDistributionChart } from "@/components/dashboard/CostDistributionChart";
@@ -16,6 +16,8 @@ import { useCosts } from "@/hooks/useCosts";
 import { useRevenues } from "@/hooks/useRevenues";
 import { useLoans } from "@/hooks/useLoans";
 import { useCycles } from "@/hooks/useCycles";
+import { usePropriedade } from "@/hooks/usePropriedade";
+import { useTalhoes } from "@/hooks/useTalhoes";
 import { costTypeConfig } from "@/lib/categoryConfig";
 
 const formatCurrency = (value: number) => {
@@ -32,6 +34,8 @@ export default function Dashboard() {
   const { revenues } = useRevenues();
   const { loans } = useLoans();
   const { cycles } = useCycles();
+  const { propriedade } = usePropriedade();
+  const { talhoes } = useTalhoes();
 
   if (isLoading) {
     return (
@@ -128,6 +132,13 @@ export default function Dashboard() {
     };
   });
 
+  // Territorial data
+  const areaTotal = Number(propriedade?.area_total_hectares || 0);
+  const appTotal = Number(propriedade?.area_app_hectares || 0);
+  const rioTotal = Number(propriedade?.metros_rio_total || 0);
+  const areaProdutiva = talhoes.reduce((sum, t) => sum + Number(t.area_produtiva_hectares), 0);
+  const talhoesAtivos = talhoes.filter(t => t.status === "ativo").length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -139,6 +150,44 @@ export default function Dashboard() {
           Resumo da gestão do Sítio Ramos
         </p>
       </div>
+
+      {/* Territorial Summary (if property exists) */}
+      {propriedade && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Home className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-lg">{propriedade.nome}</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Área Total</p>
+                <p className="text-lg font-bold">{areaTotal.toFixed(1)} ha</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Área Produtiva</p>
+                <p className="text-lg font-bold text-success">{areaProdutiva.toFixed(1)} ha</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">APP</p>
+                <p className="text-lg font-bold">{appTotal.toFixed(1)} ha</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Metros de Rio</p>
+                <p className="text-lg font-bold">{rioTotal.toLocaleString("pt-BR")} m</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Áreas</p>
+                <p className="text-lg font-bold">{areas.length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Talhões Ativos</p>
+                <p className="text-lg font-bold">{talhoesAtivos}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
