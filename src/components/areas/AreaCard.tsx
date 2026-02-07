@@ -2,13 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MapPin, MoreVertical, Pencil, Trash2, Calendar, Sprout, Wallet, Eye, RefreshCw, DollarSign, TrendingUp } from "lucide-react";
+import { MapPin, MoreVertical, Pencil, Trash2, Sprout, Wallet, Eye, RefreshCw, DollarSign, TrendingUp, TreePine, Droplets, Grid3X3 } from "lucide-react";
 import { Area } from "@/hooks/useAreas";
 import { useCosts } from "@/hooks/useCosts";
 import { useRevenues } from "@/hooks/useRevenues";
 import { useCycles } from "@/hooks/useCycles";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useTalhoes } from "@/hooks/useTalhoes";
 import { useNavigate } from "react-router-dom";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -19,11 +18,14 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   colhida: { label: "Colhida", variant: "secondary" },
 };
 
+const tipoConfig: Record<string, string> = {
+  produtiva: "Produtiva",
+  ambiental: "Ambiental",
+  administrativa: "Administrativa",
+};
+
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 };
 
 interface AreaCardProps {
@@ -37,27 +39,23 @@ export function AreaCard({ area, onEdit, onDelete }: AreaCardProps) {
   const { costs } = useCosts();
   const { revenues } = useRevenues();
   const { cycles } = useCycles();
+  const { talhoes } = useTalhoes(area.id);
 
   const status = statusConfig[area.status] || statusConfig.planejamento;
+  const tipo = tipoConfig[(area as any).tipo] || "Produtiva";
+  const areaApp = Number((area as any).area_app_hectares || 0);
+  const areaRio = Number((area as any).metros_rio || 0);
 
-  // Calculate financials for this area
   const areaCosts = costs.filter((c: any) => c.area_id === area.id);
   const areaRevenues = revenues.filter((r: any) => r.area_id === area.id);
   const areaCycles = cycles.filter((c: any) => c.area_id === area.id);
 
   const totalCustos = areaCosts.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
-  const totalReceitas = areaRevenues.reduce((sum: number, r: any) => 
-    sum + (Number(r.quantidade) * Number(r.preco_unitario)), 0
-  );
+  const totalReceitas = areaRevenues.reduce((sum: number, r: any) => sum + (Number(r.quantidade) * Number(r.preco_unitario)), 0);
   const activeCyclesCount = areaCycles.filter((c: any) => c.status === "ativo").length;
 
-  const handleViewDetails = () => {
-    navigate(`/areas/${area.id}`);
-  };
-
-  const handleViewCaixa = () => {
-    navigate(`/caixa?area=${area.id}`);
-  };
+  const handleViewDetails = () => navigate(`/areas/${area.id}`);
+  const handleViewCaixa = () => navigate(`/caixa?area=${area.id}`);
 
   return (
     <Card className="transition-all hover:shadow-md cursor-pointer" onClick={handleViewDetails}>
@@ -70,7 +68,7 @@ export function AreaCard({ area, onEdit, onDelete }: AreaCardProps) {
             <div>
               <CardTitle className="text-lg">{area.nome}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {Number(area.tamanho_hectares).toFixed(2)} ha
+                {Number(area.tamanho_hectares).toFixed(2)} ha • {tipo}
               </p>
             </div>
           </div>
@@ -106,12 +104,18 @@ export function AreaCard({ area, onEdit, onDelete }: AreaCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant={status.variant}>{status.label}</Badge>
           {activeCyclesCount > 0 && (
             <Badge variant="outline" className="gap-1">
               <RefreshCw className="h-3 w-3" />
-              {activeCyclesCount} ciclo{activeCyclesCount !== 1 ? "s" : ""} ativo{activeCyclesCount !== 1 ? "s" : ""}
+              {activeCyclesCount} ciclo{activeCyclesCount !== 1 ? "s" : ""}
+            </Badge>
+          )}
+          {talhoes.length > 0 && (
+            <Badge variant="outline" className="gap-1">
+              <Grid3X3 className="h-3 w-3" />
+              {talhoes.length} talhão(ões)
             </Badge>
           )}
         </div>
@@ -120,6 +124,24 @@ export function AreaCard({ area, onEdit, onDelete }: AreaCardProps) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Sprout className="h-4 w-4" />
             <span>{area.cultura_principal}</span>
+          </div>
+        )}
+
+        {/* Environmental info */}
+        {(areaApp > 0 || areaRio > 0) && (
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {areaApp > 0 && (
+              <span className="flex items-center gap-1">
+                <TreePine className="h-3 w-3 text-primary" />
+                {areaApp.toFixed(2)} ha APP
+              </span>
+            )}
+            {areaRio > 0 && (
+              <span className="flex items-center gap-1">
+                <Droplets className="h-3 w-3 text-blue-500" />
+                {areaRio.toLocaleString("pt-BR")} m rio
+              </span>
+            )}
           </div>
         )}
 
@@ -142,18 +164,14 @@ export function AreaCard({ area, onEdit, onDelete }: AreaCardProps) {
         {/* Action buttons */}
         <div className="pt-2 flex gap-2">
           <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1"
+            variant="outline" size="sm" className="flex-1"
             onClick={(e) => { e.stopPropagation(); handleViewDetails(); }}
           >
             <Eye className="h-3 w-3 mr-1" />
             Detalhes
           </Button>
           <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1"
+            variant="outline" size="sm" className="flex-1"
             onClick={(e) => { e.stopPropagation(); handleViewCaixa(); }}
           >
             <Wallet className="h-3 w-3 mr-1" />

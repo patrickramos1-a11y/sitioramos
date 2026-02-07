@@ -7,7 +7,8 @@ import {
   Landmark,
   Wallet,
   ChevronDown,
-  FileText
+  FileText,
+  Home
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -35,6 +36,11 @@ const navigationItems = [
     title: "Visão Geral",
     url: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Propriedade",
+    url: "/propriedade",
+    icon: Home,
   },
   {
     title: "Áreas",
