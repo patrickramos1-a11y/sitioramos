@@ -17,10 +17,10 @@ export function useAreas(talhaoId?: string) {
       let query = supabase
         .from("areas")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any;
       
       if (talhaoId) {
-        query = query.eq("talhao_id" as any, talhaoId);
+        query = query.eq("talhao_id", talhaoId);
       }
       
       const { data, error } = await query;

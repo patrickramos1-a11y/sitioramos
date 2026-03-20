@@ -354,7 +354,7 @@ export default function AreaDetalhe() {
         open={cycleFormOpen}
         onOpenChange={setCycleFormOpen}
         cycle={editingCycle}
-        areaId={id!}
+        areas={areas.filter(a => a.id === id)}
         onSubmit={handleCycleSubmit}
         isSubmitting={createCycle.isPending || updateCycle.isPending}
       />
