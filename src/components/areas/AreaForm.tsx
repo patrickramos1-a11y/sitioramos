@@ -7,16 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Area, AreaInsert } from "@/hooks/useAreas";
-import { Loader2 } from "lucide-react";
+import { Loader2, TreePine } from "lucide-react";
+import { calculateAppFromRiver } from "@/lib/categoryConfig";
 
 const areaSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
   tamanho_hectares: z.coerce.number().positive("Tamanho deve ser maior que 0"),
   status: z.enum(["planejamento", "preparo", "plantada", "producao", "colhida"]),
   tipo: z.string().min(1, "Tipo é obrigatório"),
-  area_app_hectares: z.coerce.number().min(0, "APP não pode ser negativa"),
+  possui_rio: z.boolean(),
   metros_rio: z.coerce.number().min(0, "Metros de rio não podem ser negativos"),
   cultura_principal: z.string().max(100).optional().nullable(),
   data_inicio: z.string().optional().nullable(),
@@ -43,11 +45,12 @@ interface AreaFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   area?: Area | null;
+  talhaoId: string;
   onSubmit: (data: AreaInsert) => void;
   isSubmitting?: boolean;
 }
 
-export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: AreaFormProps) {
+export function AreaForm({ open, onOpenChange, area, talhaoId, onSubmit, isSubmitting }: AreaFormProps) {
   const form = useForm<AreaFormData>({
     resolver: zodResolver(areaSchema),
     defaultValues: {
@@ -55,7 +58,7 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
       tamanho_hectares: 0,
       status: "planejamento",
       tipo: "produtiva",
-      area_app_hectares: 0,
+      possui_rio: false,
       metros_rio: 0,
       cultura_principal: "",
       data_inicio: "",
@@ -63,15 +66,20 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
     },
   });
 
+  const possuiRio = form.watch("possui_rio");
+  const metrosRio = form.watch("metros_rio");
+  const appCalculada = possuiRio ? calculateAppFromRiver(metrosRio || 0) : 0;
+
   useEffect(() => {
     if (area) {
+      const areaRio = Number((area as any).metros_rio || 0);
       form.reset({
         nome: area.nome,
         tamanho_hectares: Number(area.tamanho_hectares),
         status: area.status,
         tipo: (area as any).tipo || "produtiva",
-        area_app_hectares: Number((area as any).area_app_hectares || 0),
-        metros_rio: Number((area as any).metros_rio || 0),
+        possui_rio: areaRio > 0,
+        metros_rio: areaRio,
         cultura_principal: area.cultura_principal || "",
         data_inicio: area.data_inicio || "",
         observacoes: area.observacoes || "",
@@ -82,7 +90,7 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
         tamanho_hectares: 0,
         status: "planejamento",
         tipo: "produtiva",
-        area_app_hectares: 0,
+        possui_rio: false,
         metros_rio: 0,
         cultura_principal: "",
         data_inicio: "",
@@ -92,6 +100,9 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
   }, [area, form]);
 
   const handleSubmit = (data: AreaFormData) => {
+    const finalMetrosRio = data.possui_rio ? data.metros_rio : 0;
+    const finalApp = calculateAppFromRiver(finalMetrosRio);
+    
     onSubmit({
       nome: data.nome,
       tamanho_hectares: data.tamanho_hectares,
@@ -99,11 +110,11 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
       cultura_principal: data.cultura_principal || null,
       data_inicio: data.data_inicio || null,
       observacoes: data.observacoes || null,
-      // These fields are in the DB but not in the generated types yet
       ...({ 
+        talhao_id: talhaoId,
         tipo: data.tipo,
-        area_app_hectares: data.area_app_hectares,
-        metros_rio: data.metros_rio,
+        area_app_hectares: finalApp,
+        metros_rio: finalMetrosRio,
       } as any),
     });
   };
@@ -123,7 +134,7 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
                 <FormItem>
                   <FormLabel>Nome da Área *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Talhão Norte" {...field} />
+                    <Input placeholder="Ex: Área 1 - Café" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -196,38 +207,54 @@ export function AreaForm({ open, onOpenChange, area, onSubmit, isSubmitting }: A
               />
             </div>
 
-            {/* Environmental fields */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="area_app_hectares"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>APP (ha)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" min="0" {...field} />
-                    </FormControl>
-                    <FormDescription>Preservação Permanente</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* River toggle */}
+            <FormField
+              control={form.control}
+              name="possui_rio"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <FormLabel>Passa rio nesta área?</FormLabel>
+                    <FormDescription>
+                      A APP será calculada automaticamente (80m de faixa)
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="metros_rio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Metros de Rio</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="1" min="0" {...field} />
-                    </FormControl>
-                    <FormDescription>Extensão de rio na área</FormDescription>
-                    <FormMessage />
-                  </FormItem>
+            {possuiRio && (
+              <div className="space-y-3">
+                <FormField
+                  control={form.control}
+                  name="metros_rio"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Metros de Rio</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" min="0" {...field} />
+                      </FormControl>
+                      <FormDescription>Extensão de rio nesta área</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {metrosRio > 0 && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <TreePine className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium">APP calculada</p>
+                      <p className="text-lg font-bold text-primary">{appCalculada.toFixed(2)} ha</p>
+                      <p className="text-xs text-muted-foreground">Faixa de 80m × {metrosRio}m</p>
+                    </div>
+                  </div>
                 )}
-              />
-            </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

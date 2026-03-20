@@ -19,7 +19,7 @@ const costSchema = z.object({
   area_id: z.string().min(1, "Área é obrigatória"),
   cycle_id: z.string().optional().nullable(),
   data: z.string().min(1, "Data é obrigatória"),
-  tipo: z.enum(["preparo_solo", "mudas", "adubacao", "herbicida", "mao_obra", "combustivel", "trator", "juros_bancarios", "tarifas_bancarias", "outros"]),
+  tipo: z.string().min(1, "Tipo é obrigatório") as any,
   valor: z.coerce.number().positive("Valor deve ser maior que 0"),
   forma_pagamento: z.enum(["dinheiro", "emprestimo"]),
   descricao: z.string().max(200).optional().nullable(),

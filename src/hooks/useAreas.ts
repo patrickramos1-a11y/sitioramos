@@ -7,18 +7,23 @@ export type Area = Tables<"areas">;
 export type AreaInsert = TablesInsert<"areas">;
 export type AreaUpdate = TablesUpdate<"areas">;
 
-export function useAreas() {
+export function useAreas(talhaoId?: string) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: areas = [], isLoading, error } = useQuery({
-    queryKey: ["areas"],
+    queryKey: ["areas", talhaoId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("areas")
         .select("*")
         .order("created_at", { ascending: false });
       
+      if (talhaoId) {
+        query = query.eq("talhao_id" as any, talhaoId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as Area[];
     },
@@ -31,23 +36,15 @@ export function useAreas() {
         .insert(newArea)
         .select()
         .single();
-      
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["areas"] });
-      toast({
-        title: "Área criada",
-        description: "A área foi cadastrada com sucesso.",
-      });
+      toast({ title: "Área criada", description: "A área foi cadastrada com sucesso." });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao criar área",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao criar área", description: error.message, variant: "destructive" });
     },
   });
 
@@ -59,57 +56,31 @@ export function useAreas() {
         .eq("id", id)
         .select()
         .single();
-      
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["areas"] });
-      toast({
-        title: "Área atualizada",
-        description: "As alterações foram salvas.",
-      });
+      toast({ title: "Área atualizada", description: "As alterações foram salvas." });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar área",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao atualizar área", description: error.message, variant: "destructive" });
     },
   });
 
   const deleteArea = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("areas")
-        .delete()
-        .eq("id", id);
-      
+      const { error } = await supabase.from("areas").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["areas"] });
-      toast({
-        title: "Área excluída",
-        description: "A área foi removida com sucesso.",
-      });
+      toast({ title: "Área excluída", description: "A área foi removida com sucesso." });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao excluir área",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao excluir área", description: error.message, variant: "destructive" });
     },
   });
 
-  return {
-    areas,
-    isLoading,
-    error,
-    createArea,
-    updateArea,
-    deleteArea,
-  };
+  return { areas, isLoading, error, createArea, updateArea, deleteArea };
 }

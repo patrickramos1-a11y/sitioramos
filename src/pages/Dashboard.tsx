@@ -19,6 +19,7 @@ import { useCycles } from "@/hooks/useCycles";
 import { usePropriedade } from "@/hooks/usePropriedade";
 import { useTalhoes } from "@/hooks/useTalhoes";
 import { costTypeConfig } from "@/lib/categoryConfig";
+import { calculateAppFromRiver } from "@/lib/categoryConfig";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -72,12 +73,7 @@ export default function Dashboard() {
       return acc;
     }, {});
 
-    return {
-      area,
-      totalCost,
-      costPerHectare,
-      byType,
-    };
+    return { area, totalCost, costPerHectare, byType };
   });
 
   // Calculate results per cycle
@@ -89,21 +85,13 @@ export default function Dashboard() {
     const totalRevenue = cycleRevenues.reduce((sum: number, r: any) => sum + (Number(r.quantidade) * Number(r.preco_unitario)), 0);
     const result = totalRevenue - totalCost;
 
-    return {
-      cycle,
-      totalCost,
-      totalRevenue,
-      result,
-      areaName: cycle.areas?.nome || "N/A",
-    };
+    return { cycle, totalCost, totalRevenue, result, areaName: cycle.areas?.nome || "N/A" };
   });
 
-  // Calculate loan status with detailed breakdown
+  // Loan status
   const emprestimosStatus = loans.map((loan: any) => {
     const valorContratado = Number(loan.valor_total);
-    const valorRecebidoNoCaixa = loan.creditado_caixa 
-      ? (Number(loan.valor_recebido) || valorContratado)
-      : 0;
+    const valorRecebidoNoCaixa = Number(loan.valor_recebido) || valorContratado;
     const descontosIniciais = Number(loan.descontos_iniciais) || 0;
     
     const parcelasPagas = loan.installments?.filter((i: any) => i.status === "paga") || [];
@@ -118,40 +106,24 @@ export default function Dashboard() {
       ? (valorPago + descontosIniciais) - valorRecebidoNoCaixa 
       : 0;
 
-    return {
-      loan,
-      valorContratado,
-      valorRecebidoNoCaixa,
-      descontosIniciais,
-      valorPago,
-      pendingAmount,
-      progress,
-      paidCount,
-      totalCount,
-      custoFinanceiro,
-    };
+    return { loan, valorContratado, valorRecebidoNoCaixa, descontosIniciais, valorPago, pendingAmount, progress, paidCount, totalCount, custoFinanceiro };
   });
 
   // Territorial data
   const areaTotal = Number(propriedade?.area_total_hectares || 0);
-  const appTotal = Number(propriedade?.area_app_hectares || 0);
   const rioTotal = Number(propriedade?.metros_rio_total || 0);
-  const areaProdutiva = talhoes.reduce((sum, t) => sum + Number(t.area_produtiva_hectares), 0);
+  const appTotal = calculateAppFromRiver(rioTotal);
+  const areaProdutiva = areas.reduce((sum, a) => sum + Number(a.tamanho_hectares), 0);
   const talhoesAtivos = talhoes.filter(t => t.status === "ativo").length;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">
-          Visão Geral
-        </h1>
-        <p className="text-muted-foreground">
-          Resumo da gestão do Sítio Ramos
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Visão Geral</h1>
+        <p className="text-muted-foreground">Resumo da gestão do Sítio Ramos</p>
       </div>
 
-      {/* Territorial Summary (if property exists) */}
+      {/* Territorial Summary */}
       {propriedade && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
@@ -165,8 +137,12 @@ export default function Dashboard() {
                 <p className="text-lg font-bold">{areaTotal.toFixed(1)} ha</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Área Produtiva</p>
-                <p className="text-lg font-bold text-success">{areaProdutiva.toFixed(1)} ha</p>
+                <p className="text-xs text-muted-foreground">Talhões</p>
+                <p className="text-lg font-bold">{talhoes.length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Áreas</p>
+                <p className="text-lg font-bold">{areas.length}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">APP</p>
@@ -175,10 +151,6 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs text-muted-foreground">Metros de Rio</p>
                 <p className="text-lg font-bold">{rioTotal.toLocaleString("pt-BR")} m</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Áreas</p>
-                <p className="text-lg font-bold">{areas.length}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Talhões Ativos</p>
@@ -191,45 +163,11 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <StatCard
-          title="Saldo em Caixa"
-          value={formatCurrency(saldoCaixa)}
-          description="Disponível em conta"
-          icon={Wallet}
-          variant={saldoCaixa >= 0 ? "success" : "destructive"}
-          href="/caixa"
-        />
-        <StatCard
-          title="Áreas Ativas"
-          value={`${stats?.totalHectares.toFixed(1) || 0} ha`}
-          description={`${stats?.areasAtivas || 0} área${(stats?.areasAtivas || 0) !== 1 ? "s" : ""} em operação`}
-          icon={MapPin}
-          variant="success"
-          href="/areas"
-        />
-        <StatCard
-          title="Capital Investido"
-          value={formatCurrency(stats?.capitalInvestido || 0)}
-          description="Soma de todos os investimentos"
-          icon={DollarSign}
-          href="/caixa?tab=investimentos"
-        />
-        <StatCard
-          title="Dívida Pendente"
-          value={formatCurrency(stats?.dividaTotal || 0)}
-          description="Parcelas não pagas"
-          icon={Landmark}
-          variant={stats?.dividaTotal && stats.dividaTotal > 0 ? "warning" : "default"}
-          href="/emprestimos"
-        />
-        <StatCard
-          title="Resultado Líquido"
-          value={formatCurrency(resultadoLiquido)}
-          description="Receitas - Custos - Juros"
-          icon={TrendingUp}
-          variant={resultadoLiquido >= 0 ? "success" : "destructive"}
-          href="/caixa?tab=receitas"
-        />
+        <StatCard title="Saldo em Caixa" value={formatCurrency(saldoCaixa)} description="Disponível em conta" icon={Wallet} variant={saldoCaixa >= 0 ? "success" : "destructive"} href="/caixa" />
+        <StatCard title="Áreas Ativas" value={`${stats?.totalHectares.toFixed(1) || 0} ha`} description={`${stats?.areasAtivas || 0} área(s) em operação`} icon={MapPin} variant="success" href="/areas" />
+        <StatCard title="Capital Investido" value={formatCurrency(stats?.capitalInvestido || 0)} description="Soma de todos os investimentos" icon={DollarSign} href="/caixa?tab=investimentos" />
+        <StatCard title="Dívida Pendente" value={formatCurrency(stats?.dividaTotal || 0)} description="Parcelas não pagas" icon={Landmark} variant={stats?.dividaTotal && stats.dividaTotal > 0 ? "warning" : "default"} href="/emprestimos" />
+        <StatCard title="Resultado Líquido" value={formatCurrency(resultadoLiquido)} description="Receitas - Custos - Juros" icon={TrendingUp} variant={resultadoLiquido >= 0 ? "success" : "destructive"} href="/caixa?tab=receitas" />
       </div>
 
       {/* Charts Grid */}
@@ -238,10 +176,9 @@ export default function Dashboard() {
         <CostDistributionChart data={stats?.costsByType || []} />
       </div>
 
-      {/* Full width chart */}
       <FinancialEvolutionChart data={stats?.monthlyData || []} />
 
-      {/* Detailed Analysis Tabs (migrated from Relatorios) */}
+      {/* Detailed Analysis Tabs */}
       <Tabs defaultValue="areas" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="areas" className="gap-2">
@@ -258,7 +195,6 @@ export default function Dashboard() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Costs by Area */}
         <TabsContent value="areas">
           <Card>
             <CardHeader>
@@ -266,9 +202,7 @@ export default function Dashboard() {
                 <MapPin className="h-5 w-5" />
                 Custo por Área e por Hectare
               </CardTitle>
-              <CardDescription>
-                Detalhamento de custos por área com ícones de categoria
-              </CardDescription>
+              <CardDescription>Detalhamento de custos por área com ícones de categoria</CardDescription>
             </CardHeader>
             <CardContent>
               {custosPorArea.length === 0 ? (
@@ -284,9 +218,7 @@ export default function Dashboard() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg text-destructive">{formatCurrency(totalCost)}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatCurrency(costPerHectare)}/ha
-                          </p>
+                          <p className="text-sm text-muted-foreground">{formatCurrency(costPerHectare)}/ha</p>
                         </div>
                       </div>
                       
@@ -317,7 +249,6 @@ export default function Dashboard() {
           </Card>
         </TabsContent>
 
-        {/* Results by Cycle */}
         <TabsContent value="ciclos">
           <Card>
             <CardHeader>
@@ -325,9 +256,7 @@ export default function Dashboard() {
                 <Leaf className="h-5 w-5" />
                 Resultado por Ciclo Produtivo
               </CardTitle>
-              <CardDescription>
-                Comparação entre custos e receitas de cada ciclo
-              </CardDescription>
+              <CardDescription>Comparação entre custos e receitas de cada ciclo</CardDescription>
             </CardHeader>
             <CardContent>
               {resultadosPorCiclo.length === 0 ? (
@@ -359,12 +288,8 @@ export default function Dashboard() {
                             {cycle.status === "planejamento" ? "📋 Planejamento" : cycle.status === "ativo" ? "🚜 Ativo" : "✅ Finalizado"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right text-destructive font-medium">
-                          -{formatCurrency(totalCost)}
-                        </TableCell>
-                        <TableCell className="text-right text-success font-medium">
-                          +{formatCurrency(totalRevenue)}
-                        </TableCell>
+                        <TableCell className="text-right text-destructive font-medium">-{formatCurrency(totalCost)}</TableCell>
+                        <TableCell className="text-right text-success font-medium">+{formatCurrency(totalRevenue)}</TableCell>
                         <TableCell className={`text-right font-bold ${result >= 0 ? "text-success" : "text-destructive"}`}>
                           {result >= 0 ? "📈" : "📉"} {formatCurrency(result)}
                         </TableCell>
@@ -377,7 +302,6 @@ export default function Dashboard() {
           </Card>
         </TabsContent>
 
-        {/* Loans Status */}
         <TabsContent value="emprestimos">
           <Card>
             <CardHeader>
@@ -385,155 +309,56 @@ export default function Dashboard() {
                 <Landmark className="h-5 w-5" />
                 Análise Detalhada de Empréstimos
               </CardTitle>
-              <CardDescription>
-                Valor contratado vs. recebido vs. pago e custo financeiro real
-              </CardDescription>
+              <CardDescription>Valor contratado vs. recebido vs. pago e custo financeiro real</CardDescription>
             </CardHeader>
             <CardContent>
               {emprestimosStatus.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">Nenhum empréstimo cadastrado</p>
               ) : (
                 <div className="space-y-6">
-                  {emprestimosStatus.map(({ 
-                    loan, 
-                    valorContratado, 
-                    valorRecebidoNoCaixa, 
-                    descontosIniciais,
-                    valorPago, 
-                    pendingAmount, 
-                    progress, 
-                    paidCount, 
-                    totalCount,
-                    custoFinanceiro 
-                  }) => (
+                  {emprestimosStatus.map(({ loan, valorContratado, valorRecebidoNoCaixa, descontosIniciais, valorPago, pendingAmount, progress, paidCount, totalCount, custoFinanceiro }) => (
                     <div key={loan.id} className="border rounded-lg p-4 space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold text-lg flex items-center gap-2">
-                            🏦 {loan.origem_credor}
-                          </h3>
+                          <h3 className="font-semibold text-lg flex items-center gap-2">🏦 {loan.origem_credor}</h3>
                           <div className="flex items-center gap-2 mt-1">
                             {loan.juros_percentual > 0 && (
-                              <Badge variant="outline" className="text-xs">
-                                {loan.juros_percentual}% juros
-                              </Badge>
+                              <Badge variant="outline" className="text-xs">{loan.juros_percentual}% juros</Badge>
                             )}
-                            {loan.creditado_caixa && (
-                              <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
-                                💰 Creditado no caixa
-                              </Badge>
-                            )}
+                            <Badge variant={loan.status === "quitado" ? "default" : "secondary"}>
+                              {loan.status === "quitado" ? "✅ Quitado" : "🔄 Ativo"}
+                            </Badge>
                           </div>
                         </div>
-                        <Badge variant={pendingAmount === 0 ? "default" : "secondary"} className="text-sm">
-                          {pendingAmount === 0 ? "✅ Quitado" : "📊 Ativo"}
-                        </Badge>
-                      </div>
-
-                      {/* Financial breakdown */}
-                      <div className="grid gap-4 md:grid-cols-4 bg-muted/30 rounded-lg p-4">
-                        <TooltipProvider>
-                          <div>
-                            <div className="flex items-center gap-1">
-                              <p className="text-sm text-muted-foreground">Valor Contratado</p>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Info className="h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Valor total do contrato do empréstimo</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <p className="font-bold text-lg">{formatCurrency(valorContratado)}</p>
-                          </div>
-                          
-                          <div>
-                            <div className="flex items-center gap-1">
-                              <p className="text-sm text-muted-foreground">Recebido no Caixa</p>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Info className="h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Valor líquido que entrou na conta</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <p className="font-bold text-lg text-success">
-                              {valorRecebidoNoCaixa > 0 ? formatCurrency(valorRecebidoNoCaixa) : "—"}
-                            </p>
-                          </div>
-
-                          {descontosIniciais > 0 && (
-                            <div>
-                              <div className="flex items-center gap-1">
-                                <p className="text-sm text-muted-foreground">Descontos Iniciais</p>
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <Info className="h-3 w-3 text-muted-foreground" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Juros/tarifas cobrados na origem</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                              <p className="font-bold text-lg text-orange-600">{formatCurrency(descontosIniciais)}</p>
-                            </div>
-                          )}
-                          
-                          <div>
-                            <div className="flex items-center gap-1">
-                              <p className="text-sm text-muted-foreground">Total Pago</p>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Info className="h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Soma de todas as parcelas pagas</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <p className="font-bold text-lg text-destructive">{formatCurrency(valorPago)}</p>
-                          </div>
-                          
-                          <div>
-                            <div className="flex items-center gap-1">
-                              <p className="text-sm text-muted-foreground">Pendente</p>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Info className="h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Valor restante a pagar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <p className="font-bold text-lg text-warning">{formatCurrency(pendingAmount)}</p>
-                          </div>
-                        </TooltipProvider>
-                      </div>
-
-                      {/* Cost analysis */}
-                      {valorRecebidoNoCaixa > 0 && valorPago > 0 && (
-                        <div className={`rounded-lg p-3 ${custoFinanceiro > 0 ? 'bg-destructive/10 border border-destructive/30' : 'bg-success/10 border border-success/30'}`}>
-                          <p className="text-sm font-medium">
-                            {custoFinanceiro > 0 ? '💸 Custo Financeiro do Empréstimo' : '💰 Economia até agora'}
-                          </p>
-                          <p className={`text-lg font-bold ${custoFinanceiro > 0 ? 'text-destructive' : 'text-success'}`}>
-                            {custoFinanceiro > 0 ? '-' : '+'}{formatCurrency(Math.abs(custoFinanceiro))}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Diferença entre o que foi pago ({formatCurrency(valorPago)}) e o que foi recebido ({formatCurrency(valorRecebidoNoCaixa)})
-                          </p>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{formatCurrency(valorContratado)}</p>
+                          <p className="text-xs text-muted-foreground">Valor contratado</p>
                         </div>
-                      )}
+                      </div>
 
-                      {/* Progress */}
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                        <div className="p-2 rounded-lg bg-success/10">
+                          <p className="text-xs text-muted-foreground">Recebido</p>
+                          <p className="font-semibold text-success">{formatCurrency(valorRecebidoNoCaixa)}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-destructive/10">
+                          <p className="text-xs text-muted-foreground">Descontos</p>
+                          <p className="font-semibold text-destructive">{formatCurrency(descontosIniciais)}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-muted">
+                          <p className="text-xs text-muted-foreground">Já Pago</p>
+                          <p className="font-semibold">{formatCurrency(valorPago)}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-warning/10">
+                          <p className="text-xs text-muted-foreground">Custo Financeiro</p>
+                          <p className="font-semibold text-warning">{formatCurrency(custoFinanceiro)}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
                         <div className="flex justify-between text-sm">
-                          <span>Parcelas: {paidCount} de {totalCount}</span>
-                          <span className="font-medium">{progress.toFixed(0)}%</span>
+                          <span className="text-muted-foreground">Progresso</span>
+                          <span className="font-medium">{paidCount}/{totalCount} parcelas ({progress.toFixed(0)}%)</span>
                         </div>
                         <Progress value={progress} className="h-2" />
                       </div>

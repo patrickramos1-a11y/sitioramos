@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Areas from "./pages/Areas";
 import AreaDetalhe from "./pages/AreaDetalhe";
+import TalhaoDetalhe from "./pages/TalhaoDetalhe";
 import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
 import Propriedade from "./pages/Propriedade";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/caixa" element={<Caixa />} />
             <Route path="/areas" element={<Areas />} />
             <Route path="/areas/:id" element={<AreaDetalhe />} />
+            <Route path="/talhoes/:id" element={<TalhaoDetalhe />} />
             <Route path="/emprestimos" element={<Emprestimos />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
