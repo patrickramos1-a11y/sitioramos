@@ -26,6 +26,7 @@ export type Database = {
           observacoes: string | null
           propriedade_id: string | null
           status: Database["public"]["Enums"]["area_status"]
+          talhao_id: string | null
           tamanho_hectares: number
           tipo: string
           updated_at: string
@@ -41,6 +42,7 @@ export type Database = {
           observacoes?: string | null
           propriedade_id?: string | null
           status?: Database["public"]["Enums"]["area_status"]
+          talhao_id?: string | null
           tamanho_hectares: number
           tipo?: string
           updated_at?: string
@@ -56,6 +58,7 @@ export type Database = {
           observacoes?: string | null
           propriedade_id?: string | null
           status?: Database["public"]["Enums"]["area_status"]
+          talhao_id?: string | null
           tamanho_hectares?: number
           tipo?: string
           updated_at?: string
@@ -66,6 +69,13 @@ export type Database = {
             columns: ["propriedade_id"]
             isOneToOne: false
             referencedRelation: "propriedade"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "areas_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
             referencedColumns: ["id"]
           },
         ]
@@ -608,7 +618,7 @@ export type Database = {
       talhoes: {
         Row: {
           area_app_hectares: number
-          area_id: string
+          area_id: string | null
           area_produtiva_hectares: number
           area_total_hectares: number
           created_at: string
@@ -616,12 +626,13 @@ export type Database = {
           metros_rio: number
           nome: string
           observacoes: string | null
+          propriedade_id: string | null
           status: string
           updated_at: string
         }
         Insert: {
           area_app_hectares?: number
-          area_id: string
+          area_id?: string | null
           area_produtiva_hectares?: number
           area_total_hectares: number
           created_at?: string
@@ -629,12 +640,13 @@ export type Database = {
           metros_rio?: number
           nome: string
           observacoes?: string | null
+          propriedade_id?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           area_app_hectares?: number
-          area_id?: string
+          area_id?: string | null
           area_produtiva_hectares?: number
           area_total_hectares?: number
           created_at?: string
@@ -642,6 +654,7 @@ export type Database = {
           metros_rio?: number
           nome?: string
           observacoes?: string | null
+          propriedade_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -651,6 +664,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talhoes_propriedade_id_fkey"
+            columns: ["propriedade_id"]
+            isOneToOne: false
+            referencedRelation: "propriedade"
             referencedColumns: ["id"]
           },
         ]
@@ -717,6 +737,10 @@ export type Database = {
         | "outros"
         | "juros_bancarios"
         | "tarifas_bancarias"
+        | "consultoria"
+        | "frete_logistica"
+        | "manutencao_infraestrutura"
+        | "insumos_compras"
       cycle_status: "planejamento" | "ativo" | "finalizado"
       installment_status: "pendente" | "paga" | "atrasada"
       investment_type:
@@ -874,6 +898,10 @@ export const Constants = {
         "outros",
         "juros_bancarios",
         "tarifas_bancarias",
+        "consultoria",
+        "frete_logistica",
+        "manutencao_infraestrutura",
+        "insumos_compras",
       ],
       cycle_status: ["planejamento", "ativo", "finalizado"],
       installment_status: ["pendente", "paga", "atrasada"],

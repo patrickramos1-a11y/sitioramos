@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Loader2 } from "lucide-react";
+import { Loader2, TreePine } from "lucide-react";
 import { Propriedade, PropriedadeInsert } from "@/hooks/usePropriedade";
+import { calculateAppFromRiver } from "@/lib/categoryConfig";
 
 const schema = z.object({
   nome: z.string().min(1, "Nome é obrigatório"),
   area_total_hectares: z.coerce.number().positive("Área total deve ser maior que 0"),
-  area_app_hectares: z.coerce.number().min(0, "APP não pode ser negativa"),
   metros_rio_total: z.coerce.number().min(0, "Metros de rio não podem ser negativos"),
   observacoes: z.string().optional().nullable(),
 });
@@ -31,18 +31,19 @@ export function PropriedadeForm({ propriedade, onSubmit, isSubmitting }: Proprie
     defaultValues: {
       nome: "",
       area_total_hectares: 0,
-      area_app_hectares: 0,
       metros_rio_total: 0,
       observacoes: "",
     },
   });
+
+  const metrosRio = form.watch("metros_rio_total");
+  const appCalculada = calculateAppFromRiver(metrosRio || 0);
 
   useEffect(() => {
     if (propriedade) {
       form.reset({
         nome: propriedade.nome,
         area_total_hectares: Number(propriedade.area_total_hectares),
-        area_app_hectares: Number(propriedade.area_app_hectares),
         metros_rio_total: Number(propriedade.metros_rio_total),
         observacoes: propriedade.observacoes || "",
       });
@@ -54,7 +55,7 @@ export function PropriedadeForm({ propriedade, onSubmit, isSubmitting }: Proprie
       ...(propriedade?.id ? { id: propriedade.id } : {}),
       nome: data.nome,
       area_total_hectares: data.area_total_hectares,
-      area_app_hectares: data.area_app_hectares,
+      area_app_hectares: calculateAppFromRiver(data.metros_rio_total),
       metros_rio_total: data.metros_rio_total,
       observacoes: data.observacoes || null,
     });
@@ -95,21 +96,6 @@ export function PropriedadeForm({ propriedade, onSubmit, isSubmitting }: Proprie
 
           <FormField
             control={form.control}
-            name="area_app_hectares"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>APP Total (ha)</FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.01" min="0" {...field} />
-                </FormControl>
-                <FormDescription>Área de Preservação Permanente</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="metros_rio_total"
             render={({ field }) => (
               <FormItem>
@@ -122,6 +108,15 @@ export function PropriedadeForm({ propriedade, onSubmit, isSubmitting }: Proprie
               </FormItem>
             )}
           />
+
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-2 text-sm font-medium mb-1">
+              <TreePine className="h-4 w-4 text-primary" />
+              APP Calculada
+            </div>
+            <p className="text-2xl font-bold text-primary">{appCalculada.toFixed(2)} ha</p>
+            <p className="text-xs text-muted-foreground">Faixa de 80m do rio</p>
+          </div>
         </div>
 
         <FormField

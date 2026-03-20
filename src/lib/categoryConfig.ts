@@ -18,6 +18,10 @@ import {
   Banknote,
   HandCoins,
   ArrowRightLeft,
+  GraduationCap,
+  Truck,
+  HardHat,
+  ShoppingCart,
   type LucideIcon
 } from "lucide-react";
 
@@ -70,11 +74,29 @@ export const costTypeConfig: Record<string, {
     color: "text-yellow-700",
     bgColor: "bg-yellow-100"
   },
-  outros: { 
-    label: "Outros", 
-    icon: Package, 
-    color: "text-gray-600",
-    bgColor: "bg-gray-100"
+  consultoria: {
+    label: "Consultoria",
+    icon: GraduationCap,
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-100"
+  },
+  frete_logistica: {
+    label: "Frete / Logística",
+    icon: Truck,
+    color: "text-sky-600",
+    bgColor: "bg-sky-100"
+  },
+  manutencao_infraestrutura: {
+    label: "Manutenção / Infraestrutura",
+    icon: HardHat,
+    color: "text-stone-600",
+    bgColor: "bg-stone-100"
+  },
+  insumos_compras: {
+    label: "Insumos / Compras Gerais",
+    icon: ShoppingCart,
+    color: "text-teal-600",
+    bgColor: "bg-teal-100"
   },
   juros_bancarios: { 
     label: "Juros Bancários", 
@@ -87,6 +109,12 @@ export const costTypeConfig: Record<string, {
     icon: Receipt, 
     color: "text-pink-600",
     bgColor: "bg-pink-100"
+  },
+  outros: { 
+    label: "Outros", 
+    icon: Package, 
+    color: "text-gray-600",
+    bgColor: "bg-gray-100"
   },
 };
 
@@ -218,6 +246,11 @@ export const cashCategoryConfig: Record<CashCategory, {
     tipo: "saida"
   },
 };
+
+// APP calculation helper: 80m buffer from river
+export function calculateAppFromRiver(metrosRio: number): number {
+  return (metrosRio * 80) / 10000; // hectares
+}
 
 // Helper to get icon component for cost type
 export function getCostTypeIcon(tipo: string) {
