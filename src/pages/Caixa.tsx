@@ -366,7 +366,7 @@ export default function Caixa() {
             </TabsTrigger>
             <TabsTrigger value="investimentos" className="gap-2">
               <FileText className="h-4 w-4" />
-              Investimentos
+              Implantação
             </TabsTrigger>
             <TabsTrigger value="receitas" className="gap-2">
               <TrendingUp className="h-4 w-4" />
