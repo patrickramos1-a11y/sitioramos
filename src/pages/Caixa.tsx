@@ -254,7 +254,7 @@ export default function Caixa() {
         return (
           <Button className="gap-2" onClick={() => { setEditingInvestment(null); setInvestmentFormOpen(true); }}>
             <Plus className="h-4 w-4" />
-            Novo Investimento
+            Novo Custo de Implantação
           </Button>
         );
       case "receitas":
