@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { 
   MapPin, Plus, Calendar, Sprout, Wallet, ArrowLeft,
   RefreshCw, DollarSign, TrendingUp, FileText, MoreVertical,
-  Pencil, Trash2, TreePine, Droplets
+  Pencil, Trash2, TreePine, Droplets, Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -69,9 +69,7 @@ export default function AreaDetalhe() {
   const talhaoId = (area as any)?.talhao_id;
 
   const handleDeleteConfirm = () => {
-    if (deleteTarget?.type === "cycle") {
-      deleteCycle.mutate(deleteTarget.item.id);
-    }
+    if (deleteTarget?.type === "cycle") deleteCycle.mutate(deleteTarget.item.id);
     setDeleteDialogOpen(false);
     setDeleteTarget(null);
   };
@@ -108,13 +106,7 @@ export default function AreaDetalhe() {
         <div className="flex flex-col items-center justify-center py-12">
           <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold mb-2">Área não encontrada</h2>
-          <p className="text-muted-foreground mb-4">A área que você está procurando não existe.</p>
-          <Button asChild>
-            <Link to="/propriedade">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Link>
-          </Button>
+          <Button asChild><Link to="/propriedade"><ArrowLeft className="h-4 w-4 mr-2" />Voltar</Link></Button>
         </div>
       </AppLayout>
     );
@@ -132,8 +124,7 @@ export default function AreaDetalhe() {
             <div className="flex items-center gap-2 mb-2">
               <Button variant="ghost" size="sm" asChild>
                 <Link to={talhaoId ? `/talhoes/${talhaoId}` : "/propriedade"}>
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  Voltar
+                  <ArrowLeft className="h-4 w-4 mr-1" />Voltar
                 </Link>
               </Button>
             </div>
@@ -153,14 +144,13 @@ export default function AreaDetalhe() {
           </div>
           <Button asChild>
             <Link to={`/caixa?area=${area.id}`}>
-              <Wallet className="h-4 w-4 mr-2" />
-              Ver Fluxo de Caixa
+              <Wallet className="h-4 w-4 mr-2" />Ver Fluxo de Caixa
             </Link>
           </Button>
         </div>
 
         {/* Area Info */}
-        {(area.cultura_principal || area.data_inicio || area.observacoes || areaApp > 0 || areaRio > 0) && (
+        {(area.cultura_principal || area.data_inicio || areaApp > 0 || areaRio > 0) && (
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-wrap gap-6">
@@ -193,9 +183,7 @@ export default function AreaDetalhe() {
                   </div>
                 )}
               </div>
-              {area.observacoes && (
-                <p className="text-sm text-muted-foreground mt-3">{area.observacoes}</p>
-              )}
+              {area.observacoes && <p className="text-sm text-muted-foreground mt-3">{area.observacoes}</p>}
             </CardContent>
           </Card>
         )}
@@ -214,7 +202,7 @@ export default function AreaDetalhe() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Investimentos</CardTitle>
+              <CardTitle className="text-sm font-medium">Implantação</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -255,13 +243,10 @@ export default function AreaDetalhe() {
                   <RefreshCw className="h-5 w-5" />
                   Ciclos Produtivos
                 </CardTitle>
-                <CardDescription>
-                  {areaCycles.length} ciclo(s) nesta área
-                </CardDescription>
+                <CardDescription>{areaCycles.length} ciclo(s) nesta área</CardDescription>
               </div>
               <Button onClick={() => { setEditingCycle(null); setCycleFormOpen(true); }} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Novo Ciclo
+                <Plus className="h-4 w-4 mr-1" />Novo Ciclo
               </Button>
             </div>
           </CardHeader>
@@ -272,12 +257,9 @@ export default function AreaDetalhe() {
                   <RefreshCw className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-medium">Nenhum ciclo cadastrado</h3>
-                <p className="text-muted-foreground mb-4">
-                  Cadastre ciclos produtivos para controlar plantio e colheita.
-                </p>
+                <p className="text-muted-foreground mb-4">Cadastre ciclos produtivos para controlar plantio e colheita.</p>
                 <Button onClick={() => { setEditingCycle(null); setCycleFormOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Novo Ciclo
+                  <Plus className="h-4 w-4 mr-1" />Novo Ciclo
                 </Button>
               </div>
             ) : (
@@ -288,6 +270,12 @@ export default function AreaDetalhe() {
                   const cycleRevenues = revenues.filter((r: any) => r.cycle_id === cycle.id);
                   const cycleTotalCost = cycleCosts.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
                   const cycleTotalRev = cycleRevenues.reduce((sum: number, r: any) => sum + (Number(r.quantidade) * Number(r.preco_unitario)), 0);
+                  
+                  // Calculate elapsed time
+                  const dataInicio = new Date(cycle.data_inicio_plantio);
+                  const now = new Date();
+                  const diasDecorridos = Math.max(0, Math.floor((now.getTime() - dataInicio.getTime()) / (1000 * 60 * 60 * 24)));
+                  const mesesDecorridos = Math.floor(diasDecorridos / 30);
 
                   return (
                     <Card key={cycle.id} className="transition-all hover:shadow-md">
@@ -308,15 +296,13 @@ export default function AreaDetalhe() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => { setEditingCycle(cycle); setCycleFormOpen(true); }}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Editar
+                                <Pencil className="mr-2 h-4 w-4" />Editar
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => { setDeleteTarget({ type: "cycle", item: cycle }); setDeleteDialogOpen(true); }}
                                 className="text-destructive focus:text-destructive"
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Excluir
+                                <Trash2 className="mr-2 h-4 w-4" />Excluir
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -327,6 +313,13 @@ export default function AreaDetalhe() {
                           <Calendar className="h-3 w-3 text-muted-foreground" />
                           <span className="text-muted-foreground">
                             Plantio: {format(new Date(cycle.data_inicio_plantio), "dd/MM/yyyy", { locale: ptBR })}
+                          </span>
+                        </div>
+                        {/* Elapsed time */}
+                        <div className="flex items-center gap-2 text-primary">
+                          <Clock className="h-3 w-3" />
+                          <span className="font-medium">
+                            {diasDecorridos} dias ({mesesDecorridos} {mesesDecorridos === 1 ? "mês" : "meses"})
                           </span>
                         </div>
                         <div className="pt-2 border-t space-y-1">
@@ -349,31 +342,17 @@ export default function AreaDetalhe() {
         </Card>
       </div>
 
-      {/* Cycle Form */}
-      <CycleForm
-        open={cycleFormOpen}
-        onOpenChange={setCycleFormOpen}
-        cycle={editingCycle}
-        areas={areas.filter(a => a.id === id)}
-        onSubmit={handleCycleSubmit}
-        isSubmitting={createCycle.isPending || updateCycle.isPending}
-      />
+      <CycleForm open={cycleFormOpen} onOpenChange={setCycleFormOpen} cycle={editingCycle} areas={areas.filter(a => a.id === id)} onSubmit={handleCycleSubmit} isSubmitting={createCycle.isPending || updateCycle.isPending} />
 
-      {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

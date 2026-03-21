@@ -438,7 +438,9 @@ export type Database = {
           creditado_caixa: boolean | null
           cycle_id: string | null
           data: string
+          data_primeira_parcela: string | null
           descontos_iniciais: number | null
+          frequencia_parcela: string
           id: string
           juros_percentual: number | null
           numero_parcelas: number
@@ -458,7 +460,9 @@ export type Database = {
           creditado_caixa?: boolean | null
           cycle_id?: string | null
           data: string
+          data_primeira_parcela?: string | null
           descontos_iniciais?: number | null
+          frequencia_parcela?: string
           id?: string
           juros_percentual?: number | null
           numero_parcelas?: number
@@ -478,7 +482,9 @@ export type Database = {
           creditado_caixa?: boolean | null
           cycle_id?: string | null
           data?: string
+          data_primeira_parcela?: string | null
           descontos_iniciais?: number | null
+          frequencia_parcela?: string
           id?: string
           juros_percentual?: number | null
           numero_parcelas?: number

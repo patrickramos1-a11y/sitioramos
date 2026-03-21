@@ -254,7 +254,7 @@ export default function Caixa() {
         return (
           <Button className="gap-2" onClick={() => { setEditingInvestment(null); setInvestmentFormOpen(true); }}>
             <Plus className="h-4 w-4" />
-            Novo Investimento
+            Novo Custo de Implantação
           </Button>
         );
       case "receitas":
@@ -366,7 +366,7 @@ export default function Caixa() {
             </TabsTrigger>
             <TabsTrigger value="investimentos" className="gap-2">
               <FileText className="h-4 w-4" />
-              Investimentos
+              Implantação
             </TabsTrigger>
             <TabsTrigger value="receitas" className="gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -582,7 +582,7 @@ export default function Caixa() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Investimentos
+                  Custos de Implantação
                   <Badge variant="outline" className="ml-2">
                     Total: {formatCurrency(totalInvestments)}
                   </Badge>

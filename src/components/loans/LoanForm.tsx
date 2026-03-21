@@ -23,6 +23,8 @@ const loanSchema = z.object({
   numero_parcelas: z.coerce.number().int().positive("Número de parcelas deve ser maior que 0"),
   valor_parcela: z.coerce.number().positive("Valor da parcela deve ser maior que 0"),
   valor_recebido: z.coerce.number().min(0, "Valor recebido não pode ser negativo"),
+  frequencia_parcela: z.string().default("mensal"),
+  data_primeira_parcela: z.string().optional(),
   area_id: z.string().optional().nullable(),
   cycle_id: z.string().optional().nullable(),
   observacoes: z.string().max(500).optional().nullable(),
@@ -41,6 +43,8 @@ export interface LoanFormSubmitData {
   valor_juros_total: number;
   juros_percentual: number;
   numero_parcelas: number;
+  frequencia_parcela: string;
+  data_primeira_parcela: string | null;
   area_id: string | null;
   cycle_id: string | null;
   observacoes: string | null;
@@ -56,6 +60,14 @@ interface LoanFormProps {
   isSubmitting?: boolean;
 }
 
+const frequenciaLabels: Record<string, string> = {
+  mensal: "Mensal",
+  trimestral: "Trimestral",
+  semestral: "Semestral",
+  anual: "Anual",
+  manual: "Manual",
+};
+
 export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, isSubmitting }: LoanFormProps) {
   const form = useForm<LoanFormData>({
     resolver: zodResolver(loanSchema),
@@ -67,6 +79,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       numero_parcelas: 1,
       valor_parcela: 0,
       valor_recebido: 0,
+      frequencia_parcela: "mensal",
+      data_primeira_parcela: "",
       area_id: EMPTY_SELECT_VALUE,
       cycle_id: EMPTY_SELECT_VALUE,
       observacoes: "",
@@ -79,13 +93,11 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       ? cycles.filter((c) => c.area_id === selectedAreaId)
       : [];
 
-  // Watch values for auto-calculations
   const valorPrincipal = form.watch("valor_principal") || 0;
   const numeroParcelas = form.watch("numero_parcelas") || 1;
   const valorParcela = form.watch("valor_parcela") || 0;
   const valorRecebido = form.watch("valor_recebido") || 0;
 
-  // Auto-calculated values
   const valorTotalAPagar = numeroParcelas * valorParcela;
   const descontosIniciais = Math.max(0, valorPrincipal - valorRecebido);
   const valorJurosTotal = Math.max(0, valorTotalAPagar - valorPrincipal);
@@ -100,6 +112,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         numero_parcelas: loan.numero_parcelas,
         valor_parcela: Number(loan.valor_parcela),
         valor_recebido: Number(loan.valor_recebido) || Number(loan.valor_principal) || Number(loan.valor_total),
+        frequencia_parcela: (loan as any).frequencia_parcela || "mensal",
+        data_primeira_parcela: (loan as any).data_primeira_parcela || "",
         area_id: loan.area_id || EMPTY_SELECT_VALUE,
         cycle_id: loan.cycle_id || EMPTY_SELECT_VALUE,
         observacoes: loan.observacoes || "",
@@ -113,6 +127,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
         numero_parcelas: 1,
         valor_parcela: 0,
         valor_recebido: 0,
+        frequencia_parcela: "mensal",
+        data_primeira_parcela: "",
         area_id: EMPTY_SELECT_VALUE,
         cycle_id: EMPTY_SELECT_VALUE,
         observacoes: "",
@@ -126,7 +142,6 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
     }
   }, [form, selectedAreaId]);
 
-  // Auto-fill valor_recebido when valor_principal changes (if user hasn't modified it)
   useEffect(() => {
     const currentRecebido = form.getValues("valor_recebido");
     if (currentRecebido === 0 && valorPrincipal > 0) {
@@ -154,6 +169,8 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
       valor_juros_total: jurosTotal,
       juros_percentual: data.juros_percentual || 0,
       numero_parcelas: parcelas,
+      frequencia_parcela: data.frequencia_parcela,
+      data_primeira_parcela: data.data_primeira_parcela || null,
       area_id: data.area_id && data.area_id !== EMPTY_SELECT_VALUE ? data.area_id : null,
       cycle_id: data.cycle_id && data.cycle_id !== EMPTY_SELECT_VALUE ? data.cycle_id : null,
       observacoes: data.observacoes || null,
@@ -182,7 +199,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                 name="data"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data *</FormLabel>
+                    <FormLabel>Data do Contrato *</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -216,7 +233,6 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                     <FormControl>
                       <Input type="number" step="0.01" min="0" placeholder="0,00" {...field} />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">Valor total do contrato</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -230,21 +246,20 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                     <FormControl>
                       <Input type="number" step="0.01" min="0" placeholder="0,00" {...field} />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">Juros do contrato</p>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            {/* Parcelas e Valor da Parcela */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Parcelas, Valor e Frequência */}
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="numero_parcelas"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nº de Parcelas *</FormLabel>
+                    <FormLabel>Nº Parcelas *</FormLabel>
                     <FormControl>
                       <Input type="number" min="1" {...field} />
                     </FormControl>
@@ -257,36 +272,71 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                 name="valor_parcela"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor da Parcela (R$) *</FormLabel>
+                    <FormLabel>Valor Parcela (R$) *</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" min="0" placeholder="0,00" {...field} />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">Valor fixo de cada parcela</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="frequencia_parcela"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Frequência</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.entries(frequenciaLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            {/* Valor Recebido na Conta */}
-            <FormField
-              control={form.control}
-              name="valor_recebido"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor Recebido na Conta (R$) *</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" min="0" placeholder="0,00" {...field} />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Valor líquido que entrou efetivamente na conta
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Data primeira parcela + Valor recebido */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="data_primeira_parcela"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data 1ª Parcela</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Se vazio, usa data do contrato + 1 período</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="valor_recebido"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor Recebido (R$) *</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" min="0" placeholder="0,00" {...field} />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Líquido na conta</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-            {/* Resumo Financeiro Auto-calculado */}
+            {/* Resumo Financeiro */}
             <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
               <p className="text-sm font-semibold text-foreground">Resumo do Empréstimo</p>
               
@@ -324,7 +374,6 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                   <div>
                     <p className="text-muted-foreground">Custo Financeiro</p>
                     <p className="font-bold text-destructive">{formatCurrency(valorJurosTotal)}</p>
-                    <p className="text-xs text-muted-foreground">Juros embutidos nas parcelas</p>
                   </div>
                 )}
               </div>
@@ -338,10 +387,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Área (Opcional)</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value || EMPTY_SELECT_VALUE}
-                    >
+                    <Select onValueChange={field.onChange} value={field.value || EMPTY_SELECT_VALUE}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Geral" />
@@ -350,9 +396,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                       <SelectContent>
                         <SelectItem value={EMPTY_SELECT_VALUE}>Geral</SelectItem>
                         {areas.map((area) => (
-                          <SelectItem key={area.id} value={area.id}>
-                            {area.nome}
-                          </SelectItem>
+                          <SelectItem key={area.id} value={area.id}>{area.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -366,10 +410,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Ciclo (Opcional)</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value || EMPTY_SELECT_VALUE}
-                    >
+                    <Select onValueChange={field.onChange} value={field.value || EMPTY_SELECT_VALUE}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Nenhum" />
@@ -378,9 +419,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                       <SelectContent>
                         <SelectItem value={EMPTY_SELECT_VALUE}>Nenhum</SelectItem>
                         {filteredCycles.map((cycle) => (
-                          <SelectItem key={cycle.id} value={cycle.id}>
-                            {cycle.cultura}
-                          </SelectItem>
+                          <SelectItem key={cycle.id} value={cycle.id}>{cycle.cultura}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -397,11 +436,7 @@ export function LoanForm({ open, onOpenChange, loan, areas, cycles, onSubmit, is
                 <FormItem>
                   <FormLabel>Observações</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Notas adicionais..."
-                      {...field}
-                      value={field.value || ""}
-                    />
+                    <Textarea placeholder="Notas adicionais..." {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

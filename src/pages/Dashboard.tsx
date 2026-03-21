@@ -1,4 +1,9 @@
-import { MapPin, DollarSign, Landmark, TrendingUp, Wallet, Leaf, ArrowDownCircle, ArrowUpCircle, Info, Home, TreePine, Droplets, Grid3X3 } from "lucide-react";
+import { 
+  MapPin, DollarSign, Landmark, TrendingUp, Wallet, Leaf, 
+  ArrowDownCircle, ArrowUpCircle, Home, TreePine, Droplets, 
+  Grid3X3, Clock, Sprout, Activity, BarChart3, PieChart,
+  ArrowUpDown, CreditCard, Receipt, Building2
+} from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AreaStatusChart } from "@/components/dashboard/AreaStatusChart";
 import { CostDistributionChart } from "@/components/dashboard/CostDistributionChart";
@@ -10,16 +15,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAreas } from "@/hooks/useAreas";
-import { useCosts } from "@/hooks/useCosts";
-import { useRevenues } from "@/hooks/useRevenues";
-import { useLoans } from "@/hooks/useLoans";
-import { useCycles } from "@/hooks/useCycles";
 import { usePropriedade } from "@/hooks/usePropriedade";
-import { useTalhoes } from "@/hooks/useTalhoes";
 import { costTypeConfig } from "@/lib/categoryConfig";
-import { calculateAppFromRiver } from "@/lib/categoryConfig";
+import { format, formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -30,15 +29,9 @@ const formatCurrency = (value: number) => {
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useDashboardStats();
-  const { areas } = useAreas();
-  const { costs } = useCosts();
-  const { revenues } = useRevenues();
-  const { loans } = useLoans();
-  const { cycles } = useCycles();
   const { propriedade } = usePropriedade();
-  const { talhoes } = useTalhoes();
 
-  if (isLoading) {
+  if (isLoading || !stats) {
     return (
       <div className="space-y-6">
         <div>
@@ -50,71 +43,12 @@ export default function Dashboard() {
             <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-[350px] rounded-xl" />
-          <Skeleton className="h-[350px] rounded-xl" />
-        </div>
         <Skeleton className="h-[350px] rounded-xl" />
       </div>
     );
   }
 
-  const saldoCaixa = stats?.saldoCaixa || 0;
-  const resultadoLiquido = stats?.resultadoLiquido || 0;
-
-  // Calculate costs per area
-  const custosPorArea = areas.map((area) => {
-    const areaCosts = costs.filter((c: any) => c.area_id === area.id);
-    const totalCost = areaCosts.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
-    const costPerHectare = area.tamanho_hectares > 0 ? totalCost / Number(area.tamanho_hectares) : 0;
-    
-    const byType = areaCosts.reduce((acc: Record<string, number>, c: any) => {
-      acc[c.tipo] = (acc[c.tipo] || 0) + Number(c.valor);
-      return acc;
-    }, {});
-
-    return { area, totalCost, costPerHectare, byType };
-  });
-
-  // Calculate results per cycle
-  const resultadosPorCiclo = cycles.map((cycle: any) => {
-    const cycleCosts = costs.filter((c: any) => c.cycle_id === cycle.id);
-    const cycleRevenues = revenues.filter((r: any) => r.cycle_id === cycle.id);
-    
-    const totalCost = cycleCosts.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
-    const totalRevenue = cycleRevenues.reduce((sum: number, r: any) => sum + (Number(r.quantidade) * Number(r.preco_unitario)), 0);
-    const result = totalRevenue - totalCost;
-
-    return { cycle, totalCost, totalRevenue, result, areaName: cycle.areas?.nome || "N/A" };
-  });
-
-  // Loan status
-  const emprestimosStatus = loans.map((loan: any) => {
-    const valorContratado = Number(loan.valor_total);
-    const valorRecebidoNoCaixa = Number(loan.valor_recebido) || valorContratado;
-    const descontosIniciais = Number(loan.descontos_iniciais) || 0;
-    
-    const parcelasPagas = loan.installments?.filter((i: any) => i.status === "paga") || [];
-    const valorPago = parcelasPagas.reduce((sum: number, i: any) => sum + Number(i.valor), 0);
-    
-    const pendingAmount = valorContratado - valorPago;
-    const paidCount = parcelasPagas.length;
-    const totalCount = loan.installments?.length || 0;
-    const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
-    
-    const custoFinanceiro = valorRecebidoNoCaixa > 0 
-      ? (valorPago + descontosIniciais) - valorRecebidoNoCaixa 
-      : 0;
-
-    return { loan, valorContratado, valorRecebidoNoCaixa, descontosIniciais, valorPago, pendingAmount, progress, paidCount, totalCount, custoFinanceiro };
-  });
-
-  // Territorial data
-  const areaTotal = Number(propriedade?.area_total_hectares || 0);
-  const rioTotal = Number(propriedade?.metros_rio_total || 0);
-  const appTotal = calculateAppFromRiver(rioTotal);
-  const areaProdutiva = areas.reduce((sum, a) => sum + Number(a.tamanho_hectares), 0);
-  const talhoesAtivos = talhoes.filter(t => t.status === "ativo").length;
+  const { territorial, financial, productive, analytical } = stats;
 
   return (
     <div className="space-y-6">
@@ -123,7 +57,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Resumo da gestão do Sítio Ramos</p>
       </div>
 
-      {/* Territorial Summary */}
+      {/* ====== TERRITORIAL SUMMARY ====== */}
       {propriedade && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
@@ -131,59 +65,218 @@ export default function Dashboard() {
               <Home className="h-5 w-5 text-primary" />
               <span className="font-semibold text-lg">{propriedade.nome}</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
               <div>
                 <p className="text-xs text-muted-foreground">Área Total</p>
-                <p className="text-lg font-bold">{areaTotal.toFixed(1)} ha</p>
+                <p className="text-lg font-bold">{territorial.areaTotal.toFixed(1)} ha</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Talhões</p>
-                <p className="text-lg font-bold">{talhoes.length}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Áreas</p>
-                <p className="text-lg font-bold">{areas.length}</p>
+                <p className="text-xs text-muted-foreground">Área Produtiva</p>
+                <p className="text-lg font-bold">{territorial.areaProdutiva.toFixed(1)} ha</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">APP</p>
-                <p className="text-lg font-bold">{appTotal.toFixed(1)} ha</p>
+                <p className="text-lg font-bold">{territorial.areaApp.toFixed(1)} ha</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Metros de Rio</p>
-                <p className="text-lg font-bold">{rioTotal.toLocaleString("pt-BR")} m</p>
+                <p className="text-lg font-bold">{territorial.metrosRio.toLocaleString("pt-BR")} m</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Talhões</p>
+                <p className="text-lg font-bold">{territorial.totalTalhoes}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Áreas</p>
+                <p className="text-lg font-bold">{territorial.totalAreas}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Talhões Ativos</p>
-                <p className="text-lg font-bold">{talhoesAtivos}</p>
+                <p className="text-lg font-bold">{territorial.talhoesAtivos}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Stats Grid */}
+      {/* ====== FINANCIAL KPIs ====== */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <StatCard title="Saldo em Caixa" value={formatCurrency(saldoCaixa)} description="Disponível em conta" icon={Wallet} variant={saldoCaixa >= 0 ? "success" : "destructive"} href="/caixa" />
-        <StatCard title="Áreas Ativas" value={`${stats?.totalHectares.toFixed(1) || 0} ha`} description={`${stats?.areasAtivas || 0} área(s) em operação`} icon={MapPin} variant="success" href="/areas" />
-        <StatCard title="Capital Investido" value={formatCurrency(stats?.capitalInvestido || 0)} description="Soma de todos os investimentos" icon={DollarSign} href="/caixa?tab=investimentos" />
-        <StatCard title="Dívida Pendente" value={formatCurrency(stats?.dividaTotal || 0)} description="Parcelas não pagas" icon={Landmark} variant={stats?.dividaTotal && stats.dividaTotal > 0 ? "warning" : "default"} href="/emprestimos" />
-        <StatCard title="Resultado Líquido" value={formatCurrency(resultadoLiquido)} description="Receitas - Custos - Juros" icon={TrendingUp} variant={resultadoLiquido >= 0 ? "success" : "destructive"} href="/caixa?tab=receitas" />
+        <StatCard 
+          title="Saldo em Caixa" 
+          value={formatCurrency(financial.saldoCaixa)} 
+          description="Entradas - Saídas" 
+          icon={Wallet} 
+          variant={financial.saldoCaixa >= 0 ? "success" : "destructive"} 
+          href="/caixa" 
+        />
+        <StatCard 
+          title="Total de Custos" 
+          value={formatCurrency(financial.totalCustos)} 
+          description="Custos operacionais" 
+          icon={DollarSign} 
+          variant="destructive"
+          href="/caixa?tab=custos" 
+        />
+        <StatCard 
+          title="Custos de Implantação" 
+          value={formatCurrency(financial.custosImplantacao)} 
+          description="Escritura, legalização, infraestrutura" 
+          icon={Building2} 
+          href="/caixa?tab=investimentos" 
+        />
+        <StatCard 
+          title="Dívida Pendente" 
+          value={formatCurrency(financial.dividaPendente)} 
+          description="Parcelas não pagas" 
+          icon={Landmark} 
+          variant={financial.dividaPendente > 0 ? "warning" : "default"} 
+          href="/emprestimos" 
+        />
+        <StatCard 
+          title="Resultado Líquido" 
+          value={formatCurrency(financial.resultadoLiquido)} 
+          description="Receitas - Custos - Juros" 
+          icon={TrendingUp} 
+          variant={financial.resultadoLiquido >= 0 ? "success" : "destructive"} 
+          href="/caixa?tab=receitas" 
+        />
       </div>
+
+      {/* ====== FINANCIAL BREAKDOWN ====== */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Composição Financeira
+          </CardTitle>
+          <CardDescription>
+            Resultado = Receitas ({formatCurrency(financial.totalReceitas)}) − Custos ({formatCurrency(financial.totalCustos)}) − Juros/Tarifas ({formatCurrency(financial.jurosETarifas)})
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+              <div className="flex items-center gap-2 mb-1">
+                <ArrowUpCircle className="h-4 w-4 text-success" />
+                <p className="text-xs text-muted-foreground">Total Entradas</p>
+              </div>
+              <p className="text-lg font-bold text-success">{formatCurrency(financial.totalEntradas)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="flex items-center gap-2 mb-1">
+                <ArrowDownCircle className="h-4 w-4 text-destructive" />
+                <p className="text-xs text-muted-foreground">Total Saídas</p>
+              </div>
+              <p className="text-lg font-bold text-destructive">{formatCurrency(financial.totalSaidas)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted border">
+              <div className="flex items-center gap-2 mb-1">
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Receitas</p>
+              </div>
+              <p className="text-lg font-bold text-success">{formatCurrency(financial.totalReceitas)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted border">
+              <div className="flex items-center gap-2 mb-1">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Juros + Tarifas</p>
+              </div>
+              <p className="text-lg font-bold text-destructive">{formatCurrency(financial.jurosETarifas)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ====== PRODUCTIVE STATUS ====== */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Áreas em Produção</CardTitle>
+            <Sprout className="h-4 w-4 text-success" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success">{productive.areasProducao}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Áreas em Preparo</CardTitle>
+            <Activity className="h-4 w-4 text-warning" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-warning">{productive.areasPreparo}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Ciclos Ativos</CardTitle>
+            <Leaf className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{productive.ciclosAtivos}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ====== ACTIVE CYCLES WITH TIME ====== */}
+      {productive.ciclos.filter(c => c.status === "ativo").length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Ciclos Ativos — Tempo de Cultivo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {productive.ciclos.filter(c => c.status === "ativo").map(cycle => (
+                <div key={cycle.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sprout className="h-4 w-4 text-primary" />
+                      <span className="font-semibold">{cycle.cultura}</span>
+                    </div>
+                    <Badge variant="default">Ativo</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{cycle.areaName}</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
+                    <span>Início: {format(new Date(cycle.dataInicio), "dd/MM/yyyy", { locale: ptBR })}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span className="text-primary">
+                      ⏱ {cycle.diasDecorridos} dias ({Math.floor(cycle.diasDecorridos / 30)} meses)
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs border-t pt-2">
+                    <span className="text-destructive">Custos: {formatCurrency(cycle.totalCustos)}</span>
+                    <span className="text-success">Receitas: {formatCurrency(cycle.totalReceitas)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts Grid */}
       <div className="grid gap-4 md:grid-cols-2">
-        <AreaStatusChart data={stats?.areasByStatus || []} />
-        <CostDistributionChart data={stats?.costsByType || []} />
+        <AreaStatusChart data={analytical.areasByStatus} />
+        <CostDistributionChart data={analytical.costsByType} />
       </div>
 
-      <FinancialEvolutionChart data={stats?.monthlyData || []} />
+      <FinancialEvolutionChart data={analytical.monthlyData} />
 
-      {/* Detailed Analysis Tabs */}
+      {/* ====== DETAILED ANALYSIS ====== */}
       <Tabs defaultValue="areas" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="areas" className="gap-2">
             <MapPin className="h-4 w-4" />
             Por Área
+          </TabsTrigger>
+          <TabsTrigger value="talhoes" className="gap-2">
+            <Grid3X3 className="h-4 w-4" />
+            Por Talhão
           </TabsTrigger>
           <TabsTrigger value="ciclos" className="gap-2">
             <Leaf className="h-4 w-4" />
@@ -191,107 +284,44 @@ export default function Dashboard() {
           </TabsTrigger>
           <TabsTrigger value="emprestimos" className="gap-2">
             <Landmark className="h-4 w-4" />
-            Empréstimos
+            Dívidas
           </TabsTrigger>
         </TabsList>
 
+        {/* Per Area */}
         <TabsContent value="areas">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
-                Custo por Área e por Hectare
+                Gasto e Receita por Área
               </CardTitle>
-              <CardDescription>Detalhamento de custos por área com ícones de categoria</CardDescription>
             </CardHeader>
             <CardContent>
-              {custosPorArea.length === 0 ? (
+              {analytical.gastoPorArea.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">Nenhuma área cadastrada</p>
-              ) : (
-                <div className="space-y-6">
-                  {custosPorArea.map(({ area, totalCost, costPerHectare, byType }) => (
-                    <div key={area.id} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg">{area.nome}</h3>
-                          <p className="text-sm text-muted-foreground">{Number(area.tamanho_hectares).toFixed(2)} ha</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-lg text-destructive">{formatCurrency(totalCost)}</p>
-                          <p className="text-sm text-muted-foreground">{formatCurrency(costPerHectare)}/ha</p>
-                        </div>
-                      </div>
-                      
-                      {Object.keys(byType).length > 0 && (
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                          {Object.entries(byType).map(([tipo, valor]) => {
-                            const config = costTypeConfig[tipo];
-                            const Icon = config?.icon || DollarSign;
-                            return (
-                              <div key={tipo} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded-lg">
-                                <div className="flex items-center gap-2">
-                                  <div className={`rounded p-1 ${config?.bgColor || 'bg-muted'}`}>
-                                    <Icon className={`h-3.5 w-3.5 ${config?.color || 'text-muted-foreground'}`} />
-                                  </div>
-                                  <span>{config?.label || tipo}</span>
-                                </div>
-                                <span className="font-medium">{formatCurrency(valor)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="ciclos">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Leaf className="h-5 w-5" />
-                Resultado por Ciclo Produtivo
-              </CardTitle>
-              <CardDescription>Comparação entre custos e receitas de cada ciclo</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {resultadosPorCiclo.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Nenhum ciclo cadastrado</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Ciclo</TableHead>
                       <TableHead>Área</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Hectares</TableHead>
                       <TableHead className="text-right">Custos</TableHead>
+                      <TableHead className="text-right">R$/ha</TableHead>
                       <TableHead className="text-right">Receitas</TableHead>
                       <TableHead className="text-right">Resultado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {resultadosPorCiclo.map(({ cycle, totalCost, totalRevenue, result, areaName }) => (
-                      <TableRow key={cycle.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">🌱</span>
-                            {cycle.cultura}
-                          </div>
-                        </TableCell>
-                        <TableCell>{areaName}</TableCell>
-                        <TableCell>
-                          <Badge variant={cycle.status === "finalizado" ? "default" : cycle.status === "ativo" ? "secondary" : "outline"}>
-                            {cycle.status === "planejamento" ? "📋 Planejamento" : cycle.status === "ativo" ? "🚜 Ativo" : "✅ Finalizado"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right text-destructive font-medium">-{formatCurrency(totalCost)}</TableCell>
-                        <TableCell className="text-right text-success font-medium">+{formatCurrency(totalRevenue)}</TableCell>
-                        <TableCell className={`text-right font-bold ${result >= 0 ? "text-success" : "text-destructive"}`}>
-                          {result >= 0 ? "📈" : "📉"} {formatCurrency(result)}
+                    {analytical.gastoPorArea.map(item => (
+                      <TableRow key={item.areaId}>
+                        <TableCell className="font-medium">{item.nome}</TableCell>
+                        <TableCell>{item.hectares.toFixed(2)} ha</TableCell>
+                        <TableCell className="text-right text-destructive">{formatCurrency(item.custos)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatCurrency(item.custoPorHa)}</TableCell>
+                        <TableCell className="text-right text-success">{formatCurrency(item.receitas)}</TableCell>
+                        <TableCell className={`text-right font-bold ${item.resultado >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(item.resultado)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -302,70 +332,134 @@ export default function Dashboard() {
           </Card>
         </TabsContent>
 
+        {/* Per Talhão */}
+        <TabsContent value="talhoes">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Grid3X3 className="h-5 w-5" />
+                Gasto e Receita por Talhão
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {analytical.gastoPorTalhao.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhum talhão cadastrado</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Talhão</TableHead>
+                      <TableHead>Hectares</TableHead>
+                      <TableHead className="text-right">Custos</TableHead>
+                      <TableHead className="text-right">R$/ha</TableHead>
+                      <TableHead className="text-right">Receitas</TableHead>
+                      <TableHead className="text-right">Resultado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {analytical.gastoPorTalhao.map(item => (
+                      <TableRow key={item.talhaoId}>
+                        <TableCell className="font-medium">{item.nome}</TableCell>
+                        <TableCell>{item.hectares.toFixed(2)} ha</TableCell>
+                        <TableCell className="text-right text-destructive">{formatCurrency(item.custos)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatCurrency(item.custoPorHa)}</TableCell>
+                        <TableCell className="text-right text-success">{formatCurrency(item.receitas)}</TableCell>
+                        <TableCell className={`text-right font-bold ${item.resultado >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(item.resultado)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Per Cycle */}
+        <TabsContent value="ciclos">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Leaf className="h-5 w-5" />
+                Resultado por Ciclo Produtivo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {productive.ciclos.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhum ciclo cadastrado</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ciclo</TableHead>
+                      <TableHead>Área</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Tempo</TableHead>
+                      <TableHead className="text-right">Custos</TableHead>
+                      <TableHead className="text-right">Receitas</TableHead>
+                      <TableHead className="text-right">Resultado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productive.ciclos.map(cycle => (
+                      <TableRow key={cycle.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Sprout className="h-4 w-4 text-primary" />
+                            {cycle.cultura}
+                          </div>
+                        </TableCell>
+                        <TableCell>{cycle.areaName}</TableCell>
+                        <TableCell>
+                          <Badge variant={cycle.status === "finalizado" ? "default" : cycle.status === "ativo" ? "secondary" : "outline"}>
+                            {cycle.status === "ativo" ? "🚜 Ativo" : cycle.status === "finalizado" ? "✅ Finalizado" : "📋 Planejamento"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{cycle.diasDecorridos}d ({Math.floor(cycle.diasDecorridos / 30)}m)</span>
+                        </TableCell>
+                        <TableCell className="text-right text-destructive">{formatCurrency(cycle.totalCustos)}</TableCell>
+                        <TableCell className="text-right text-success">{formatCurrency(cycle.totalReceitas)}</TableCell>
+                        <TableCell className={`text-right font-bold ${cycle.resultado >= 0 ? "text-success" : "text-destructive"}`}>
+                          {formatCurrency(cycle.resultado)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Loans summary - reuse from existing data */}
         <TabsContent value="emprestimos">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Landmark className="h-5 w-5" />
-                Análise Detalhada de Empréstimos
+                Resumo de Dívidas
               </CardTitle>
-              <CardDescription>Valor contratado vs. recebido vs. pago e custo financeiro real</CardDescription>
+              <CardDescription>
+                Dívida pendente total: {formatCurrency(financial.dividaPendente)}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {emprestimosStatus.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Nenhum empréstimo cadastrado</p>
-              ) : (
-                <div className="space-y-6">
-                  {emprestimosStatus.map(({ loan, valorContratado, valorRecebidoNoCaixa, descontosIniciais, valorPago, pendingAmount, progress, paidCount, totalCount, custoFinanceiro }) => (
-                    <div key={loan.id} className="border rounded-lg p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg flex items-center gap-2">🏦 {loan.origem_credor}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            {loan.juros_percentual > 0 && (
-                              <Badge variant="outline" className="text-xs">{loan.juros_percentual}% juros</Badge>
-                            )}
-                            <Badge variant={loan.status === "quitado" ? "default" : "secondary"}>
-                              {loan.status === "quitado" ? "✅ Quitado" : "🔄 Ativo"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-lg">{formatCurrency(valorContratado)}</p>
-                          <p className="text-xs text-muted-foreground">Valor contratado</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                        <div className="p-2 rounded-lg bg-success/10">
-                          <p className="text-xs text-muted-foreground">Recebido</p>
-                          <p className="font-semibold text-success">{formatCurrency(valorRecebidoNoCaixa)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-destructive/10">
-                          <p className="text-xs text-muted-foreground">Descontos</p>
-                          <p className="font-semibold text-destructive">{formatCurrency(descontosIniciais)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-muted">
-                          <p className="text-xs text-muted-foreground">Já Pago</p>
-                          <p className="font-semibold">{formatCurrency(valorPago)}</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-warning/10">
-                          <p className="text-xs text-muted-foreground">Custo Financeiro</p>
-                          <p className="font-semibold text-warning">{formatCurrency(custoFinanceiro)}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Progresso</span>
-                          <span className="font-medium">{paidCount}/{totalCount} parcelas ({progress.toFixed(0)}%)</span>
-                        </div>
-                        <Progress value={progress} className="h-2" />
-                      </div>
-                    </div>
-                  ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="text-xs text-muted-foreground">Dívida Total</p>
+                  <p className="text-lg font-bold text-warning">{formatCurrency(financial.dividaPendente)}</p>
                 </div>
-              )}
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="text-xs text-muted-foreground">Juros + Tarifas Pagos</p>
+                  <p className="text-lg font-bold text-destructive">{formatCurrency(financial.jurosETarifas)}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="text-xs text-muted-foreground">Custos de Implantação</p>
+                  <p className="text-lg font-bold">{formatCurrency(financial.custosImplantacao)}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

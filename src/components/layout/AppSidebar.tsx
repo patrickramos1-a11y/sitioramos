@@ -52,7 +52,7 @@ const navigationItems = [
 const caixaSubmenu = [
   { title: "Todas as Movimentações", url: "/caixa" },
   { title: "Custos", url: "/caixa?tab=custos" },
-  { title: "Investimentos", url: "/caixa?tab=investimentos" },
+  { title: "Implantação", url: "/caixa?tab=investimentos" },
   { title: "Receitas", url: "/caixa?tab=receitas" },
 ];
 
