@@ -991,7 +991,7 @@ export default function Caixa() {
             <Button variant="outline" onClick={() => { setFormOpen(false); resetForm(); }}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={!formData.categoria || !formData.valor || createTransaction.isPending}>
+            <Button onClick={handleSubmit} disabled={!formData.categoria || !formData.valor || (needsSubtype && !formData.subtipo) || createTransaction.isPending}>
               Registrar
             </Button>
           </DialogFooter>
