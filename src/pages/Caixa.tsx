@@ -116,18 +116,47 @@ export default function Caixa() {
     setSearchParams(newParams);
   };
 
+  // Determine which subtypes to show based on selected category
+  const getSubtypeOptions = () => {
+    if (formData.categoria === "custo_operacional") {
+      return Object.entries(costTypeConfig).map(([value, config]) => ({
+        value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
+      }));
+    }
+    if (formData.categoria === "investimento") {
+      return Object.entries(investmentTypeConfig).map(([value, config]) => ({
+        value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
+      }));
+    }
+    return [];
+  };
+
+  const subtypeOptions = getSubtypeOptions();
+  const needsSubtype = formData.categoria === "custo_operacional" || formData.categoria === "investimento";
+
   const handleSubmit = () => {
     if (!formData.categoria || !formData.valor) return;
+    if (needsSubtype && !formData.subtipo) return;
 
     const categoriaInfo = cashCategoryConfig[formData.categoria as CashCategory];
     const tipo = categoriaInfo?.tipo || "saida";
+
+    // Build description with subtype info
+    const subtipoLabel = formData.subtipo 
+      ? (formData.categoria === "custo_operacional" 
+          ? costTypeConfig[formData.subtipo]?.label 
+          : investmentTypeConfig[formData.subtipo]?.label) || formData.subtipo
+      : "";
+    const descricaoFinal = formData.descricao 
+      ? (subtipoLabel ? `${subtipoLabel}: ${formData.descricao}` : formData.descricao)
+      : subtipoLabel || null;
 
     createTransaction.mutate({
       data: formData.data,
       tipo: tipo,
       categoria: formData.categoria as CashCategory,
       valor: Number(formData.valor),
-      descricao: formData.descricao || null,
+      descricao: descricaoFinal,
       loan_id: formData.loan_id || null,
       area_id: formData.area_id || null,
       cycle_id: formData.cycle_id || null,
