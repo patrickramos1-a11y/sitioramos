@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { 
   Grid3X3, Plus, ArrowLeft, MapPin, TreePine, Droplets,
   MoreVertical, Pencil, Trash2, DollarSign, TrendingUp, Eye,
-  RefreshCw, Sprout, Calendar, Wallet
+  RefreshCw, Sprout, Calendar, Wallet, LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useTalhoes, Talhao } from "@/hooks/useTalhoes";
 import { useAreas, Area, AreaInsert } from "@/hooks/useAreas";
 import { useCosts } from "@/hooks/useCosts";
@@ -20,6 +22,9 @@ import { useRevenues } from "@/hooks/useRevenues";
 import { useCycles } from "@/hooks/useCycles";
 import { AreaForm } from "@/components/areas/AreaForm";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   planejamento: { label: "Planejamento", variant: "secondary" },
