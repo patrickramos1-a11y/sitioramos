@@ -74,6 +74,26 @@ export default function TalhaoDetalhe() {
   // Unassigned areas (no talhao_id or assigned to a different talhão)
   const unassignedAreas = allAreas.filter(a => !a.talhao_id && a.id);
 
+  const talhao = talhoes.find(t => t.id === id);
+  const isLoading = talhoesLoading || areasLoading;
+
+  const handleLinkAreas = async () => {
+    if (selectedAreasToLink.length === 0) return;
+    setIsLinking(true);
+    try {
+      for (const areaId of selectedAreasToLink) {
+        await supabase.from("areas").update({ talhao_id: id } as any).eq("id", areaId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["areas"] });
+      toast({ title: "Áreas vinculadas", description: `${selectedAreasToLink.length} área(s) vinculada(s) ao talhão.` });
+      setSelectedAreasToLink([]);
+      setLinkDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+    }
+    setIsLinking(false);
+  };
+
   if (isLoading) {
     return (
       <AppLayout>
