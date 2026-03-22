@@ -54,8 +54,11 @@ const formatCurrency = (value: number) => {
 export default function TalhaoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { talhoes, isLoading: talhoesLoading } = useTalhoes();
   const { areas, isLoading: areasLoading, createArea, updateArea, deleteArea } = useAreas(id);
+  const { areas: allAreas } = useAreas(); // All areas for linking
   const { costs } = useCosts();
   const { revenues } = useRevenues();
   const { cycles } = useCycles();
@@ -64,10 +67,12 @@ export default function TalhaoDetalhe() {
   const [editingArea, setEditingArea] = useState<Area | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [areaToDelete, setAreaToDelete] = useState<Area | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [selectedAreasToLink, setSelectedAreasToLink] = useState<string[]>([]);
+  const [isLinking, setIsLinking] = useState(false);
 
-  const talhao = talhoes.find(t => t.id === id);
-
-  const isLoading = talhoesLoading || areasLoading;
+  // Unassigned areas (no talhao_id or assigned to a different talhão)
+  const unassignedAreas = allAreas.filter(a => !a.talhao_id && a.id);
 
   if (isLoading) {
     return (
