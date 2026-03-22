@@ -139,13 +139,13 @@ export function useDashboardStats() {
       const totalLoansValue = loans.reduce((sum, l) => sum + Number(l.valor_total), 0);
       const dividaPendente = totalLoansValue - paidAmount;
 
-      // Juros + Tarifas = paid installment interest + bank fees from costs
-      const jurosFromInstallments = paidInstallments.reduce((sum, i) => sum + Number(i.valor_juros || 0), 0);
+      // Juros + Tarifas from costs (juros_bancarios and tarifas_bancarias are ALREADY included in totalCustos)
       const jurosFromCosts = costs.filter(c => c.tipo === "juros_bancarios" || c.tipo === "tarifas_bancarias").reduce((sum, c) => sum + Number(c.valor), 0);
-      const jurosETarifas = jurosFromInstallments + jurosFromCosts;
+      const jurosETarifas = jurosFromCosts;
       
-      // Resultado Líquido = Receitas - Custos Operacionais - Juros/Tarifas
-      const resultadoLiquido = totalReceitas - totalCustos - jurosETarifas;
+      // Resultado Líquido = Receitas - Custos Operacionais (which already includes juros/tarifas)
+      // So we don't double-subtract jurosETarifas
+      const resultadoLiquido = totalReceitas - totalCustos;
 
       const financial: FinancialStats = {
         saldoCaixa,

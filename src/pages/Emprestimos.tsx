@@ -268,7 +268,7 @@ export default function Emprestimos() {
                         <span className="font-semibold">{formatCurrency(valorParcela)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total a Pagar:</span>
+                        <span className="text-muted-foreground">Dívida Total:</span>
                         <span className="font-bold text-warning">{formatCurrency(valorTotalPagar)}</span>
                       </div>
                       <div className="flex justify-between">
