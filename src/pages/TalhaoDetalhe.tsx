@@ -262,10 +262,18 @@ export default function TalhaoDetalhe() {
                   {areas.length} área(s) • {totalAreaAreas.toFixed(2)} ha alocados de {talhaoHectares.toFixed(2)} ha
                 </CardDescription>
               </div>
-              <Button onClick={() => { setEditingArea(null); setAreaFormOpen(true); }} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Nova Área
-              </Button>
+              <div className="flex items-center gap-2">
+                {unassignedAreas.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedAreasToLink([]); setLinkDialogOpen(true); }}>
+                    <LinkIcon className="h-4 w-4 mr-1" />
+                    Vincular Existente
+                  </Button>
+                )}
+                <Button onClick={() => { setEditingArea(null); setAreaFormOpen(true); }} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nova Área
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
