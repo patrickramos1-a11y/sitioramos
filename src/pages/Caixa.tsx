@@ -171,6 +171,7 @@ export default function Caixa() {
     setFormData({
       data: new Date().toISOString().split("T")[0],
       categoria: "",
+      subtipo: "",
       valor: "",
       descricao: "",
       loan_id: "",
