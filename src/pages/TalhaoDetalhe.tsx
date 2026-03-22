@@ -435,6 +435,52 @@ export default function TalhaoDetalhe() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Link Existing Areas Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Vincular Áreas ao Talhão</DialogTitle>
+          </DialogHeader>
+          {unassignedAreas.length === 0 ? (
+            <p className="text-muted-foreground text-sm py-4">Não há áreas disponíveis para vincular. Todas já estão atribuídas a talhões.</p>
+          ) : (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {unassignedAreas.map((area) => (
+                <label
+                  key={area.id}
+                  className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                >
+                  <Checkbox
+                    checked={selectedAreasToLink.includes(area.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedAreasToLink(prev =>
+                        checked
+                          ? [...prev, area.id]
+                          : prev.filter(id => id !== area.id)
+                      );
+                    }}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{area.nome}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {Number(area.tamanho_hectares).toFixed(2)} ha • {area.status}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleLinkAreas}
+              disabled={selectedAreasToLink.length === 0 || isLinking}
+            >
+              {isLinking ? "Vinculando..." : `Vincular ${selectedAreasToLink.length} área(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
