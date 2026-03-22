@@ -54,7 +54,7 @@ export default function Emprestimos() {
     const paidAmount = loan.installments?.filter((i: any) => i.status === "paga").reduce((s: number, i: any) => s + Number(i.valor), 0) || 0;
     return sum + paidAmount;
   }, 0);
-  const totalPendente = totalAPagar - totalPago;
+  const saldoDevedor = totalAPagar - totalPago;
 
   const handleCreate = () => { setEditingLoan(null); setFormOpen(true); };
   const handleEdit = (loan: Loan) => { setEditingLoan(loan); setFormOpen(true); };
@@ -130,7 +130,7 @@ export default function Emprestimos() {
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center gap-2 mb-1">
                   <ArrowUpDown className="h-4 w-4 text-warning" />
-                  <p className="text-sm text-muted-foreground">Total a Pagar</p>
+                  <p className="text-sm text-muted-foreground">Dívida Total</p>
                 </div>
                 <p className="text-xl font-bold text-warning">{formatCurrency(totalAPagar)}</p>
               </CardContent>
@@ -148,9 +148,9 @@ export default function Emprestimos() {
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingDown className="h-4 w-4 text-destructive" />
-                  <p className="text-sm text-muted-foreground">Pendente</p>
+                  <p className="text-sm text-muted-foreground">Saldo Devedor</p>
                 </div>
-                <p className="text-xl font-bold text-destructive">{formatCurrency(totalPendente)}</p>
+                <p className="text-xl font-bold text-destructive">{formatCurrency(saldoDevedor)}</p>
               </CardContent>
             </Card>
           </div>
@@ -268,7 +268,7 @@ export default function Emprestimos() {
                         <span className="font-semibold">{formatCurrency(valorParcela)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total a Pagar:</span>
+                        <span className="text-muted-foreground">Dívida Total:</span>
                         <span className="font-bold text-warning">{formatCurrency(valorTotalPagar)}</span>
                       </div>
                       <div className="flex justify-between">

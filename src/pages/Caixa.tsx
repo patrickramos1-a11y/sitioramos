@@ -86,6 +86,7 @@ export default function Caixa() {
   const [formData, setFormData] = useState({
     data: new Date().toISOString().split("T")[0],
     categoria: "" as CashCategory | "",
+    subtipo: "",
     valor: "",
     descricao: "",
     loan_id: "",
@@ -115,18 +116,47 @@ export default function Caixa() {
     setSearchParams(newParams);
   };
 
+  // Determine which subtypes to show based on selected category
+  const getSubtypeOptions = () => {
+    if (formData.categoria === "custo_operacional") {
+      return Object.entries(costTypeConfig).map(([value, config]) => ({
+        value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
+      }));
+    }
+    if (formData.categoria === "investimento") {
+      return Object.entries(investmentTypeConfig).map(([value, config]) => ({
+        value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
+      }));
+    }
+    return [];
+  };
+
+  const subtypeOptions = getSubtypeOptions();
+  const needsSubtype = formData.categoria === "custo_operacional" || formData.categoria === "investimento";
+
   const handleSubmit = () => {
     if (!formData.categoria || !formData.valor) return;
+    if (needsSubtype && !formData.subtipo) return;
 
     const categoriaInfo = cashCategoryConfig[formData.categoria as CashCategory];
     const tipo = categoriaInfo?.tipo || "saida";
+
+    // Build description with subtype info
+    const subtipoLabel = formData.subtipo 
+      ? (formData.categoria === "custo_operacional" 
+          ? costTypeConfig[formData.subtipo]?.label 
+          : investmentTypeConfig[formData.subtipo]?.label) || formData.subtipo
+      : "";
+    const descricaoFinal = formData.descricao 
+      ? (subtipoLabel ? `${subtipoLabel}: ${formData.descricao}` : formData.descricao)
+      : subtipoLabel || null;
 
     createTransaction.mutate({
       data: formData.data,
       tipo: tipo,
       categoria: formData.categoria as CashCategory,
       valor: Number(formData.valor),
-      descricao: formData.descricao || null,
+      descricao: descricaoFinal,
       loan_id: formData.loan_id || null,
       area_id: formData.area_id || null,
       cycle_id: formData.cycle_id || null,
@@ -141,6 +171,7 @@ export default function Caixa() {
     setFormData({
       data: new Date().toISOString().split("T")[0],
       categoria: "",
+      subtipo: "",
       valor: "",
       descricao: "",
       loan_id: "",
@@ -795,10 +826,10 @@ export default function Caixa() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="categoria">Categoria</Label>
+              <Label htmlFor="categoria">Categoria *</Label>
               <Select
                 value={formData.categoria}
-                onValueChange={(value) => setFormData({ ...formData, categoria: value as CashCategory })}
+                onValueChange={(value) => setFormData({ ...formData, categoria: value as CashCategory, subtipo: "" })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria" />
@@ -839,6 +870,36 @@ export default function Caixa() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Subtype selector - appears for custo_operacional and investimento */}
+            {needsSubtype && (
+              <div className="space-y-2">
+                <Label htmlFor="subtipo">
+                  {formData.categoria === "custo_operacional" ? "Tipo de Custo *" : "Tipo de Implantação *"}
+                </Label>
+                <Select
+                  value={formData.subtipo}
+                  onValueChange={(value) => setFormData({ ...formData, subtipo: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subtypeOptions.map((opt) => {
+                      const Icon = opt.icon;
+                      return (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <div className="flex items-center gap-2">
+                            <Icon className={`h-4 w-4 ${opt.color}`} />
+                            {opt.label}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="descricao">Descrição</Label>
@@ -930,7 +991,7 @@ export default function Caixa() {
             <Button variant="outline" onClick={() => { setFormOpen(false); resetForm(); }}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={!formData.categoria || !formData.valor || createTransaction.isPending}>
+            <Button onClick={handleSubmit} disabled={!formData.categoria || !formData.valor || (needsSubtype && !formData.subtipo) || createTransaction.isPending}>
               Registrar
             </Button>
           </DialogFooter>

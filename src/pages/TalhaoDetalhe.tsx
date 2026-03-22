@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { 
   Grid3X3, Plus, ArrowLeft, MapPin, TreePine, Droplets,
   MoreVertical, Pencil, Trash2, DollarSign, TrendingUp, Eye,
-  RefreshCw, Sprout, Calendar, Wallet
+  RefreshCw, Sprout, Calendar, Wallet, LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useTalhoes, Talhao } from "@/hooks/useTalhoes";
 import { useAreas, Area, AreaInsert } from "@/hooks/useAreas";
 import { useCosts } from "@/hooks/useCosts";
@@ -20,6 +22,9 @@ import { useRevenues } from "@/hooks/useRevenues";
 import { useCycles } from "@/hooks/useCycles";
 import { AreaForm } from "@/components/areas/AreaForm";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   planejamento: { label: "Planejamento", variant: "secondary" },
@@ -49,8 +54,11 @@ const formatCurrency = (value: number) => {
 export default function TalhaoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { talhoes, isLoading: talhoesLoading } = useTalhoes();
   const { areas, isLoading: areasLoading, createArea, updateArea, deleteArea } = useAreas(id);
+  const { areas: allAreas } = useAreas(); // All areas for linking
   const { costs } = useCosts();
   const { revenues } = useRevenues();
   const { cycles } = useCycles();
@@ -59,10 +67,32 @@ export default function TalhaoDetalhe() {
   const [editingArea, setEditingArea] = useState<Area | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [areaToDelete, setAreaToDelete] = useState<Area | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [selectedAreasToLink, setSelectedAreasToLink] = useState<string[]>([]);
+  const [isLinking, setIsLinking] = useState(false);
+
+  // Unassigned areas (no talhao_id or assigned to a different talhão)
+  const unassignedAreas = allAreas.filter(a => !a.talhao_id && a.id);
 
   const talhao = talhoes.find(t => t.id === id);
-
   const isLoading = talhoesLoading || areasLoading;
+
+  const handleLinkAreas = async () => {
+    if (selectedAreasToLink.length === 0) return;
+    setIsLinking(true);
+    try {
+      for (const areaId of selectedAreasToLink) {
+        await supabase.from("areas").update({ talhao_id: id } as any).eq("id", areaId);
+      }
+      queryClient.invalidateQueries({ queryKey: ["areas"] });
+      toast({ title: "Áreas vinculadas", description: `${selectedAreasToLink.length} área(s) vinculada(s) ao talhão.` });
+      setSelectedAreasToLink([]);
+      setLinkDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Erro ao vincular", description: error.message, variant: "destructive" });
+    }
+    setIsLinking(false);
+  };
 
   if (isLoading) {
     return (
@@ -232,10 +262,18 @@ export default function TalhaoDetalhe() {
                   {areas.length} área(s) • {totalAreaAreas.toFixed(2)} ha alocados de {talhaoHectares.toFixed(2)} ha
                 </CardDescription>
               </div>
-              <Button onClick={() => { setEditingArea(null); setAreaFormOpen(true); }} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Nova Área
-              </Button>
+              <div className="flex items-center gap-2">
+                {unassignedAreas.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedAreasToLink([]); setLinkDialogOpen(true); }}>
+                    <LinkIcon className="h-4 w-4 mr-1" />
+                    Vincular Existente
+                  </Button>
+                )}
+                <Button onClick={() => { setEditingArea(null); setAreaFormOpen(true); }} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nova Área
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -397,6 +435,52 @@ export default function TalhaoDetalhe() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Link Existing Areas Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Vincular Áreas ao Talhão</DialogTitle>
+          </DialogHeader>
+          {unassignedAreas.length === 0 ? (
+            <p className="text-muted-foreground text-sm py-4">Não há áreas disponíveis para vincular. Todas já estão atribuídas a talhões.</p>
+          ) : (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {unassignedAreas.map((area) => (
+                <label
+                  key={area.id}
+                  className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                >
+                  <Checkbox
+                    checked={selectedAreasToLink.includes(area.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedAreasToLink(prev =>
+                        checked
+                          ? [...prev, area.id]
+                          : prev.filter(id => id !== area.id)
+                      );
+                    }}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{area.nome}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {Number(area.tamanho_hectares).toFixed(2)} ha • {area.status}
+                    </p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleLinkAreas}
+              disabled={selectedAreasToLink.length === 0 || isLinking}
+            >
+              {isLinking ? "Vinculando..." : `Vincular ${selectedAreasToLink.length} área(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
