@@ -54,7 +54,7 @@ export default function Emprestimos() {
     const paidAmount = loan.installments?.filter((i: any) => i.status === "paga").reduce((s: number, i: any) => s + Number(i.valor), 0) || 0;
     return sum + paidAmount;
   }, 0);
-  const totalPendente = totalAPagar - totalPago;
+  const saldoDevedor = totalAPagar - totalPago;
 
   const handleCreate = () => { setEditingLoan(null); setFormOpen(true); };
   const handleEdit = (loan: Loan) => { setEditingLoan(loan); setFormOpen(true); };
