@@ -86,6 +86,7 @@ export default function Caixa() {
   const [formData, setFormData] = useState({
     data: new Date().toISOString().split("T")[0],
     categoria: "" as CashCategory | "",
+    subtipo: "",
     valor: "",
     descricao: "",
     loan_id: "",
