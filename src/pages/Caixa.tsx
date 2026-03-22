@@ -826,10 +826,10 @@ export default function Caixa() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="categoria">Categoria</Label>
+              <Label htmlFor="categoria">Categoria *</Label>
               <Select
                 value={formData.categoria}
-                onValueChange={(value) => setFormData({ ...formData, categoria: value as CashCategory })}
+                onValueChange={(value) => setFormData({ ...formData, categoria: value as CashCategory, subtipo: "" })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria" />
@@ -870,6 +870,36 @@ export default function Caixa() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Subtype selector - appears for custo_operacional and investimento */}
+            {needsSubtype && (
+              <div className="space-y-2">
+                <Label htmlFor="subtipo">
+                  {formData.categoria === "custo_operacional" ? "Tipo de Custo *" : "Tipo de Implantação *"}
+                </Label>
+                <Select
+                  value={formData.subtipo}
+                  onValueChange={(value) => setFormData({ ...formData, subtipo: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subtypeOptions.map((opt) => {
+                      const Icon = opt.icon;
+                      return (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <div className="flex items-center gap-2">
+                            <Icon className={`h-4 w-4 ${opt.color}`} />
+                            {opt.label}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="descricao">Descrição</Label>
