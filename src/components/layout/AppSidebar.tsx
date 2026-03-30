@@ -8,7 +8,8 @@ import {
   Wallet,
   ChevronDown,
   FileText,
-  Home
+  Home,
+  ClipboardList
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -46,6 +47,11 @@ const navigationItems = [
     title: "Áreas",
     url: "/areas",
     icon: MapPin,
+  },
+  {
+    title: "Operação",
+    url: "/operacao",
+    icon: ClipboardList,
   },
 ];
 
