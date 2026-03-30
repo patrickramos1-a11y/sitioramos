@@ -515,6 +515,215 @@ export type Database = {
           },
         ]
       }
+      operational_stages: {
+        Row: {
+          area_id: string
+          created_at: string
+          cycle_id: string
+          data_fim_prevista: string | null
+          data_fim_real: string | null
+          data_inicio_prevista: string | null
+          data_inicio_real: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          ordem: number
+          prioridade: Database["public"]["Enums"]["priority_level"] | null
+          progresso_percentual: number | null
+          propriedade_id: string | null
+          responsavel: string | null
+          status: Database["public"]["Enums"]["stage_status"]
+          talhao_id: string | null
+          tipo: Database["public"]["Enums"]["stage_type"]
+          updated_at: string
+        }
+        Insert: {
+          area_id: string
+          created_at?: string
+          cycle_id: string
+          data_fim_prevista?: string | null
+          data_fim_real?: string | null
+          data_inicio_prevista?: string | null
+          data_inicio_real?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          ordem?: number
+          prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          progresso_percentual?: number | null
+          propriedade_id?: string | null
+          responsavel?: string | null
+          status?: Database["public"]["Enums"]["stage_status"]
+          talhao_id?: string | null
+          tipo?: Database["public"]["Enums"]["stage_type"]
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string
+          created_at?: string
+          cycle_id?: string
+          data_fim_prevista?: string | null
+          data_fim_real?: string | null
+          data_inicio_prevista?: string | null
+          data_inicio_real?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          ordem?: number
+          prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          progresso_percentual?: number | null
+          propriedade_id?: string | null
+          responsavel?: string | null
+          status?: Database["public"]["Enums"]["stage_status"]
+          talhao_id?: string | null
+          tipo?: Database["public"]["Enums"]["stage_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operational_stages_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_stages_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_stages_propriedade_id_fkey"
+            columns: ["propriedade_id"]
+            isOneToOne: false
+            referencedRelation: "propriedade"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_stages_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operational_tasks: {
+        Row: {
+          area_id: string | null
+          cash_transaction_id: string | null
+          created_at: string
+          custo_estimado: number | null
+          custo_real: number | null
+          cycle_id: string | null
+          data_conclusao: string | null
+          data_inicio_prevista: string | null
+          data_inicio_real: string | null
+          data_prazo: string | null
+          descricao: string | null
+          id: string
+          observacoes: string | null
+          prioridade: Database["public"]["Enums"]["priority_level"] | null
+          propriedade_id: string | null
+          responsavel: string | null
+          stage_id: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          talhao_id: string | null
+          tipo: Database["public"]["Enums"]["task_type"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          cash_transaction_id?: string | null
+          created_at?: string
+          custo_estimado?: number | null
+          custo_real?: number | null
+          cycle_id?: string | null
+          data_conclusao?: string | null
+          data_inicio_prevista?: string | null
+          data_inicio_real?: string | null
+          data_prazo?: string | null
+          descricao?: string | null
+          id?: string
+          observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          propriedade_id?: string | null
+          responsavel?: string | null
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          talhao_id?: string | null
+          tipo?: Database["public"]["Enums"]["task_type"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          cash_transaction_id?: string | null
+          created_at?: string
+          custo_estimado?: number | null
+          custo_real?: number | null
+          cycle_id?: string | null
+          data_conclusao?: string | null
+          data_inicio_prevista?: string | null
+          data_inicio_real?: string | null
+          data_prazo?: string | null
+          descricao?: string | null
+          id?: string
+          observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["priority_level"] | null
+          propriedade_id?: string | null
+          responsavel?: string | null
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          talhao_id?: string | null
+          tipo?: Database["public"]["Enums"]["task_type"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operational_tasks_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_tasks_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_tasks_propriedade_id_fkey"
+            columns: ["propriedade_id"]
+            isOneToOne: false
+            referencedRelation: "propriedade"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_tasks_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "operational_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_tasks_talhao_id_fkey"
+            columns: ["talhao_id"]
+            isOneToOne: false
+            referencedRelation: "talhoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       propriedade: {
         Row: {
           area_app_hectares: number
@@ -621,6 +830,39 @@ export type Database = {
           },
         ]
       }
+      stage_templates: {
+        Row: {
+          created_at: string
+          cultura: string
+          duracao_padrao_dias: number | null
+          id: string
+          nome: string
+          obrigatoria: boolean
+          ordem: number
+          tipo: Database["public"]["Enums"]["stage_type"]
+        }
+        Insert: {
+          created_at?: string
+          cultura: string
+          duracao_padrao_dias?: number | null
+          id?: string
+          nome: string
+          obrigatoria?: boolean
+          ordem?: number
+          tipo?: Database["public"]["Enums"]["stage_type"]
+        }
+        Update: {
+          created_at?: string
+          cultura?: string
+          duracao_padrao_dias?: number | null
+          id?: string
+          nome?: string
+          obrigatoria?: boolean
+          ordem?: number
+          tipo?: Database["public"]["Enums"]["stage_type"]
+        }
+        Relationships: []
+      }
       talhoes: {
         Row: {
           area_app_hectares: number
@@ -677,6 +919,44 @@ export type Database = {
             columns: ["propriedade_id"]
             isOneToOne: false
             referencedRelation: "propriedade"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_logs: {
+        Row: {
+          acao: string
+          id: string
+          registrado_em: string
+          registrado_por: string | null
+          task_id: string
+          valor_anterior: Json | null
+          valor_novo: Json | null
+        }
+        Insert: {
+          acao: string
+          id?: string
+          registrado_em?: string
+          registrado_por?: string | null
+          task_id: string
+          valor_anterior?: Json | null
+          valor_novo?: Json | null
+        }
+        Update: {
+          acao?: string
+          id?: string
+          registrado_em?: string
+          registrado_por?: string | null
+          task_id?: string
+          valor_anterior?: Json | null
+          valor_novo?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_logs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "operational_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -758,6 +1038,41 @@ export type Database = {
         | "outros"
       loan_status: "ativo" | "quitado"
       payment_method: "dinheiro" | "emprestimo"
+      priority_level: "baixa" | "media" | "alta" | "critica"
+      stage_status:
+        | "nao_iniciada"
+        | "em_andamento"
+        | "concluida"
+        | "atrasada"
+        | "pausada"
+      stage_type:
+        | "preparo"
+        | "plantio"
+        | "leiras"
+        | "herbicida"
+        | "capina"
+        | "adubacao"
+        | "colheita"
+        | "beneficiamento"
+        | "documentacao"
+        | "manutencao"
+        | "outro"
+      task_status:
+        | "pendente"
+        | "em_andamento"
+        | "concluida"
+        | "atrasada"
+        | "cancelada"
+        | "pausada"
+      task_type:
+        | "operacional"
+        | "compra"
+        | "contratacao"
+        | "documentacao"
+        | "financeiro"
+        | "manutencao"
+        | "logistica"
+        | "outro"
       unit_type: "kg" | "saca" | "unidade" | "tonelada"
     }
     CompositeTypes: {
@@ -921,6 +1236,45 @@ export const Constants = {
       ],
       loan_status: ["ativo", "quitado"],
       payment_method: ["dinheiro", "emprestimo"],
+      priority_level: ["baixa", "media", "alta", "critica"],
+      stage_status: [
+        "nao_iniciada",
+        "em_andamento",
+        "concluida",
+        "atrasada",
+        "pausada",
+      ],
+      stage_type: [
+        "preparo",
+        "plantio",
+        "leiras",
+        "herbicida",
+        "capina",
+        "adubacao",
+        "colheita",
+        "beneficiamento",
+        "documentacao",
+        "manutencao",
+        "outro",
+      ],
+      task_status: [
+        "pendente",
+        "em_andamento",
+        "concluida",
+        "atrasada",
+        "cancelada",
+        "pausada",
+      ],
+      task_type: [
+        "operacional",
+        "compra",
+        "contratacao",
+        "documentacao",
+        "financeiro",
+        "manutencao",
+        "logistica",
+        "outro",
+      ],
       unit_type: ["kg", "saca", "unidade", "tonelada"],
     },
   },
