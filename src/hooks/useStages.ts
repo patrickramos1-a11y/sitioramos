@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface Stage {
   id: string;
+  parent_id: string | null;
   propriedade_id: string | null;
   talhao_id: string | null;
   area_id: string;
@@ -19,6 +20,7 @@ export interface Stage {
   data_fim_real: string | null;
   responsavel: string | null;
   progresso_percentual: number | null;
+  custo_total: number | null;
   ordem: number;
   observacoes: string | null;
   created_at: string;
@@ -26,6 +28,7 @@ export interface Stage {
 }
 
 export interface StageInsert {
+  parent_id?: string | null;
   propriedade_id?: string | null;
   talhao_id?: string | null;
   area_id: string;

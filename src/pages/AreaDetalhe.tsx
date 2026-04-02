@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { 
   MapPin, Plus, Calendar, Sprout, Wallet, ArrowLeft,
   RefreshCw, DollarSign, TrendingUp, FileText, MoreVertical,
-  Pencil, Trash2, TreePine, Droplets, Clock, ClipboardList, ListTodo, Wand2
+  Pencil, Trash2, TreePine, Droplets, Clock, ClipboardList, ListTodo, Wand2, BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,9 +20,13 @@ import { useRevenues } from "@/hooks/useRevenues";
 import { useInvestments } from "@/hooks/useInvestments";
 import { useStages, Stage, StageInsert } from "@/hooks/useStages";
 import { useTasks, Task, TaskInsert } from "@/hooks/useTasks";
+import { useOperations, Operation, OperationInsert } from "@/hooks/useOperations";
 import { CycleForm } from "@/components/cycles/CycleForm";
 import { StageForm } from "@/components/operacao/StageForm";
 import { TaskForm } from "@/components/operacao/TaskForm";
+import { OperationForm } from "@/components/operacao/OperationForm";
+import { OperationCard } from "@/components/operacao/OperationCard";
+import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { CycleTimeline } from "@/components/operacao/CycleTimeline";
 import { TaskList } from "@/components/operacao/TaskList";
 import { format } from "date-fns";
@@ -64,6 +68,10 @@ export default function AreaDetalhe() {
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [opFormOpen, setOpFormOpen] = useState(false);
+  const [editingOp, setEditingOp] = useState<Operation | null>(null);
+  const [parentIdForNewOp, setParentIdForNewOp] = useState<string | null>(null);
+  const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
 
   const area = areas.find(a => a.id === id);
   const areaCycles = cycles.filter((c: any) => c.area_id === id);
@@ -71,6 +79,7 @@ export default function AreaDetalhe() {
 
   const { stages, createStage, updateStage, deleteStage, createFromTemplate } = useStages(activeCycleId, id);
   const { tasks, createTask, updateTask, deleteTask } = useTasks({ cycleId: activeCycleId, areaId: id });
+  const { operations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations({ areaId: id, cycleId: activeCycleId });
 
   const areaCosts = costs.filter((c: any) => c.area_id === id);
   const areaRevenues = revenues.filter((r: any) => r.area_id === id);
@@ -89,8 +98,27 @@ export default function AreaDetalhe() {
     if (deleteTarget?.type === "cycle") deleteCycle.mutate(deleteTarget.item.id);
     if (deleteTarget?.type === "stage") deleteStage.mutate(deleteTarget.item.id);
     if (deleteTarget?.type === "task") deleteTask.mutate(deleteTarget.item.id);
+    if (deleteTarget?.type === "operation") deleteOperation.mutate(deleteTarget.item.id);
     setDeleteDialogOpen(false);
     setDeleteTarget(null);
+  };
+
+  const handleOpSubmit = (data: OperationInsert) => {
+    if (editingOp) {
+      updateOperation.mutate({ ...data, id: editingOp.id } as any);
+    } else {
+      createOperation.mutate(data);
+    }
+    setOpFormOpen(false);
+    setEditingOp(null);
+    setParentIdForNewOp(null);
+  };
+
+  const handleOpStatusChange = (op: Operation, status: string) => {
+    const updates: any = { id: op.id, status };
+    if (status === "em_andamento" && !op.data_inicio_real) updates.data_inicio_real = new Date().toISOString().split("T")[0];
+    if (status === "concluida") updates.data_fim_real = new Date().toISOString().split("T")[0];
+    updateOperation.mutate(updates);
   };
 
   const handleCycleSubmit = (data: CycleInsert) => {
@@ -410,43 +438,68 @@ export default function AreaDetalhe() {
             </Card>
           </TabsContent>
 
-          {/* Operation Tab - Timeline */}
+          {/* Operation Tab - Hierarchical */}
           <TabsContent value="operacao">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <ClipboardList className="h-5 w-5" />
-                      Etapas do Ciclo {activeCycle ? `— ${activeCycle.cultura}` : ""}
-                    </CardTitle>
-                    <CardDescription>{stages.length} etapa(s)</CardDescription>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Operações {activeCycle ? `— ${(activeCycle as any).cultura}` : ""}
+                      </CardTitle>
+                      <CardDescription>{operations.length} operação(ões) • {tasks.length} tarefa(s)</CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      {activeCycleId && stages.length === 0 && (
+                        <Button variant="outline" size="sm" onClick={handleGenerateTemplateStages} disabled={createFromTemplate.isPending}>
+                          <Wand2 className="h-4 w-4 mr-1" />Gerar Padrão
+                        </Button>
+                      )}
+                      {activeCycleId && (
+                        <Button size="sm" onClick={() => { setEditingOp(null); setParentIdForNewOp(null); setOpFormOpen(true); }}>
+                          <Plus className="h-4 w-4 mr-1" />Nova Operação
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {activeCycleId && stages.length === 0 && (
-                      <Button variant="outline" size="sm" onClick={handleGenerateTemplateStages} disabled={createFromTemplate.isPending}>
-                        <Wand2 className="h-4 w-4 mr-1" />Gerar Etapas Padrão
-                      </Button>
-                    )}
-                    {activeCycleId && (
-                      <Button size="sm" onClick={() => { setEditingStage(null); setStageFormOpen(true); }}>
-                        <Plus className="h-4 w-4 mr-1" />Nova Etapa
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {!activeCycleId ? (
-                  <p className="text-center text-muted-foreground py-8">Selecione ou crie um ciclo primeiro.</p>
-                ) : (
-                  <CycleTimeline
-                    stages={stages}
-                    onStageClick={(stage) => { setEditingStage(stage); setStageFormOpen(true); }}
-                  />
-                )}
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  {!activeCycleId ? (
+                    <p className="text-center text-muted-foreground py-8">Selecione ou crie um ciclo primeiro.</p>
+                  ) : (
+                    <GanttTimeline operations={operations} tasks={tasks} onItemClick={(itemId, type) => {
+                      if (type === "task") {
+                        const task = tasks.find(t => t.id === itemId);
+                        if (task) { setEditingTask(task); setTaskFormOpen(true); }
+                      } else {
+                        const op = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === itemId);
+                        if (op) { setEditingOp(op); setOpFormOpen(true); }
+                      }
+                    }} />
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Operation Cards */}
+              {operations.map(op => (
+                <OperationCard
+                  key={op.id}
+                  operation={op}
+                  tasks={tasks}
+                  onEdit={(o) => { setEditingOp(o); setParentIdForNewOp(o.parent_id || null); setOpFormOpen(true); }}
+                  onDelete={(o) => { setDeleteTarget({ type: "operation", item: o }); setDeleteDialogOpen(true); }}
+                  onDuplicate={(opId) => duplicateOperation.mutate(opId)}
+                  onAddSubOperation={(parentId) => { setEditingOp(null); setParentIdForNewOp(parentId); setOpFormOpen(true); }}
+                  onAddTask={(stageId) => { setEditingTask(null); setTaskDefaultStageId(stageId); setTaskFormOpen(true); }}
+                  onEditTask={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
+                  onDeleteTask={(t) => { setDeleteTarget({ type: "task", item: t }); setDeleteDialogOpen(true); }}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onStatusChange={handleOpStatusChange}
+                />
+              ))}
+            </div>
           </TabsContent>
 
           {/* Tasks Tab */}
@@ -457,7 +510,7 @@ export default function AreaDetalhe() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <ListTodo className="h-5 w-5" />
-                      Tarefas {activeCycle ? `— ${activeCycle.cultura}` : ""}
+                      Tarefas {activeCycle ? `— ${(activeCycle as any).cultura}` : ""}
                     </CardTitle>
                     <CardDescription>
                       {tasks.filter(t => t.status === "em_andamento").length} em andamento • 
@@ -502,10 +555,24 @@ export default function AreaDetalhe() {
         onOpenChange={setTaskFormOpen}
         task={editingTask}
         stages={stages}
-        defaultValues={{ area_id: id, cycle_id: activeCycleId || undefined, talhao_id: talhaoId || undefined }}
+        defaultValues={{ area_id: id, cycle_id: activeCycleId || undefined, talhao_id: talhaoId || undefined, stage_id: taskDefaultStageId || undefined }}
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
+
+      {activeCycleId && (
+        <OperationForm
+          open={opFormOpen}
+          onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNewOp(null); } }}
+          operation={editingOp}
+          parentId={parentIdForNewOp}
+          areaId={id!}
+          cycleId={activeCycleId}
+          talhaoId={talhaoId}
+          onSubmit={handleOpSubmit}
+          isSubmitting={createOperation.isPending || updateOperation.isPending}
+        />
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

@@ -519,6 +519,7 @@ export type Database = {
         Row: {
           area_id: string
           created_at: string
+          custo_total: number | null
           cycle_id: string
           data_fim_prevista: string | null
           data_fim_real: string | null
@@ -529,6 +530,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           ordem: number
+          parent_id: string | null
           prioridade: Database["public"]["Enums"]["priority_level"] | null
           progresso_percentual: number | null
           propriedade_id: string | null
@@ -541,6 +543,7 @@ export type Database = {
         Insert: {
           area_id: string
           created_at?: string
+          custo_total?: number | null
           cycle_id: string
           data_fim_prevista?: string | null
           data_fim_real?: string | null
@@ -551,6 +554,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           ordem?: number
+          parent_id?: string | null
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           progresso_percentual?: number | null
           propriedade_id?: string | null
@@ -563,6 +567,7 @@ export type Database = {
         Update: {
           area_id?: string
           created_at?: string
+          custo_total?: number | null
           cycle_id?: string
           data_fim_prevista?: string | null
           data_fim_real?: string | null
@@ -573,6 +578,7 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           ordem?: number
+          parent_id?: string | null
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           progresso_percentual?: number | null
           propriedade_id?: string | null
@@ -595,6 +601,13 @@ export type Database = {
             columns: ["cycle_id"]
             isOneToOne: false
             referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_stages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "operational_stages"
             referencedColumns: ["id"]
           },
           {
@@ -628,6 +641,7 @@ export type Database = {
           descricao: string | null
           id: string
           observacoes: string | null
+          parent_task_id: string | null
           prioridade: Database["public"]["Enums"]["priority_level"] | null
           propriedade_id: string | null
           responsavel: string | null
@@ -652,6 +666,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           observacoes?: string | null
+          parent_task_id?: string | null
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           propriedade_id?: string | null
           responsavel?: string | null
@@ -676,6 +691,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           observacoes?: string | null
+          parent_task_id?: string | null
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           propriedade_id?: string | null
           responsavel?: string | null
@@ -699,6 +715,13 @@ export type Database = {
             columns: ["cycle_id"]
             isOneToOne: false
             referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operational_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "operational_tasks"
             referencedColumns: ["id"]
           },
           {
