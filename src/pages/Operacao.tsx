@@ -1,42 +1,84 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ClipboardList, CheckCircle2, AlertTriangle, Clock, Activity, ListTodo } from "lucide-react";
+import {
+  Plus, Activity, AlertTriangle, Clock, CheckCircle2,
+  BarChart3, ListTodo, GanttChart, DollarSign
+} from "lucide-react";
+import { useOperations, Operation, OperationInsert } from "@/hooks/useOperations";
 import { useTasks, Task, TaskInsert } from "@/hooks/useTasks";
-import { useStages } from "@/hooks/useStages";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
+import { GanttTimeline } from "@/components/operacao/GanttTimeline";
+import { OperationForm } from "@/components/operacao/OperationForm";
+import { OperationCard } from "@/components/operacao/OperationCard";
 import { TaskForm } from "@/components/operacao/TaskForm";
-import { TaskList } from "@/components/operacao/TaskList";
+import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
+const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
 export default function Operacao() {
-  const { tasks, isLoading: tasksLoading, createTask, updateTask, deleteTask } = useTasks();
-  const { stages } = useStages();
   const { areas } = useAreas();
   const { cycles } = useCycles();
+  const { stages } = useStages();
 
-  const [taskFormOpen, setTaskFormOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  // Filters
+  const [filterArea, setFilterArea] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const emAndamento = tasks.filter(t => t.status === "em_andamento");
-  const atrasadas = tasks.filter(t => {
+  const operationFilters = useMemo(() => ({
+    areaId: filterArea !== "all" ? filterArea : undefined,
+    status: filterStatus !== "all" ? filterStatus : undefined,
+  }), [filterArea, filterStatus]);
+
+  const { operations, isLoading, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
+  const { tasks, createTask, updateTask, deleteTask } = useTasks();
+
+  // Form state
+  const [opFormOpen, setOpFormOpen] = useState(false);
+  const [editingOp, setEditingOp] = useState<Operation | null>(null);
+  const [parentIdForNew, setParentIdForNew] = useState<string | null>(null);
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "operation" | "task"; id: string } | null>(null);
+
+  // Default area/cycle for new operations
+  const defaultAreaId = filterArea !== "all" ? filterArea : areas[0]?.id || "";
+  const defaultCycleId = cycles.find(c => c.area_id === defaultAreaId)?.id || cycles[0]?.id || "";
+
+  // KPIs
+  const allTasks = tasks;
+  const emAndamento = operations.filter(o => o.status === "em_andamento").length;
+  const atrasadas = operations.filter(o => {
+    if (o.status === "concluida") return false;
+    return o.data_fim_prevista && new Date(o.data_fim_prevista) < new Date();
+  }).length;
+  const pendentes = operations.filter(o => o.status === "nao_iniciada").length;
+  const concluidas = operations.filter(o => o.status === "concluida").length;
+  const tasksAtrasadas = allTasks.filter(t => {
     if (t.status === "concluida" || t.status === "cancelada") return false;
     return t.data_prazo && new Date(t.data_prazo) < new Date();
-  });
-  const pendentes = tasks.filter(t => t.status === "pendente");
-  const concluidas = tasks.filter(t => t.status === "concluida");
+  }).length;
+  const custoTotal = allTasks.reduce((sum, t) => sum + (Number(t.custo_real) || 0), 0);
 
-  const filteredTasks = filterStatus === "all" ? tasks :
-    filterStatus === "atrasadas" ? atrasadas :
-    tasks.filter(t => t.status === filterStatus);
+  // Handlers
+  const handleOpSubmit = (data: OperationInsert) => {
+    if (editingOp) {
+      updateOperation.mutate({ ...data, id: editingOp.id } as any);
+    } else {
+      createOperation.mutate(data);
+    }
+    setOpFormOpen(false);
+    setEditingOp(null);
+    setParentIdForNew(null);
+  };
 
   const handleTaskSubmit = (data: TaskInsert) => {
     if (editingTask) {
@@ -48,123 +90,234 @@ export default function Operacao() {
     setEditingTask(null);
   };
 
-  const handleStatusChange = (task: Task, status: string) => {
+  const handleOpStatusChange = (op: Operation, status: string) => {
+    const updates: any = { id: op.id, status };
+    if (status === "em_andamento" && !op.data_inicio_real) updates.data_inicio_real = new Date().toISOString().split("T")[0];
+    if (status === "concluida") updates.data_fim_real = new Date().toISOString().split("T")[0];
+    updateOperation.mutate(updates);
+  };
+
+  const handleTaskStatusChange = (task: Task, status: string) => {
     const updates: any = { id: task.id, status };
     if (status === "concluida") updates.data_conclusao = new Date().toISOString().split("T")[0];
     if (status === "em_andamento" && !task.data_inicio_real) updates.data_inicio_real = new Date().toISOString().split("T")[0];
     updateTask.mutate(updates);
   };
 
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === "operation") deleteOperation.mutate(deleteTarget.id);
+    else deleteTask.mutate(deleteTarget.id);
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
+  };
+
+  const openNewOperation = () => {
+    setEditingOp(null);
+    setParentIdForNew(null);
+    setOpFormOpen(true);
+  };
+
+  const openNewSubOperation = (parentId: string) => {
+    setEditingOp(null);
+    setParentIdForNew(parentId);
+    setOpFormOpen(true);
+  };
+
+  const openNewTask = (stageId: string) => {
+    setEditingTask(null);
+    setTaskDefaultStageId(stageId);
+    setTaskFormOpen(true);
+  };
+
+  const handleGanttItemClick = (id: string, type: "operation" | "sub-operation" | "task") => {
+    if (type === "task") {
+      const task = allTasks.find(t => t.id === id);
+      if (task) { setEditingTask(task); setTaskFormOpen(true); }
+    } else {
+      const op = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === id);
+      if (op) { setEditingOp(op); setOpFormOpen(true); }
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Operação</h1>
-            <p className="text-muted-foreground">Gestão operacional de etapas e tarefas</p>
+            <p className="text-muted-foreground">Gestão operacional com visão cronológica</p>
           </div>
-          <Button onClick={() => { setEditingTask(null); setTaskFormOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" />Nova Tarefa
+          <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId}>
+            <Plus className="h-4 w-4 mr-1" />Nova Operação
           </Button>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {/* KPI Cards */}
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
           <Card className="cursor-pointer hover:shadow-md" onClick={() => setFilterStatus("em_andamento")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
+              <CardTitle className="text-xs font-medium">Em Andamento</CardTitle>
               <Activity className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{emAndamento.length}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold text-primary">{emAndamento}</div></CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setFilterStatus("atrasadas")}>
+          <Card className="cursor-pointer hover:shadow-md" onClick={() => setFilterStatus("all")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Atrasadas</CardTitle>
+              <CardTitle className="text-xs font-medium">Atrasadas</CardTitle>
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">{atrasadas.length}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold text-destructive">{atrasadas + tasksAtrasadas}</div></CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setFilterStatus("pendente")}>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-              <Clock className="h-4 w-4 text-warning" />
+              <CardTitle className="text-xs font-medium">Pendentes</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-warning">{pendentes.length}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold">{pendentes}</div></CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setFilterStatus("concluida")}>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-success" />
+              <CardTitle className="text-xs font-medium">Concluídas</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">{concluidas.length}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold text-green-600">{concluidas}</div></CardContent>
+          </Card>
+          <Card className="col-span-2 lg:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium">Custo Operacional</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-lg font-bold">{formatCurrency(custoTotal)}</div></CardContent>
           </Card>
         </div>
 
-        {/* Filter & Task List */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <CardTitle className="flex items-center gap-2">
-                <ListTodo className="h-5 w-5" />
-                Tarefas
-              </CardTitle>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="pendente">Pendentes</SelectItem>
-                  <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                  <SelectItem value="atrasadas">Atrasadas</SelectItem>
-                  <SelectItem value="concluida">Concluídas</SelectItem>
-                  <SelectItem value="cancelada">Canceladas</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* Filters */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={filterArea} onValueChange={setFilterArea}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Todas as áreas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as áreas</SelectItem>
+              {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Todos os status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="nao_iniciada">Não Iniciada</SelectItem>
+              <SelectItem value="em_andamento">Em Andamento</SelectItem>
+              <SelectItem value="concluida">Concluída</SelectItem>
+              <SelectItem value="atrasada">Atrasada</SelectItem>
+              <SelectItem value="pausada">Pausada</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Main Tabs */}
+        <Tabs defaultValue="timeline" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="timeline" className="gap-2">
+              <BarChart3 className="h-4 w-4" />Timeline
+            </TabsTrigger>
+            <TabsTrigger value="lista" className="gap-2">
+              <ListTodo className="h-4 w-4" />Lista
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Timeline Tab */}
+          <TabsContent value="timeline">
+            <Card>
+              <CardContent className="pt-6">
+                <GanttTimeline
+                  operations={operations}
+                  tasks={allTasks}
+                  onItemClick={handleGanttItemClick}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* List Tab */}
+          <TabsContent value="lista">
+            <div className="space-y-3">
+              {operations.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="rounded-full bg-muted p-4 mb-4">
+                      <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium">Nenhuma operação cadastrada</h3>
+                    <p className="text-muted-foreground mb-4">Crie operações para gerenciar as atividades do seu ciclo produtivo.</p>
+                    <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId}>
+                      <Plus className="h-4 w-4 mr-1" />Nova Operação
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                operations.map(op => (
+                  <OperationCard
+                    key={op.id}
+                    operation={op}
+                    tasks={allTasks}
+                    onEdit={(o) => { setEditingOp(o); setParentIdForNew(o.parent_id || null); setOpFormOpen(true); }}
+                    onDelete={(o) => { setDeleteTarget({ type: "operation", id: o.id }); setDeleteDialogOpen(true); }}
+                    onDuplicate={(id) => duplicateOperation.mutate(id)}
+                    onAddSubOperation={openNewSubOperation}
+                    onAddTask={openNewTask}
+                    onEditTask={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
+                    onDeleteTask={(t) => { setDeleteTarget({ type: "task", id: t.id }); setDeleteDialogOpen(true); }}
+                    onTaskStatusChange={handleTaskStatusChange}
+                    onStatusChange={handleOpStatusChange}
+                  />
+                ))
+              )}
             </div>
-          </CardHeader>
-          <CardContent>
-            <TaskList
-              tasks={filteredTasks}
-              onEdit={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
-              onDelete={(t) => { setDeletingTask(t); setDeleteDialogOpen(true); }}
-              onStatusChange={handleStatusChange}
-            />
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
+      {/* Operation Form */}
+      <OperationForm
+        open={opFormOpen}
+        onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNew(null); } }}
+        operation={editingOp}
+        parentId={parentIdForNew}
+        areaId={editingOp?.area_id || defaultAreaId}
+        cycleId={editingOp?.cycle_id || defaultCycleId}
+        talhaoId={editingOp?.talhao_id}
+        areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
+        cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
+        onSubmit={handleOpSubmit}
+        isSubmitting={createOperation.isPending || updateOperation.isPending}
+      />
+
+      {/* Task Form */}
       <TaskForm
         open={taskFormOpen}
-        onOpenChange={setTaskFormOpen}
+        onOpenChange={(v) => { setTaskFormOpen(v); if (!v) setEditingTask(null); }}
         task={editingTask}
         stages={stages}
+        defaultValues={{ stage_id: taskDefaultStageId || undefined }}
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
 
+      {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir tarefa?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogTitle>Confirmar exclusão?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita. Suboperações e tarefas vinculadas também serão excluídas.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { if (deletingTask) deleteTask.mutate(deletingTask.id); setDeleteDialogOpen(false); }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

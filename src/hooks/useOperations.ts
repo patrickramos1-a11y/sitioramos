@@ -73,11 +73,11 @@ export function useOperations(filters?: OperationFilters) {
       if (filters?.cycleId) query = query.eq("cycle_id", filters.cycleId);
       if (filters?.areaId) query = query.eq("area_id", filters.areaId);
       if (filters?.talhaoId) query = query.eq("talhao_id", filters.talhaoId);
-      if (filters?.status && filters.status !== "all") query = query.eq("status", filters.status);
+      if (filters?.status && filters.status !== "all") query = query.eq("status", filters.status as any);
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Operation[];
+      return data as unknown as Operation[];
     },
   });
 
