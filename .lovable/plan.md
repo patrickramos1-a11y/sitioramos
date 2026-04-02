@@ -1,255 +1,174 @@
 
-# Reestruturação Completa da Plataforma Sítio Ramos
 
-## Resumo Executivo
+# Plano: Refatoracao Completa do Modulo de Operacoes
 
-Vou reorganizar a navegação e arquitetura da plataforma para torná-la mais intuitiva e alinhada com a lógica de negócio agrícola, onde **Áreas** são o centro da operação e **Ciclos** são sub-entidades dentro delas.
+## Resumo
 
----
+Transformar o modulo Operacao de uma lista simples de tarefas em um sistema hierarquico com visualizacao Gantt (timeline), estruturado em 3 niveis: **Operacao Principal** (projeto) > **Suboperacoes/Etapas** > **Tarefas**, com integracao financeira e controle cronologico completo.
 
-## Nova Estrutura de Navegação
+## Situacao Atual
+
+- 1 tarefa cadastrada, 0 etapas
+- Tabelas `operational_stages` e `operational_tasks` ja existem no banco
+- Visualizacao atual: lista plana de tarefas com filtros por status
+- Sem hierarquia, sem timeline, sem integracao financeira real
+
+## Arquitetura da Solucao
 
 ```text
-MENU PRINCIPAL (Sidebar)
-+----------------------------------+
-|  [Logo] Sítio Ramos              |
-|                                  |
-|  - Visão Geral (Dashboard)       |  <-- KPIs + Relatórios integrados
-|  - Áreas                         |  <-- Principal, com ciclos dentro
-|  - Fluxo de Caixa                |  <-- Submenu: Custos/Invest/Receitas
-|  - Empréstimos                   |  <-- Gestão de dívidas
-+----------------------------------+
+Operacao Principal (operational_stages com parent_id = null)
+  └── Suboperacao / Etapa (operational_stages com parent_id)
+        └── Tarefa (operational_tasks com stage_id)
 ```
 
-### Mudancas Principais:
-
-1. **Visão Geral** absorve os Relatórios
-2. **Áreas** contém Ciclos (hierarquia correta)
-3. **Fluxo de Caixa** agrupa Custos, Investimentos e Receitas como filtros/abas
-4. **Relatórios** deixa de existir como aba separada
-5. **Ciclos** deixa de existir como aba separada (vai para dentro de Áreas)
+Reutilizamos a tabela `operational_stages` para os niveis 1 e 2 (operacao principal e suboperacoes), adicionando um campo `parent_id` para criar a hierarquia. Tarefas continuam em `operational_tasks`.
 
 ---
 
-## 1. Nova Visão Geral (Dashboard + Relatórios)
+## Fase 1 — Banco de Dados (Migracao)
 
-### O que muda:
-- Absorve os relatórios que estavam em aba separada
-- Mostra KPIs principais com navegação direta
-- Adiciona seção de análise consolidada (antes em /relatorios)
+**Alterar `operational_stages`:**
+- Adicionar `parent_id uuid` (referencia a si mesma, nullable) — permite hierarquia
+- Adicionar `custo_total numeric default 0` — consolidacao de custos
 
-### Nova estrutura:
-```text
-VISÃO GERAL
-+------------------------------------------+
-|  CARDS DE KPIs (clicáveis)               |
-|  [Saldo Caixa] [Áreas] [Investido]       |
-|  [Dívida] [Resultado Líquido]            |
-|                                          |
-|  GRÁFICOS                                |
-|  [Status das Áreas]  [Custos por Tipo]   |
-|  [Evolução Mensal]                       |
-|                                          |
-|  ANÁLISE DETALHADA (ex-Relatórios)       |
-|  Tabs: [Por Área] [Por Ciclo] [Dívidas]  |
-+------------------------------------------+
-```
+**Alterar `operational_tasks`:**
+- Adicionar `parent_task_id uuid` (nullable) — para sub-tarefas opcionais
 
-### Correção do "Balanço Geral":
-- Renomear para **"Resultado Líquido"**
-- Descrição: "Receitas - Custos - Juros"
-- Incluir juros de empréstimo no cálculo
+Nenhuma tabela nova. A tarefa existente sera preservada.
 
 ---
 
-## 2. Nova Página de Áreas com Ciclos Integrados
+## Fase 2 — Hooks Refatorados
 
-### O que muda:
-- Cada card de área mostra resumo financeiro
-- Ao clicar, abre página de detalhe da área
-- Ciclos aparecem dentro da área (não em aba separada)
+### `useOperations.ts` (novo hook principal)
+- Busca `operational_stages` onde `parent_id IS NULL` como "Operacoes Principais"
+- Busca sub-stages onde `parent_id IS NOT NULL` como "Suboperacoes"
+- CRUD completo para operacoes e suboperacoes
+- Funcao para duplicar operacao com suas suboperacoes e tarefas
+- Consolidacao de custos: soma `custo_real` das tarefas filhas
 
-### Estrutura do Card de Área:
-```text
-+----------------------------------------+
-|  [Icon] ÁREA NOME           [Menu ▼]   |
-|  10.5 ha | Status: Plantada            |
-|                                        |
-|  Financeiro:                           |
-|  Custos: R$ 15.000  | Receitas: R$ 20k |
-|  Investido: R$ 5.000                   |
-|                                        |
-|  2 ciclos ativos                       |
-|                                        |
-|  [Ver Detalhes] [Fluxo de Caixa]      |
-+----------------------------------------+
-```
-
-### Página de Detalhe da Área (nova):
-```text
-ÁREA: TALHÃO 1
-+------------------------------------------+
-|  Resumo: 10.5 ha | Status: Plantada      |
-|                                          |
-|  RESUMO FINANCEIRO                       |
-|  [Custos] [Investimentos] [Receitas]     |
-|                                          |
-|  CICLOS PRODUTIVOS                       |
-|  +------------------------------------+  |
-|  | Ciclo Milho 2025                  |  |
-|  | Status: Ativo | Custos: R$ 8.000  |  |
-|  +------------------------------------+  |
-|  | Ciclo Soja 2024                   |  |
-|  | Status: Finalizado | Lucro: R$ 5k |  |
-|  +------------------------------------+  |
-|                                          |
-|  [+ Novo Ciclo]                          |
-+------------------------------------------+
-```
+### `useTasks.ts` (refatorado)
+- Heranca automatica: ao criar tarefa dentro de uma operacao, herda `area_id`, `talhao_id`, `cycle_id`
+- Suporte a filtros por operacao principal
 
 ---
 
-## 3. Fluxo de Caixa com Submenu/Abas
+## Fase 3 — Componente Gantt Timeline
 
-### O que muda:
-- Página única com abas para filtrar por tipo
-- Custos, Investimentos e Receitas viram subviews
-- Formulários de lançamento integrados
+### `GanttTimeline.tsx` (novo componente principal)
 
-### Estrutura:
-```text
-FLUXO DE CAIXA
-+------------------------------------------+
-|  SALDO: R$ 152.810,00                    |
-|  Entradas: R$ 260k | Saídas: R$ 107k     |
-|                                          |
-|  TABS:                                   |
-|  [Todos] [Custos] [Investimentos]        |
-|  [Receitas] [Empréstimos]                |
-|                                          |
-|  FILTROS: Área | Ciclo | Período         |
-|                                          |
-|  TABELA DE TRANSAÇÕES                    |
-|  ...                                     |
-|                                          |
-|  [+ Nova Movimentação]                   |
-+------------------------------------------+
-```
+Visualizacao horizontal tipo Gantt:
+- **Eixo X**: tempo (dias/semanas/meses/trimestre com controle de zoom)
+- **Eixo Y**: linhas com operacoes principais, suboperacoes indentadas, tarefas indentadas 2x
+- **Barras**: representam duracao (inicio a fim), coloridas por status
+- **Interacao**: expandir/recolher subniveis, scroll horizontal, click para editar
+- **Indicadores visuais**: barra de progresso, alerta de atraso (borda vermelha), diferenca planejado vs real
 
-### Rotas simplificadas:
-- `/caixa` - Fluxo completo
-- `/caixa?tab=custos` - Filtrado por custos
-- `/caixa?tab=investimentos` - Filtrado por investimentos
-- `/caixa?tab=receitas` - Filtrado por receitas
+Modos de visualizacao:
+- **Condensado**: so operacoes principais
+- **Detalhado**: com suboperacoes e tarefas
+
+Implementacao com HTML/CSS puro (divs posicionadas) + scroll container, sem dependencia externa.
 
 ---
 
-## 4. Logo Oficial
+## Fase 4 — Pagina Operacao Refatorada
 
-Vou copiar e integrar o logo fornecido na sidebar.
+### Layout da pagina `/operacao`:
 
----
+**Topo — Dashboard KPIs:**
+- Operacoes em andamento / Atrasadas / Pendentes / Concluidas
+- Custo total em aberto
+- Proximas atividades
 
-## Arquivos que Serão Alterados
+**Centro — Visualizacao principal:**
+- Tabs: "Timeline" (Gantt) | "Lista" (cards hierarquicos)
+- Filtros: area, talhao, ciclo, status, prioridade, tipo, periodo
+- Controle de zoom (dia/semana/mes/trimestre)
 
-### Novos:
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/pages/AreaDetalhe.tsx` | Página de detalhe da área com ciclos |
-| `src/assets/logo.png` | Logo oficial copiado |
+**Acoes:**
+- Nova Operacao Principal (abre formulario)
+- Dentro de cada operacao: adicionar suboperacao, adicionar tarefa
+- Menu de contexto: editar, duplicar, excluir, arquivar, pausar, reagendar, concluir
 
-### Modificados:
-| Arquivo | Mudança |
-|---------|---------|
-| `src/App.tsx` | Remover rotas /ciclos, /custos, /investimentos, /receitas, /relatorios. Adicionar /areas/:id |
-| `src/components/layout/AppSidebar.tsx` | Nova estrutura de menu, logo oficial, submenu Caixa |
-| `src/pages/Dashboard.tsx` | Absorver conteúdo de Relatórios (tabs analíticos) |
-| `src/pages/Areas.tsx` | Cards com resumo financeiro, link para detalhe |
-| `src/components/areas/AreaCard.tsx` | Adicionar dados financeiros, ciclos vinculados |
-| `src/pages/Caixa.tsx` | Adicionar tabs para tipos de transação |
-| `src/hooks/useDashboardStats.ts` | Corrigir "Balanço Geral" para incluir juros |
+### `OperationForm.tsx` (novo)
+Formulario para criar/editar operacao principal ou suboperacao:
+- Nome, tipo, descricao
+- Vinculo: propriedade, talhao, area, ciclo
+- Datas: inicio/fim planejado e real
+- Status, prioridade, responsavel
+- Custo estimado
 
-### Removidos (conteúdo migrado):
-| Arquivo | Destino do Conteúdo |
-|---------|---------------------|
-| `src/pages/Ciclos.tsx` | Migrado para AreaDetalhe.tsx |
-| `src/pages/Custos.tsx` | Migrado para Caixa.tsx (tab) |
-| `src/pages/Investimentos.tsx` | Migrado para Caixa.tsx (tab) |
-| `src/pages/Receitas.tsx` | Migrado para Caixa.tsx (tab) |
-| `src/pages/Relatorios.tsx` | Migrado para Dashboard.tsx |
-
----
-
-## Detalhamento Tecnico
-
-### 1. Nova Sidebar com Submenu
-```typescript
-const navigationItems = [
-  {
-    title: "Visão Geral",
-    url: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Áreas",
-    url: "/areas",
-    icon: MapPin,
-  },
-  {
-    title: "Fluxo de Caixa",
-    icon: Wallet,
-    submenu: [
-      { title: "Todos", url: "/caixa" },
-      { title: "Custos", url: "/caixa?tab=custos" },
-      { title: "Investimentos", url: "/caixa?tab=investimentos" },
-      { title: "Receitas", url: "/caixa?tab=receitas" },
-    ],
-  },
-  {
-    title: "Empréstimos",
-    url: "/emprestimos",
-    icon: Landmark,
-  },
-];
-```
-
-### 2. Dashboard com Relatórios Integrados
-- Adicionar `<Tabs>` após os gráficos
-- Migrar conteúdo de `Relatorios.tsx` (por área, por ciclo, empréstimos)
-- Corrigir cálculo do balanço geral:
-```typescript
-// Antes
-const balancoGeral = totalReceitas - totalCustos;
-
-// Depois  
-const jurosEmprestimos = installments
-  .filter(i => i.status === "paga")
-  .reduce((sum, i) => sum + Number(i.valor_juros || 0), 0);
-const resultadoLiquido = totalReceitas - totalCustos - jurosEmprestimos;
-```
-
-### 3. Área com Ciclos Integrados
-- Nova rota: `/areas/:id`
-- Página `AreaDetalhe.tsx` com:
-  - Dados da área
-  - Resumo financeiro (custos, investimentos, receitas)
-  - Lista de ciclos com CRUD
-  - Link para caixa filtrado
-
-### 4. Caixa com Tabs
-- Usar `useSearchParams` para ler `tab`
-- Tabs: Todos, Custos, Investimentos, Receitas
-- Formulários de cada tipo acessíveis via modal
+### `OperationCard.tsx` (novo)
+Card expansivel mostrando operacao principal com:
+- Barra de progresso
+- Status, tipo, datas
+- Custo consolidado
+- Lista de suboperacoes (colapsavel)
+- Lista de tarefas (colapsavel)
+- Acoes rapidas
 
 ---
 
-## Resultado Final
+## Fase 5 — Integracao Financeira
 
-| Antes | Depois |
-|-------|--------|
-| 9 itens no menu | 4 itens no menu |
-| Relatórios separados | Integrados na Visão Geral |
-| Ciclos soltos | Dentro de cada Área |
-| Custos/Invest/Receitas separados | Abas do Fluxo de Caixa |
-| Balanço = Receitas - Custos | Resultado = Receitas - Custos - Juros |
-| Logo genérico | Logo oficial do Sítio Ramos |
+- Cada tarefa pode ter `custo_estimado` e `custo_real` (ja existe)
+- Cada tarefa pode vincular `cash_transaction_id` (ja existe)
+- Botao "Vincular Custo" busca transacoes existentes em `cash_transactions`
+- Botao "Criar Custo" gera nova transacao no fluxo de caixa e vincula
+- Operacao principal exibe custo total = soma dos custos das sub-tarefas
+
+---
+
+## Fase 6 — Integracao com Area, Talhao, Ciclo
+
+- Dentro de `AreaDetalhe.tsx`: aba "Operacoes" mostra operacoes filtradas por `area_id`
+- Dentro de `TalhaoDetalhe.tsx`: aba "Operacoes" mostra operacoes do talhao
+- Operacoes aparecem no Dashboard com indicadores operacionais
+
+---
+
+## Fase 7 — Tipos de Operacao e UX
+
+**Tipos de operacao** (enum no formulario):
+- Operacional agricola, Logistica, Compra, Contratacao, Manutencao, Documentacao, Regularizacao, Beneficiamento
+
+**UX Mobile-ready:**
+- Cards verticais no mobile, Gantt com scroll horizontal
+- Icones por tipo, cores por status
+- Botoes de acao rapida grandes
+- Filtros em drawer no mobile
+
+---
+
+## Detalhes Tecnicos
+
+| Item | Decisao |
+|---|---|
+| Gantt | Implementacao custom com CSS Grid + scroll container, sem lib externa |
+| Hierarquia | `parent_id` em `operational_stages` |
+| Heranca | Subtarefas herdam area/talhao/ciclo da operacao pai via logica no hook |
+| Duplicacao | Copia operacao + suboperacoes + tarefas com novos UUIDs |
+| Dados existentes | A tarefa existente permanece como tarefa solta (sem operacao pai) ate ser reorganizada manualmente |
+| Status "atrasada" | Calculado automaticamente: `data_fim_prevista < hoje && status != concluida` |
+
+## Arquivos Afetados
+
+**Novos:**
+- `src/hooks/useOperations.ts`
+- `src/components/operacao/GanttTimeline.tsx`
+- `src/components/operacao/OperationForm.tsx`
+- `src/components/operacao/OperationCard.tsx`
+
+**Refatorados:**
+- `src/pages/Operacao.tsx` (reescrita completa)
+- `src/hooks/useTasks.ts` (heranca, filtros)
+- `src/hooks/useStages.ts` (suporte a parent_id)
+- `src/pages/AreaDetalhe.tsx` (aba operacoes)
+- `src/pages/TalhaoDetalhe.tsx` (aba operacoes)
+
+**Migracao SQL:**
+- `ALTER TABLE operational_stages ADD COLUMN parent_id uuid REFERENCES operational_stages(id)`
+- `ALTER TABLE operational_stages ADD COLUMN custo_total numeric DEFAULT 0`
+- `ALTER TABLE operational_tasks ADD COLUMN parent_task_id uuid`
+
