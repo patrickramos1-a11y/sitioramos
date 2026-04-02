@@ -555,10 +555,24 @@ export default function AreaDetalhe() {
         onOpenChange={setTaskFormOpen}
         task={editingTask}
         stages={stages}
-        defaultValues={{ area_id: id, cycle_id: activeCycleId || undefined, talhao_id: talhaoId || undefined }}
+        defaultValues={{ area_id: id, cycle_id: activeCycleId || undefined, talhao_id: talhaoId || undefined, stage_id: taskDefaultStageId || undefined }}
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
+
+      {activeCycleId && (
+        <OperationForm
+          open={opFormOpen}
+          onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNewOp(null); } }}
+          operation={editingOp}
+          parentId={parentIdForNewOp}
+          areaId={id!}
+          cycleId={activeCycleId}
+          talhaoId={talhaoId}
+          onSubmit={handleOpSubmit}
+          isSubmitting={createOperation.isPending || updateOperation.isPending}
+        />
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
