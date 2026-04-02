@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { 
   MapPin, Plus, Calendar, Sprout, Wallet, ArrowLeft,
   RefreshCw, DollarSign, TrendingUp, FileText, MoreVertical,
-  Pencil, Trash2, TreePine, Droplets, Clock, ClipboardList, ListTodo, Wand2
+  Pencil, Trash2, TreePine, Droplets, Clock, ClipboardList, ListTodo, Wand2, BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
