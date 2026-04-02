@@ -28,6 +28,7 @@ export interface Stage {
 }
 
 export interface StageInsert {
+  parent_id?: string | null;
   propriedade_id?: string | null;
   talhao_id?: string | null;
   area_id: string;
