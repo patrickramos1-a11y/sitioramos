@@ -98,8 +98,27 @@ export default function AreaDetalhe() {
     if (deleteTarget?.type === "cycle") deleteCycle.mutate(deleteTarget.item.id);
     if (deleteTarget?.type === "stage") deleteStage.mutate(deleteTarget.item.id);
     if (deleteTarget?.type === "task") deleteTask.mutate(deleteTarget.item.id);
+    if (deleteTarget?.type === "operation") deleteOperation.mutate(deleteTarget.item.id);
     setDeleteDialogOpen(false);
     setDeleteTarget(null);
+  };
+
+  const handleOpSubmit = (data: OperationInsert) => {
+    if (editingOp) {
+      updateOperation.mutate({ ...data, id: editingOp.id } as any);
+    } else {
+      createOperation.mutate(data);
+    }
+    setOpFormOpen(false);
+    setEditingOp(null);
+    setParentIdForNewOp(null);
+  };
+
+  const handleOpStatusChange = (op: Operation, status: string) => {
+    const updates: any = { id: op.id, status };
+    if (status === "em_andamento" && !op.data_inicio_real) updates.data_inicio_real = new Date().toISOString().split("T")[0];
+    if (status === "concluida") updates.data_fim_real = new Date().toISOString().split("T")[0];
+    updateOperation.mutate(updates);
   };
 
   const handleCycleSubmit = (data: CycleInsert) => {
