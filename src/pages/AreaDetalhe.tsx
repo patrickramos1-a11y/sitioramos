@@ -68,6 +68,10 @@ export default function AreaDetalhe() {
   const [editingStage, setEditingStage] = useState<Stage | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [opFormOpen, setOpFormOpen] = useState(false);
+  const [editingOp, setEditingOp] = useState<Operation | null>(null);
+  const [parentIdForNewOp, setParentIdForNewOp] = useState<string | null>(null);
+  const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
 
   const area = areas.find(a => a.id === id);
   const areaCycles = cycles.filter((c: any) => c.area_id === id);
@@ -75,6 +79,7 @@ export default function AreaDetalhe() {
 
   const { stages, createStage, updateStage, deleteStage, createFromTemplate } = useStages(activeCycleId, id);
   const { tasks, createTask, updateTask, deleteTask } = useTasks({ cycleId: activeCycleId, areaId: id });
+  const { operations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations({ areaId: id, cycleId: activeCycleId });
 
   const areaCosts = costs.filter((c: any) => c.area_id === id);
   const areaRevenues = revenues.filter((r: any) => r.area_id === id);
