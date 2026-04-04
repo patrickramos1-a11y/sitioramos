@@ -1,22 +1,21 @@
-import { useState, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Operation } from "@/hooks/useOperations";
 import { Task } from "@/hooks/useTasks";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, ChevronDown, ZoomIn, ZoomOut } from "lucide-react";
-import { addDays, differenceInDays, format, startOfDay, startOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from "date-fns";
+import { ChevronRight, ChevronDown } from "lucide-react";
+import { addDays, differenceInDays, format, startOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type ZoomLevel = "day" | "week" | "month" | "quarter";
 
-const statusColors: Record<string, string> = {
-  nao_iniciada: "bg-muted-foreground/30",
-  em_andamento: "bg-primary",
-  concluida: "bg-green-500",
-  atrasada: "bg-destructive",
-  pausada: "bg-yellow-500",
-  pendente: "bg-muted-foreground/30",
-  cancelada: "bg-muted-foreground/20",
+const statusColors: Record<string, { bg: string; text: string }> = {
+  nao_iniciada: { bg: "bg-muted", text: "text-muted-foreground" },
+  em_andamento: { bg: "bg-primary", text: "text-primary-foreground" },
+  concluida: { bg: "bg-success", text: "text-success-foreground" },
+  atrasada: { bg: "bg-destructive", text: "text-destructive-foreground" },
+  pausada: { bg: "bg-warning", text: "text-warning-foreground" },
+  pendente: { bg: "bg-muted", text: "text-muted-foreground" },
+  cancelada: { bg: "bg-secondary", text: "text-secondary-foreground" },
 };
 
 interface GanttItem {
@@ -41,7 +40,10 @@ interface GanttTimelineProps {
 export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("week");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(operations.map(o => o.id)));
-  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setExpandedIds(new Set(operations.flatMap(op => [op.id, ...(op.children || []).map(child => child.id)])));
+  }, [operations]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -104,22 +106,8 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
           }
         }
 
-        // Tasks directly on operation (no sub-operation)
-        const directTasks = tasks.filter(t => t.stage_id === op.id && !op.children?.some(c => c.id === t.stage_id));
-        // Actually, tasks with stage_id matching a sub-operation are already handled above.
-        // Here we handle tasks directly on the main operation:
-        const opDirectTasks = tasks.filter(t => {
-          if (t.stage_id === op.id) return true;
-          // tasks without stage but matching area/cycle
-          if (!t.stage_id && t.area_id === op.area_id && t.cycle_id === op.cycle_id) return true;
-          return false;
-        });
-        // Avoid duplicates - only add tasks not already in sub-operations
-        const subIds = new Set((op.children || []).map(c => c.id));
-        const filteredDirectTasks = opDirectTasks.filter(t => !t.stage_id || !subIds.has(t.stage_id));
-        for (const task of filteredDirectTasks) {
-          // Check if already added
-          if (result.some(r => r.id === task.id)) continue;
+        const directTasks = tasks.filter(t => t.stage_id === op.id);
+        for (const task of directTasks) {
           result.push({
             id: task.id,
             name: task.titulo,
@@ -251,7 +239,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
           </div>
 
           {/* Timeline area */}
-          <div className="overflow-x-auto flex-1" ref={scrollRef}>
+          <div className="overflow-x-auto flex-1">
             <div style={{ width: totalWidth, minWidth: "100%" }}>
               {/* Column headers */}
               <div className="h-8 border-b flex">
@@ -266,7 +254,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
               {items.map(item => {
                 const pos = getBarPosition(item.startDate, item.endDate);
                 const isOverdue = item.endDate && item.endDate < new Date() && item.status !== "concluida" && item.status !== "cancelada";
-                const barColor = isOverdue ? "bg-destructive" : statusColors[item.status] || statusColors.nao_iniciada;
+                const barColor = isOverdue ? statusColors.atrasada : statusColors[item.status] || statusColors.nao_iniciada;
 
                 return (
                   <div key={item.id} className="relative border-b" style={{ height: ROW_HEIGHT }}>
@@ -287,16 +275,16 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                     {/* Bar */}
                     {pos && (
                       <div
-                        className={`absolute top-1.5 rounded-sm cursor-pointer transition-opacity hover:opacity-80 ${barColor} ${isOverdue ? "ring-1 ring-destructive" : ""}`}
+                        className={`absolute top-1.5 rounded-sm cursor-pointer transition-opacity hover:opacity-80 ${barColor.bg} ${isOverdue ? "ring-1 ring-destructive" : ""}`}
                         style={{ left: pos.left, width: pos.width, height: ROW_HEIGHT - 12 }}
                         onClick={() => onItemClick?.(item.id, item.type)}
                       >
                         {/* Progress fill */}
                         {item.progress > 0 && item.progress < 100 && (
-                          <div className="absolute inset-0 rounded-sm bg-foreground/10" style={{ width: `${item.progress}%` }} />
+                          <div className="absolute inset-0 rounded-sm bg-background/20" style={{ width: `${item.progress}%` }} />
                         )}
                         {pos.width > 40 && (
-                          <span className="absolute inset-0 flex items-center px-1.5 text-[10px] text-white truncate font-medium drop-shadow-sm">
+                          <span className={`absolute inset-0 flex items-center px-1.5 text-[10px] truncate font-medium drop-shadow-sm ${barColor.text}`}>
                             {item.name}
                           </span>
                         )}
