@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, Activity, AlertTriangle, Clock, CheckCircle2,
-  BarChart3, ListTodo, GanttChart, DollarSign
+  BarChart3, ListTodo, DollarSign
 } from "lucide-react";
 import { useOperations, Operation, OperationInsert } from "@/hooks/useOperations";
 import { useTasks, Task, TaskInsert } from "@/hooks/useTasks";
@@ -26,6 +25,7 @@ export default function Operacao() {
   const { areas } = useAreas();
   const { cycles } = useCycles();
   const { stages } = useStages();
+  const [formContext, setFormContext] = useState<{ areaId: string; cycleId: string; talhaoId?: string | null }>({ areaId: "", cycleId: "", talhaoId: null });
 
   // Filters
   const [filterArea, setFilterArea] = useState<string>("all");
@@ -36,8 +36,8 @@ export default function Operacao() {
     status: filterStatus !== "all" ? filterStatus : undefined,
   }), [filterArea, filterStatus]);
 
-  const { operations, isLoading, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
-  const { tasks, createTask, updateTask, deleteTask } = useTasks();
+  const { operations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
+  const { tasks, createTask, updateTask, deleteTask } = useTasks({ areaId: operationFilters.areaId });
 
   // Form state
   const [opFormOpen, setOpFormOpen] = useState(false);
@@ -115,12 +115,17 @@ export default function Operacao() {
   const openNewOperation = () => {
     setEditingOp(null);
     setParentIdForNew(null);
+    setFormContext({ areaId: defaultAreaId, cycleId: defaultCycleId, talhaoId: null });
     setOpFormOpen(true);
   };
 
   const openNewSubOperation = (parentId: string) => {
+    const parentOperation = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === parentId);
     setEditingOp(null);
     setParentIdForNew(parentId);
+    if (parentOperation) {
+      setFormContext({ areaId: parentOperation.area_id, cycleId: parentOperation.cycle_id, talhaoId: parentOperation.talhao_id });
+    }
     setOpFormOpen(true);
   };
 
@@ -180,9 +185,9 @@ export default function Operacao() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium">Concluídas</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+               <CheckCircle2 className="h-4 w-4 text-success" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold text-green-600">{concluidas}</div></CardContent>
+             <CardContent><div className="text-2xl font-bold text-success">{concluidas}</div></CardContent>
           </Card>
           <Card className="col-span-2 lg:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -288,9 +293,9 @@ export default function Operacao() {
         onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNew(null); } }}
         operation={editingOp}
         parentId={parentIdForNew}
-        areaId={editingOp?.area_id || defaultAreaId}
-        cycleId={editingOp?.cycle_id || defaultCycleId}
-        talhaoId={editingOp?.talhao_id}
+        areaId={editingOp?.area_id || formContext.areaId || defaultAreaId}
+        cycleId={editingOp?.cycle_id || formContext.cycleId || defaultCycleId}
+        talhaoId={editingOp?.talhao_id || formContext.talhaoId}
         areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
         cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
         onSubmit={handleOpSubmit}
@@ -303,7 +308,7 @@ export default function Operacao() {
         onOpenChange={(v) => { setTaskFormOpen(v); if (!v) setEditingTask(null); }}
         task={editingTask}
         stages={stages}
-        defaultValues={{ stage_id: taskDefaultStageId || undefined }}
+        defaultValues={{ stage_id: taskDefaultStageId || undefined, area_id: defaultAreaId || undefined, cycle_id: defaultCycleId || undefined }}
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />

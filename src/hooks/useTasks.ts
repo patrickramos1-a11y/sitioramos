@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface Task {
   id: string;
+  parent_task_id?: string | null;
   propriedade_id: string | null;
   talhao_id: string | null;
   area_id: string | null;
@@ -26,10 +27,19 @@ export interface Task {
   created_at: string;
   updated_at: string;
   // joined
-  operational_stages?: { nome: string } | null;
+  operational_stages?: {
+    id: string;
+    nome: string;
+    parent_id: string | null;
+    propriedade_id: string | null;
+    talhao_id: string | null;
+    area_id: string;
+    cycle_id: string;
+  } | null;
 }
 
 export interface TaskInsert {
+  parent_task_id?: string | null;
   propriedade_id?: string | null;
   talhao_id?: string | null;
   area_id?: string | null;
@@ -51,6 +61,27 @@ export interface TaskInsert {
   observacoes?: string | null;
 }
 
+async function resolveTaskContext(task: TaskInsert) {
+  if (!task.stage_id) return task;
+
+  const { data: stage, error } = await supabase
+    .from("operational_stages")
+    .select("id, parent_id, propriedade_id, talhao_id, area_id, cycle_id")
+    .eq("id", task.stage_id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!stage) return task;
+
+  return {
+    ...task,
+    propriedade_id: stage.propriedade_id,
+    talhao_id: stage.talhao_id,
+    area_id: stage.area_id,
+    cycle_id: stage.cycle_id,
+  };
+}
+
 export function useTasks(filters?: { cycleId?: string; areaId?: string; stageId?: string; talhaoId?: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -60,7 +91,7 @@ export function useTasks(filters?: { cycleId?: string; areaId?: string; stageId?
     queryFn: async () => {
       let query = supabase
         .from("operational_tasks")
-        .select("*, operational_stages(nome)")
+        .select("*, operational_stages(id, nome, parent_id, propriedade_id, talhao_id, area_id, cycle_id)")
         .order("created_at", { ascending: false });
 
       if (filters?.cycleId) query = query.eq("cycle_id", filters.cycleId);
@@ -76,9 +107,10 @@ export function useTasks(filters?: { cycleId?: string; areaId?: string; stageId?
 
   const createTask = useMutation({
     mutationFn: async (task: TaskInsert) => {
+      const payload = await resolveTaskContext(task);
       const { data, error } = await supabase
         .from("operational_tasks")
-        .insert(task as any)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;
@@ -86,6 +118,8 @@ export function useTasks(filters?: { cycleId?: string; areaId?: string; stageId?
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operational_tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["operations"] });
+      queryClient.invalidateQueries({ queryKey: ["operational_stages"] });
       toast({ title: "Tarefa criada", description: "A tarefa foi cadastrada com sucesso." });
     },
     onError: (error: any) => {
@@ -97,9 +131,10 @@ export function useTasks(filters?: { cycleId?: string; areaId?: string; stageId?
     mutationFn: async ({ id, ...updates }: Partial<Task> & { id: string }) => {
       const cleanUpdates = { ...updates };
       delete (cleanUpdates as any).operational_stages;
+      const payload = cleanUpdates.stage_id ? await resolveTaskContext(cleanUpdates as TaskInsert) : cleanUpdates;
       const { data, error } = await supabase
         .from("operational_tasks")
-        .update(cleanUpdates as any)
+        .update(payload as any)
         .eq("id", id)
         .select()
         .single();
@@ -108,6 +143,8 @@ export function useTasks(filters?: { cycleId?: string; areaId?: string; stageId?
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operational_tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["operations"] });
+      queryClient.invalidateQueries({ queryKey: ["operational_stages"] });
       toast({ title: "Tarefa atualizada" });
     },
     onError: (error: any) => {
@@ -122,6 +159,8 @@ export function useTasks(filters?: { cycleId?: string; areaId?: string; stageId?
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operational_tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["operations"] });
+      queryClient.invalidateQueries({ queryKey: ["operational_stages"] });
       toast({ title: "Tarefa excluída" });
     },
     onError: (error: any) => {
