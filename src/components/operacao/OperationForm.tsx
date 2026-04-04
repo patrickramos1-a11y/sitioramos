@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,7 @@ export function OperationForm({
   open, onOpenChange, operation, parentId, areaId, cycleId, talhaoId,
   areas, cycles, onSubmit, isSubmitting, title,
 }: OperationFormProps) {
+  const isInheritedContext = Boolean(parentId || operation?.parent_id);
   const [formData, setFormData] = useState({
     nome: "",
     tipo: "outro",
@@ -100,6 +101,15 @@ export function OperationForm({
     }
   }, [operation, open, areaId, cycleId]);
 
+  const availableCycles = (cycles || []).filter((cycle) => cycle.area_id === formData.area_id);
+
+  useEffect(() => {
+    if (availableCycles.length === 0) return;
+    if (!availableCycles.some((cycle) => cycle.id === formData.cycle_id)) {
+      setFormData((prev) => ({ ...prev, cycle_id: availableCycles[0].id }));
+    }
+  }, [availableCycles, formData.cycle_id]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
@@ -123,6 +133,11 @@ export function OperationForm({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{formTitle}</DialogTitle>
+          <DialogDescription>
+            {isInheritedContext
+              ? "Esta suboperação herda automaticamente área, talhão e ciclo da operação principal."
+              : "Defina o contexto produtivo e o planejamento da operação."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -134,7 +149,7 @@ export function OperationForm({
             {areas && areas.length > 0 && (
               <div>
                 <Label>Área *</Label>
-                <Select value={formData.area_id} onValueChange={v => setFormData(p => ({ ...p, area_id: v }))}>
+                <Select value={formData.area_id} onValueChange={v => setFormData(p => ({ ...p, area_id: v }))} disabled={isInheritedContext}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
@@ -143,13 +158,13 @@ export function OperationForm({
               </div>
             )}
 
-            {cycles && cycles.length > 0 && (
+            {availableCycles.length > 0 && (
               <div>
                 <Label>Ciclo *</Label>
-                <Select value={formData.cycle_id} onValueChange={v => setFormData(p => ({ ...p, cycle_id: v }))}>
+                <Select value={formData.cycle_id} onValueChange={v => setFormData(p => ({ ...p, cycle_id: v }))} disabled={isInheritedContext}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {cycles.map(c => <SelectItem key={c.id} value={c.id}>{c.cultura}</SelectItem>)}
+                    {availableCycles.map(c => <SelectItem key={c.id} value={c.id}>{c.cultura}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

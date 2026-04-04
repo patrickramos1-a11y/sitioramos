@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,8 @@ const priorityOptions = [
   { value: "alta", label: "Alta" },
   { value: "critica", label: "Crítica" },
 ];
+
+const NO_STAGE_VALUE = "__none__";
 
 interface TaskFormProps {
   open: boolean;
@@ -71,7 +73,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
         tipo: task.tipo,
         status: task.status,
         prioridade: task.prioridade || "media",
-        stage_id: task.stage_id || "",
+        stage_id: task.stage_id || NO_STAGE_VALUE,
         data_inicio_prevista: task.data_inicio_prevista || "",
         data_inicio_real: task.data_inicio_real || "",
         data_prazo: task.data_prazo || "",
@@ -84,7 +86,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
     } else {
       setFormData({
         titulo: "", descricao: "", tipo: "operacional", status: "pendente",
-        prioridade: "media", stage_id: defaultValues?.stage_id || "",
+        prioridade: "media", stage_id: defaultValues?.stage_id || NO_STAGE_VALUE,
         data_inicio_prevista: "", data_inicio_real: "", data_prazo: "",
         data_conclusao: "", responsavel: "", custo_estimado: "", custo_real: "", observacoes: "",
       });
@@ -100,7 +102,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
       tipo: formData.tipo,
       status: formData.status,
       prioridade: formData.prioridade,
-      stage_id: formData.stage_id || null,
+      stage_id: formData.stage_id === NO_STAGE_VALUE ? null : formData.stage_id,
       data_inicio_prevista: formData.data_inicio_prevista || null,
       data_inicio_real: formData.data_inicio_real || null,
       data_prazo: formData.data_prazo || null,
@@ -117,6 +119,9 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{task ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
+          <DialogDescription>
+            Vincule a tarefa a uma operação ou suboperação para herdar automaticamente área e ciclo.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -157,7 +162,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
                 <Select value={formData.stage_id} onValueChange={v => setFormData(p => ({ ...p, stage_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value={NO_STAGE_VALUE}>Nenhuma</SelectItem>
                     {stages.map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>

@@ -18,9 +18,9 @@ import { ptBR } from "date-fns/locale";
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeVariant: "default" | "secondary" | "outline" | "destructive" }> = {
   nao_iniciada: { label: "Não Iniciada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
   em_andamento: { label: "Em Andamento", icon: Clock, color: "text-primary", badgeVariant: "secondary" },
-  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-green-600", badgeVariant: "default" },
+  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "default" },
   atrasada: { label: "Atrasada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
-  pausada: { label: "Pausada", icon: PauseCircle, color: "text-yellow-600", badgeVariant: "outline" },
+  pausada: { label: "Pausada", icon: PauseCircle, color: "text-warning", badgeVariant: "outline" },
 };
 
 const typeLabels: Record<string, string> = {
@@ -60,8 +60,7 @@ export function OperationCard({
   const subIds = (operation.children || []).map(c => c.id);
   const allRelatedTasks = tasks.filter(t =>
     t.stage_id === operation.id ||
-    subIds.includes(t.stage_id || "") ||
-    (!t.stage_id && t.area_id === operation.area_id && t.cycle_id === operation.cycle_id)
+    subIds.includes(t.stage_id || "")
   );
 
   const totalCusto = allRelatedTasks.reduce((sum, t) => sum + (Number(t.custo_real) || 0), 0);
@@ -191,7 +190,7 @@ export function OperationCard({
             {/* Direct tasks */}
             {(() => {
               const directTasks = tasks.filter(t =>
-                t.stage_id === operation.id && !subIds.includes(t.stage_id || "")
+                t.stage_id === operation.id
               );
               if (directTasks.length === 0) return null;
               return (
@@ -246,7 +245,7 @@ function TaskMiniCard({ task, onEdit, onStatusChange }: { task: Task; onEdit: ()
         )}
         {task.status === "em_andamento" && (
           <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onStatusChange(task, "concluida")}>
-            <CheckCircle2 className="h-3 w-3 text-green-600" />
+            <CheckCircle2 className="h-3 w-3 text-success" />
           </Button>
         )}
         <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onEdit}>

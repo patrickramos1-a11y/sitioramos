@@ -58,6 +58,27 @@ interface OperationFilters {
   status?: string;
 }
 
+async function resolveOperationContext(op: OperationInsert) {
+  if (!op.parent_id) return op;
+
+  const { data: parent, error } = await supabase
+    .from("operational_stages")
+    .select("propriedade_id, talhao_id, area_id, cycle_id")
+    .eq("id", op.parent_id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!parent) return op;
+
+  return {
+    ...op,
+    propriedade_id: parent.propriedade_id,
+    talhao_id: parent.talhao_id,
+    area_id: parent.area_id,
+    cycle_id: parent.cycle_id,
+  };
+}
+
 export function useOperations(filters?: OperationFilters) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -88,14 +109,15 @@ export function useOperations(filters?: OperationFilters) {
   // Build hierarchy
   const operationsWithChildren: Operation[] = mainOperations.map(op => ({
     ...op,
-    children: subOperations.filter(s => s.parent_id === op.id),
+    children: subOperations.filter(s => s.parent_id === op.id).sort((a, b) => a.ordem - b.ordem),
   }));
 
   const createOperation = useMutation({
     mutationFn: async (op: OperationInsert) => {
+      const payload = await resolveOperationContext(op);
       const { data, error } = await supabase
         .from("operational_stages")
-        .insert(op as any)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;
@@ -104,6 +126,7 @@ export function useOperations(filters?: OperationFilters) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operations"] });
       queryClient.invalidateQueries({ queryKey: ["operational_stages"] });
+      queryClient.invalidateQueries({ queryKey: ["operational_tasks"] });
       toast({ title: "Operação criada com sucesso" });
     },
     onError: (error: any) => {
@@ -116,9 +139,10 @@ export function useOperations(filters?: OperationFilters) {
       const clean = { ...updates };
       delete (clean as any).children;
       delete (clean as any).tasks;
+      const payload = clean.parent_id ? await resolveOperationContext(clean as OperationInsert) : clean;
       const { data, error } = await supabase
         .from("operational_stages")
-        .update(clean as any)
+        .update(payload as any)
         .eq("id", id)
         .select()
         .single();
@@ -128,6 +152,7 @@ export function useOperations(filters?: OperationFilters) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operations"] });
       queryClient.invalidateQueries({ queryKey: ["operational_stages"] });
+      queryClient.invalidateQueries({ queryKey: ["operational_tasks"] });
       toast({ title: "Operação atualizada" });
     },
     onError: (error: any) => {
@@ -137,12 +162,30 @@ export function useOperations(filters?: OperationFilters) {
 
   const deleteOperation = useMutation({
     mutationFn: async (id: string) => {
+      const childIds = subOperations.filter(s => s.parent_id === id).map(s => s.id);
+      const stageIds = [id, ...childIds];
+
+      const { error: taskError } = await supabase
+        .from("operational_tasks")
+        .delete()
+        .in("stage_id", stageIds);
+      if (taskError) throw taskError;
+
+      if (childIds.length > 0) {
+        const { error: childError } = await supabase
+          .from("operational_stages")
+          .delete()
+          .in("id", childIds);
+        if (childError) throw childError;
+      }
+
       const { error } = await supabase.from("operational_stages").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operations"] });
       queryClient.invalidateQueries({ queryKey: ["operational_stages"] });
+      queryClient.invalidateQueries({ queryKey: ["operational_tasks"] });
       toast({ title: "Operação excluída" });
     },
     onError: (error: any) => {
@@ -166,12 +209,38 @@ export function useOperations(filters?: OperationFilters) {
 
       // Clone sub-operations
       const subs = subOperations.filter(s => s.parent_id === operationId);
+      const stageMap = new Map<string, string>([[operationId, newOp.id]]);
       for (const sub of subs) {
         const { id: subId, created_at: sc, updated_at: su, ...subData } = sub as any;
-        await supabase.from("operational_stages").insert({
+        const { data: newSub, error: subError } = await supabase.from("operational_stages").insert({
           ...subData, parent_id: newOp.id, status: "nao_iniciada",
           data_inicio_real: null, data_fim_real: null,
-        } as any);
+        } as any).select("id").single();
+        if (subError) throw subError;
+        if (newSub) stageMap.set(subId, newSub.id);
+      }
+
+      const { data: sourceTasks, error: tasksError } = await supabase
+        .from("operational_tasks")
+        .select("*")
+        .in("stage_id", [operationId, ...subs.map(sub => sub.id)]);
+
+      if (tasksError) throw tasksError;
+
+      if (sourceTasks && sourceTasks.length > 0) {
+        const clonedTasks = sourceTasks.map(({ id: taskId, created_at, updated_at, parent_task_id, ...task }: any) => ({
+          ...task,
+          stage_id: task.stage_id ? stageMap.get(task.stage_id) ?? newOp.id : null,
+          parent_task_id: null,
+          status: "pendente",
+          data_inicio_real: null,
+          data_conclusao: null,
+          cash_transaction_id: null,
+          custo_real: null,
+        }));
+
+        const { error: cloneTaskError } = await supabase.from("operational_tasks").insert(clonedTasks);
+        if (cloneTaskError) throw cloneTaskError;
       }
 
       return newOp;
@@ -179,6 +248,7 @@ export function useOperations(filters?: OperationFilters) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operations"] });
       queryClient.invalidateQueries({ queryKey: ["operational_stages"] });
+      queryClient.invalidateQueries({ queryKey: ["operational_tasks"] });
       toast({ title: "Operação duplicada" });
     },
     onError: (error: any) => {
