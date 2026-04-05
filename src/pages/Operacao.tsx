@@ -37,7 +37,7 @@ export default function Operacao() {
   }), [filterArea, filterStatus]);
 
   const { operations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
-  const { tasks, createTask, updateTask, deleteTask } = useTasks({ areaId: operationFilters.areaId });
+  const { tasks, createTask, updateTask, deleteTask } = useTasks({ areaId: operationFilters.areaId || undefined });
 
   // Form state
   const [opFormOpen, setOpFormOpen] = useState(false);
