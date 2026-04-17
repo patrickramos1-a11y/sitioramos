@@ -25,6 +25,7 @@ import { CostForm } from "@/components/costs/CostForm";
 import { InvestmentForm } from "@/components/investments/InvestmentForm";
 import { RevenueForm } from "@/components/revenues/RevenueForm";
 import { CashTransactionsTable } from "@/components/caixa/CashTransactionsTable";
+import { ContatoSelect } from "@/components/contatos/ContatoSelect";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -93,6 +94,7 @@ export default function Caixa() {
     loan_id: "",
     area_id: "",
     cycle_id: "",
+    contato_id: null as string | null,
     observacoes: "",
   });
 
@@ -161,8 +163,9 @@ export default function Caixa() {
       loan_id: formData.loan_id || null,
       area_id: formData.area_id || null,
       cycle_id: formData.cycle_id || null,
+      contato_id: formData.contato_id || null,
       observacoes: formData.observacoes || null,
-    });
+    } as any);
 
     setFormOpen(false);
     resetForm();
@@ -178,6 +181,7 @@ export default function Caixa() {
       loan_id: "",
       area_id: "",
       cycle_id: "",
+      contato_id: null,
       observacoes: "",
     });
   };
@@ -418,7 +422,6 @@ export default function Caixa() {
               <CashTransactionsTable
                 transactions={transactions}
                 areas={areas}
-                cycles={cycles}
                 onDelete={(id) => handleDeleteClick(id, "transaction")}
               />
             )}
@@ -888,6 +891,15 @@ export default function Caixa() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Pessoa/Contato</Label>
+              <ContatoSelect
+                value={formData.contato_id}
+                onChange={(id) => setFormData({ ...formData, contato_id: id })}
+                placeholder="Vincular contato (opcional)..."
+              />
             </div>
 
             <div className="space-y-2">

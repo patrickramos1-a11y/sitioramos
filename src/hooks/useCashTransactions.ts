@@ -21,9 +21,11 @@ export interface CashTransaction {
   created_at: string;
   updated_at: string;
   // Joined data
+  contato_id?: string | null;
   areas?: { nome: string } | null;
   loans?: { origem_credor: string } | null;
   cycles?: { cultura: string } | null;
+  contatos?: { nome: string } | null;
 }
 
 export interface CashTransactionInsert {
@@ -71,7 +73,7 @@ export function useCashTransactions(filters?: CashFilters) {
     queryFn: async () => {
       let query = supabase
         .from("cash_transactions")
-        .select("*, areas(nome), loans(origem_credor), cycles(cultura)")
+        .select("*, areas(nome), loans(origem_credor), cycles(cultura), contatos(nome)")
         .order("data", { ascending: false })
         .order("created_at", { ascending: false });
       

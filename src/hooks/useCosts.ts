@@ -73,6 +73,7 @@ export function useCosts(filters?: CostFilters) {
             cost_id: costData.id,
             area_id: newCost.area_id,
             cycle_id: newCost.cycle_id || null,
+            contato_id: (newCost as any).contato_id || null,
           });
         
         if (txError) {

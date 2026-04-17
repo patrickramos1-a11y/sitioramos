@@ -9,7 +9,8 @@ import {
   ChevronDown,
   FileText,
   Home,
-  ClipboardList
+  ClipboardList,
+  Users
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -145,6 +146,19 @@ export function AppSidebar() {
                   <NavLink to="/emprestimos">
                     <Landmark className="h-4 w-4" />
                     <span>Empréstimos</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Contatos */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === "/contatos"}
+                >
+                  <NavLink to="/contatos">
+                    <Users className="h-4 w-4" />
+                    <span>Contatos</span>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

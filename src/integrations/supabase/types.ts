@@ -84,6 +84,7 @@ export type Database = {
         Row: {
           area_id: string | null
           categoria: string
+          contato_id: string | null
           cost_id: string | null
           created_at: string
           cycle_id: string | null
@@ -103,6 +104,7 @@ export type Database = {
         Insert: {
           area_id?: string | null
           categoria: string
+          contato_id?: string | null
           cost_id?: string | null
           created_at?: string
           cycle_id?: string | null
@@ -122,6 +124,7 @@ export type Database = {
         Update: {
           area_id?: string | null
           categoria?: string
+          contato_id?: string | null
           cost_id?: string | null
           created_at?: string
           cycle_id?: string | null
@@ -144,6 +147,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_transactions_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos"
             referencedColumns: ["id"]
           },
           {
@@ -197,9 +207,49 @@ export type Database = {
           },
         ]
       }
+      contatos: {
+        Row: {
+          categoria: Database["public"]["Enums"]["contato_categoria"]
+          created_at: string
+          documento: string | null
+          email: string | null
+          endereco: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["contato_categoria"]
+          created_at?: string
+          documento?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["contato_categoria"]
+          created_at?: string
+          documento?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       costs: {
         Row: {
           area_id: string
+          contato_id: string | null
           created_at: string
           cycle_id: string | null
           data: string
@@ -214,6 +264,7 @@ export type Database = {
         }
         Insert: {
           area_id: string
+          contato_id?: string | null
           created_at?: string
           cycle_id?: string | null
           data: string
@@ -228,6 +279,7 @@ export type Database = {
         }
         Update: {
           area_id?: string
+          contato_id?: string | null
           created_at?: string
           cycle_id?: string | null
           data?: string
@@ -246,6 +298,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "costs_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos"
             referencedColumns: ["id"]
           },
           {
@@ -377,6 +436,7 @@ export type Database = {
       investments: {
         Row: {
           area_id: string | null
+          contato_id: string | null
           created_at: string
           data: string
           descricao: string
@@ -390,6 +450,7 @@ export type Database = {
         }
         Insert: {
           area_id?: string | null
+          contato_id?: string | null
           created_at?: string
           data: string
           descricao: string
@@ -403,6 +464,7 @@ export type Database = {
         }
         Update: {
           area_id?: string | null
+          contato_id?: string | null
           created_at?: string
           data?: string
           descricao?: string
@@ -420,6 +482,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investments_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos"
             referencedColumns: ["id"]
           },
           {
@@ -784,6 +853,7 @@ export type Database = {
         Row: {
           area_id: string
           cliente: string | null
+          contato_id: string | null
           created_at: string
           cycle_id: string | null
           data: string
@@ -800,6 +870,7 @@ export type Database = {
         Insert: {
           area_id: string
           cliente?: string | null
+          contato_id?: string | null
           created_at?: string
           cycle_id?: string | null
           data: string
@@ -816,6 +887,7 @@ export type Database = {
         Update: {
           area_id?: string
           cliente?: string | null
+          contato_id?: string | null
           created_at?: string
           cycle_id?: string | null
           data?: string
@@ -835,6 +907,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenues_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos"
             referencedColumns: ["id"]
           },
           {
@@ -1035,6 +1114,12 @@ export type Database = {
         | "plantada"
         | "producao"
         | "colhida"
+      contato_categoria:
+        | "fornecedor"
+        | "cliente"
+        | "prestador"
+        | "funcionario"
+        | "outro"
       cost_type:
         | "preparo_solo"
         | "mudas"
@@ -1230,6 +1315,13 @@ export const Constants = {
         "plantada",
         "producao",
         "colhida",
+      ],
+      contato_categoria: [
+        "fornecedor",
+        "cliente",
+        "prestador",
+        "funcionario",
+        "outro",
       ],
       cost_type: [
         "preparo_solo",
