@@ -14,6 +14,7 @@ import { Cycle } from "@/hooks/useCycles";
 import { costTypeConfig } from "@/lib/categoryConfig";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ContatoSelect } from "@/components/contatos/ContatoSelect";
 
 const costSchema = z.object({
   area_id: z.string().min(1, "Área é obrigatória"),
@@ -24,6 +25,7 @@ const costSchema = z.object({
   forma_pagamento: z.enum(["dinheiro", "emprestimo"]),
   descricao: z.string().max(200).optional().nullable(),
   observacoes: z.string().max(500).optional().nullable(),
+  contato_id: z.string().optional().nullable(),
 });
 
 type CostFormData = z.infer<typeof costSchema>;
@@ -50,6 +52,7 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
       forma_pagamento: "dinheiro",
       descricao: "",
       observacoes: "",
+      contato_id: null,
     },
   });
 
@@ -68,6 +71,7 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
         forma_pagamento: cost.forma_pagamento,
         descricao: cost.descricao || "",
         observacoes: cost.observacoes || "",
+        contato_id: (cost as any).contato_id || null,
       });
     } else {
       form.reset({
@@ -79,6 +83,7 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
         forma_pagamento: "dinheiro",
         descricao: "",
         observacoes: "",
+        contato_id: null,
       });
     }
   }, [cost, form]);
@@ -93,7 +98,8 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
       forma_pagamento: data.forma_pagamento,
       descricao: data.descricao || null,
       observacoes: data.observacoes || null,
-    });
+      contato_id: data.contato_id || null,
+    } as any);
   };
 
   return (
