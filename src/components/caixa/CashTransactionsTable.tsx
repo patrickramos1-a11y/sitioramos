@@ -7,16 +7,14 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Filter,
   Search,
   Trash2,
   Wallet,
-  X,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -25,39 +23,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   cashCategoryConfig,
   CashCategory,
 } from "@/lib/categoryConfig";
 import { CashTransaction } from "@/hooks/useCashTransactions";
+import { ColumnFilter } from "./ColumnFilter";
+import {
+  PeriodFilter,
+  PeriodPreset,
+  getPeriodRange,
+} from "./PeriodFilter";
 
 interface AreaOption {
   id: string;
   nome: string;
 }
 
-interface CycleOption {
-  id: string;
-  cultura: string;
-  area_id: string;
-}
-
 interface Props {
   transactions: CashTransaction[];
   areas: AreaOption[];
-  cycles: CycleOption[];
   onDelete: (id: string) => void;
 }
 
-type SortKey = "data" | "valor" | "categoria" | "tipo" | "area";
+type SortKey = "data" | "valor" | "categoria" | "tipo" | "area" | "contato";
 type SortDir = "asc" | "desc";
 
 const formatCurrency = (value: number) =>
@@ -66,44 +56,37 @@ const formatCurrency = (value: number) =>
     currency: "BRL",
   }).format(value);
 
-const ALL = "__all__";
-
 export function CashTransactionsTable({
   transactions,
   areas,
-  cycles,
   onDelete,
 }: Props) {
   const [search, setSearch] = useState("");
-  const [tipoFilter, setTipoFilter] = useState<string>(ALL);
-  const [categoriaFilter, setCategoriaFilter] = useState<string>(ALL);
-  const [areaFilter, setAreaFilter] = useState<string>(ALL);
-  const [cycleFilter, setCycleFilter] = useState<string>(ALL);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [period, setPeriod] = useState<PeriodPreset>("tudo");
+  const [tipoSel, setTipoSel] = useState<string[]>([]);
+  const [catSel, setCatSel] = useState<string[]>([]);
+  const [areaSel, setAreaSel] = useState<string[]>([]);
+  const [contatoSel, setContatoSel] = useState<string[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  const availableCycles = useMemo(
-    () =>
-      areaFilter !== ALL
-        ? cycles.filter((c) => c.area_id === areaFilter)
-        : cycles,
-    [cycles, areaFilter],
-  );
+  const periodRange = useMemo(() => getPeriodRange(period), [period]);
 
   const filtered = useMemo(() => {
     let list = [...transactions];
 
-    if (tipoFilter !== ALL) list = list.filter((t) => t.tipo === tipoFilter);
-    if (categoriaFilter !== ALL)
-      list = list.filter((t) => t.categoria === categoriaFilter);
-    if (areaFilter !== ALL)
-      list = list.filter((t) => t.area_id === areaFilter);
-    if (cycleFilter !== ALL)
-      list = list.filter((t) => t.cycle_id === cycleFilter);
-    if (startDate) list = list.filter((t) => t.data >= startDate);
-    if (endDate) list = list.filter((t) => t.data <= endDate);
+    if (periodRange.start) list = list.filter((t) => t.data >= periodRange.start!);
+    if (periodRange.end) list = list.filter((t) => t.data <= periodRange.end!);
+    if (tipoSel.length) list = list.filter((t) => tipoSel.includes(t.tipo));
+    if (catSel.length) list = list.filter((t) => catSel.includes(t.categoria));
+    if (areaSel.length)
+      list = list.filter((t) =>
+        areaSel.includes(t.area_id || "__none__"),
+      );
+    if (contatoSel.length)
+      list = list.filter((t) =>
+        contatoSel.includes((t as any).contato_id || "__none__"),
+      );
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -112,6 +95,7 @@ export function CashTransactionsTable({
           t.descricao?.toLowerCase().includes(q) ||
           t.observacoes?.toLowerCase().includes(q) ||
           t.areas?.nome?.toLowerCase().includes(q) ||
+          (t as any).contatos?.nome?.toLowerCase().includes(q) ||
           cashCategoryConfig[t.categoria]?.label.toLowerCase().includes(q),
       );
     }
@@ -140,6 +124,10 @@ export function CashTransactionsTable({
           av = a.areas?.nome || "";
           bv = b.areas?.nome || "";
           break;
+        case "contato":
+          av = (a as any).contatos?.nome || "";
+          bv = (b as any).contatos?.nome || "";
+          break;
       }
       if (av < bv) return sortDir === "asc" ? -1 : 1;
       if (av > bv) return sortDir === "asc" ? 1 : -1;
@@ -149,12 +137,11 @@ export function CashTransactionsTable({
     return list;
   }, [
     transactions,
-    tipoFilter,
-    categoriaFilter,
-    areaFilter,
-    cycleFilter,
-    startDate,
-    endDate,
+    periodRange,
+    tipoSel,
+    catSel,
+    areaSel,
+    contatoSel,
     search,
     sortKey,
     sortDir,
@@ -170,34 +157,43 @@ export function CashTransactionsTable({
     return { entradas, saidas, saldo: entradas - saidas };
   }, [filtered]);
 
-  const breakdownByCategoria = useMemo(() => {
-    const map = new Map<CashCategory, number>();
-    filtered.forEach((t) => {
-      const sign = t.tipo === "entrada" ? 1 : -1;
-      map.set(
-        t.categoria,
-        (map.get(t.categoria) || 0) + sign * Number(t.valor),
-      );
-    });
-    return Array.from(map.entries())
-      .map(([cat, total]) => ({ cat, total }))
-      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
-  }, [filtered]);
+  const tipoOptions = [
+    { value: "entrada", label: "Entrada" },
+    { value: "saida", label: "Saída" },
+  ];
 
-  const breakdownByArea = useMemo(() => {
-    const map = new Map<string, { nome: string; total: number }>();
-    filtered.forEach((t) => {
-      const id = t.area_id || "sem-area";
-      const nome = t.areas?.nome || "Sem área";
-      const sign = t.tipo === "entrada" ? 1 : -1;
-      const prev = map.get(id) || { nome, total: 0 };
-      prev.total += sign * Number(t.valor);
-      map.set(id, prev);
-    });
-    return Array.from(map.values()).sort(
-      (a, b) => Math.abs(b.total) - Math.abs(a.total),
+  const categoriaOptions = useMemo(() => {
+    const seen = new Set<string>();
+    transactions.forEach((t) => seen.add(t.categoria));
+    return Array.from(seen).map((c) => ({
+      value: c,
+      label: cashCategoryConfig[c as CashCategory]?.label || c,
+    }));
+  }, [transactions]);
+
+  const areaOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    transactions.forEach((t) =>
+      seen.set(t.area_id || "__none__", t.areas?.nome || "Sem área"),
     );
-  }, [filtered]);
+    return Array.from(seen.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [transactions]);
+
+  const contatoOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    transactions.forEach((t) => {
+      const id = (t as any).contato_id || "__none__";
+      const nome = (t as any).contatos?.nome || "Sem contato";
+      seen.set(id, nome);
+    });
+    return Array.from(seen.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [transactions]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -210,184 +206,43 @@ export function CashTransactionsTable({
 
   const SortIcon = ({ k }: { k: SortKey }) =>
     sortKey !== k ? (
-      <ArrowUpDown className="ml-1 h-3 w-3 inline opacity-50" />
+      <ArrowUpDown className="ml-1 h-3 w-3 inline opacity-40" />
     ) : sortDir === "asc" ? (
       <ArrowUp className="ml-1 h-3 w-3 inline" />
     ) : (
       <ArrowDown className="ml-1 h-3 w-3 inline" />
     );
 
-  const hasActiveFilters =
-    search ||
-    tipoFilter !== ALL ||
-    categoriaFilter !== ALL ||
-    areaFilter !== ALL ||
-    cycleFilter !== ALL ||
-    startDate ||
-    endDate;
-
-  const clearAll = () => {
-    setSearch("");
-    setTipoFilter(ALL);
-    setCategoriaFilter(ALL);
-    setAreaFilter(ALL);
-    setCycleFilter(ALL);
-    setStartDate("");
-    setEndDate("");
-  };
-
   return (
     <div className="space-y-4">
-      {/* Filters card */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Filter className="h-4 w-4" />
-              Filtros
-            </div>
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAll}
-                className="h-8 text-muted-foreground"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Limpar
-              </Button>
-            )}
-          </div>
+      {/* Toolbar simples: busca + período */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar por descrição, área, contato..."
+            className="pl-9 h-9"
+          />
+        </div>
+        <PeriodFilter value={period} onChange={setPeriod} />
+      </div>
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Buscar</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Descrição, área..."
-                  className="pl-8 h-9"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Tipo</Label>
-              <Select value={tipoFilter} onValueChange={setTipoFilter}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Todos</SelectItem>
-                  <SelectItem value="entrada">Entradas</SelectItem>
-                  <SelectItem value="saida">Saídas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Categoria</Label>
-              <Select
-                value={categoriaFilter}
-                onValueChange={setCategoriaFilter}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Todas</SelectItem>
-                  {Object.entries(cashCategoryConfig).map(([key, c]) => (
-                    <SelectItem key={key} value={key}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Área</Label>
-              <Select
-                value={areaFilter}
-                onValueChange={(v) => {
-                  setAreaFilter(v);
-                  setCycleFilter(ALL);
-                }}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Todas</SelectItem>
-                  {areas.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Ciclo</Label>
-              <Select value={cycleFilter} onValueChange={setCycleFilter}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>Todos</SelectItem>
-                  {availableCycles.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.cultura}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">De</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-9"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Até</Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-9"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Filtered totals */}
+      {/* Totais filtrados */}
       <div className="grid gap-3 md:grid-cols-3">
         <Card className="bg-success/5 border-success/30">
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              Entradas (filtrado)
-            </div>
-            <div className="text-xl font-bold text-success">
+          <CardContent className="p-3">
+            <div className="text-xs text-muted-foreground">Entradas</div>
+            <div className="text-lg font-bold text-success">
               {formatCurrency(totals.entradas)}
             </div>
           </CardContent>
         </Card>
         <Card className="bg-destructive/5 border-destructive/30">
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              Saídas (filtrado)
-            </div>
-            <div className="text-xl font-bold text-destructive">
+          <CardContent className="p-3">
+            <div className="text-xs text-muted-foreground">Saídas</div>
+            <div className="text-lg font-bold text-destructive">
               {formatCurrency(totals.saidas)}
             </div>
           </CardContent>
@@ -399,12 +254,10 @@ export function CashTransactionsTable({
               : "bg-destructive/5 border-destructive/30"
           }
         >
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              Saldo (filtrado)
-            </div>
+          <CardContent className="p-3">
+            <div className="text-xs text-muted-foreground">Saldo do filtro</div>
             <div
-              className={`text-xl font-bold ${
+              className={`text-lg font-bold ${
                 totals.saldo >= 0 ? "text-success" : "text-destructive"
               }`}
             >
@@ -414,77 +267,7 @@ export function CashTransactionsTable({
         </Card>
       </div>
 
-      {/* Breakdown */}
-      {filtered.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm font-medium mb-3">
-                Por categoria
-              </div>
-              <div className="space-y-2 max-h-48 overflow-auto">
-                {breakdownByCategoria.map(({ cat, total }) => {
-                  const c = cashCategoryConfig[cat];
-                  const Icon = c?.icon || Wallet;
-                  return (
-                    <div
-                      key={cat}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`rounded-md p-1 ${
-                            c?.bgColor || "bg-muted"
-                          }`}
-                        >
-                          <Icon
-                            className={`h-3 w-3 ${
-                              c?.color || "text-muted-foreground"
-                            }`}
-                          />
-                        </div>
-                        <span>{c?.label || cat}</span>
-                      </div>
-                      <span
-                        className={`font-medium ${
-                          total >= 0 ? "text-success" : "text-destructive"
-                        }`}
-                      >
-                        {formatCurrency(total)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm font-medium mb-3">Por área</div>
-              <div className="space-y-2 max-h-48 overflow-auto">
-                {breakdownByArea.map((row) => (
-                  <div
-                    key={row.nome}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span>{row.nome}</span>
-                    <span
-                      className={`font-medium ${
-                        row.total >= 0 ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {formatCurrency(row.total)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Table */}
+      {/* Tabela */}
       <Card>
         <CardContent className="p-0">
           <div className="flex items-center justify-between p-4 border-b">
@@ -517,23 +300,60 @@ export function CashTransactionsTable({
                   >
                     Data <SortIcon k="data" />
                   </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none"
-                    onClick={() => toggleSort("tipo")}
-                  >
-                    Tipo <SortIcon k="tipo" />
+                  <TableHead>
+                    <span
+                      className="cursor-pointer select-none"
+                      onClick={() => toggleSort("tipo")}
+                    >
+                      Tipo <SortIcon k="tipo" />
+                    </span>
+                    <ColumnFilter
+                      options={tipoOptions}
+                      selected={tipoSel}
+                      onChange={setTipoSel}
+                    />
                   </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none"
-                    onClick={() => toggleSort("categoria")}
-                  >
-                    Categoria <SortIcon k="categoria" />
+                  <TableHead>
+                    <span
+                      className="cursor-pointer select-none"
+                      onClick={() => toggleSort("categoria")}
+                    >
+                      Categoria <SortIcon k="categoria" />
+                    </span>
+                    <ColumnFilter
+                      options={categoriaOptions}
+                      selected={catSel}
+                      onChange={setCatSel}
+                      searchable
+                    />
                   </TableHead>
-                  <TableHead
-                    className="cursor-pointer select-none"
-                    onClick={() => toggleSort("area")}
-                  >
-                    Área <SortIcon k="area" />
+                  <TableHead>
+                    <span
+                      className="cursor-pointer select-none"
+                      onClick={() => toggleSort("area")}
+                    >
+                      Área <SortIcon k="area" />
+                    </span>
+                    <ColumnFilter
+                      options={areaOptions}
+                      selected={areaSel}
+                      onChange={setAreaSel}
+                      searchable
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <span
+                      className="cursor-pointer select-none"
+                      onClick={() => toggleSort("contato")}
+                    >
+                      Contato <SortIcon k="contato" />
+                    </span>
+                    <ColumnFilter
+                      options={contatoOptions}
+                      selected={contatoSel}
+                      onChange={setContatoSel}
+                      searchable
+                    />
                   </TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead
@@ -549,6 +369,9 @@ export function CashTransactionsTable({
                 {filtered.map((t) => {
                   const c = cashCategoryConfig[t.categoria];
                   const Icon = c?.icon || Wallet;
+                  const contato = (t as any).contatos as
+                    | { nome: string }
+                    | null;
                   return (
                     <TableRow key={t.id}>
                       <TableCell>
@@ -592,7 +415,17 @@ export function CashTransactionsTable({
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[240px] truncate">
+                      <TableCell>
+                        {contato ? (
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                            {contato.nome}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate">
                         {t.descricao || "-"}
                       </TableCell>
                       <TableCell
