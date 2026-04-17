@@ -418,7 +418,6 @@ export default function Caixa() {
               <CashTransactionsTable
                 transactions={transactions}
                 areas={areas}
-                cycles={cycles}
                 onDelete={(id) => handleDeleteClick(id, "transaction")}
               />
             )}
