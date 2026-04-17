@@ -414,101 +414,13 @@ export default function Caixa() {
                   <Skeleton className="h-64 w-full" />
                 </CardContent>
               </Card>
-            ) : transactions.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <div className="rounded-full bg-muted p-4 mb-4">
-                    <Wallet className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-medium">Nenhuma movimentação</h3>
-                  <p className="text-muted-foreground mb-4">Registre sua primeira movimentação de caixa.</p>
-                  <Button onClick={() => setFormOpen(true)} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Nova Movimentação
-                  </Button>
-                </CardContent>
-              </Card>
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5" />
-                    Histórico de Movimentações
-                    <Badge variant="secondary" className="ml-2">
-                      {transactions.length} registro{transactions.length !== 1 ? "s" : ""}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead>Área</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead className="w-10"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transactions.map((transaction) => {
-                        const categoryConfig = cashCategoryConfig[transaction.categoria];
-                        const IconComponent = categoryConfig?.icon || Wallet;
-                        
-                        return (
-                          <TableRow key={transaction.id}>
-                            <TableCell>
-                              {format(new Date(transaction.data), "dd/MM/yyyy", { locale: ptBR })}
-                            </TableCell>
-                            <TableCell>
-                              {transaction.tipo === "entrada" ? (
-                                <Badge variant="default" className="bg-success/20 text-success hover:bg-success/30 border-0">
-                                  <ArrowUpCircle className="h-3 w-3 mr-1" />
-                                  Entrada
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary" className="bg-destructive/20 text-destructive hover:bg-destructive/30 border-0">
-                                  <ArrowDownCircle className="h-3 w-3 mr-1" />
-                                  Saída
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className={`rounded-md p-1.5 ${categoryConfig?.bgColor || 'bg-muted'}`}>
-                                  <IconComponent className={`h-3.5 w-3.5 ${categoryConfig?.color || 'text-muted-foreground'}`} />
-                                </div>
-                                <span className="text-sm">{categoryConfig?.label || transaction.categoria}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {transaction.areas?.nome || <span className="text-muted-foreground">-</span>}
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate">
-                              {transaction.descricao || "-"}
-                            </TableCell>
-                            <TableCell className={`text-right font-medium ${transaction.tipo === "entrada" ? "text-success" : "text-destructive"}`}>
-                              {transaction.tipo === "entrada" ? "+" : "-"}{formatCurrency(Number(transaction.valor))}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteClick(transaction.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+              <CashTransactionsTable
+                transactions={transactions}
+                areas={areas}
+                cycles={cycles}
+                onDelete={(id) => handleDeleteClick(id, "transaction")}
+              />
             )}
           </TabsContent>
 
