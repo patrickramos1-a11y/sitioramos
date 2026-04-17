@@ -93,6 +93,7 @@ export default function Caixa() {
     loan_id: "",
     area_id: "",
     cycle_id: "",
+    contato_id: null as string | null,
     observacoes: "",
   });
 
@@ -161,8 +162,9 @@ export default function Caixa() {
       loan_id: formData.loan_id || null,
       area_id: formData.area_id || null,
       cycle_id: formData.cycle_id || null,
+      contato_id: formData.contato_id || null,
       observacoes: formData.observacoes || null,
-    });
+    } as any);
 
     setFormOpen(false);
     resetForm();
@@ -178,6 +180,7 @@ export default function Caixa() {
       loan_id: "",
       area_id: "",
       cycle_id: "",
+      contato_id: null,
       observacoes: "",
     });
   };
