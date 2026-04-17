@@ -893,6 +893,15 @@ export default function Caixa() {
             </div>
 
             <div className="space-y-2">
+              <Label>Pessoa/Contato</Label>
+              <ContatoSelect
+                value={formData.contato_id}
+                onChange={(id) => setFormData({ ...formData, contato_id: id })}
+                placeholder="Vincular contato (opcional)..."
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="observacoes">Observações</Label>
               <Textarea
                 id="observacoes"
