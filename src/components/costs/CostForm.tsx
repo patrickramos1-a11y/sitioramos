@@ -281,6 +281,24 @@ export function CostForm({ open, onOpenChange, cost, areas, cycles, onSubmit, is
 
             <FormField
               control={form.control}
+              name="contato_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pago a (contato)</FormLabel>
+                  <FormControl>
+                    <ContatoSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Selecionar fornecedor/prestador..."
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="descricao"
               render={({ field }) => (
                 <FormItem>
