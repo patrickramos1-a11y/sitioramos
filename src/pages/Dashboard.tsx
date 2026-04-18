@@ -51,8 +51,8 @@ export default function Dashboard() {
   const { territorial, financial, productive, analytical } = stats;
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-4 md:space-y-6">
+      <div className="hidden md:block">
         <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Visão Geral</h1>
         <p className="text-muted-foreground">Resumo da gestão do Sítio Ramos</p>
       </div>
