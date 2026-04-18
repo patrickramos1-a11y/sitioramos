@@ -312,10 +312,10 @@ export default function Caixa() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="hidden sm:block">
             <h1 className="text-2xl font-bold text-foreground">
               {selectedArea ? `Caixa: ${selectedArea.nome}` : "Fluxo de Caixa"}
             </h1>
@@ -326,49 +326,56 @@ export default function Caixa() {
               }
             </p>
           </div>
+          <div className="sm:hidden">
+            {selectedArea && (
+              <p className="text-sm text-muted-foreground">
+                {selectedArea.nome} · {Number(selectedArea.tamanho_hectares).toFixed(2)} ha
+              </p>
+            )}
+          </div>
           {getAddButton()}
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 grid-cols-3">
           <Card className={saldoAtual >= 0 ? "border-success/50 bg-success/5" : "border-destructive/50 bg-destructive/5"}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
-              <Banknote className={`h-5 w-5 ${saldoAtual >= 0 ? "text-success" : "text-destructive"}`} />
+            <CardHeader className="flex flex-row items-center justify-between pb-1 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-sm font-medium leading-tight">Saldo</CardTitle>
+              <Banknote className={`h-4 w-4 md:h-5 md:w-5 ${saldoAtual >= 0 ? "text-success" : "text-destructive"}`} />
             </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${saldoAtual >= 0 ? "text-success" : "text-destructive"}`}>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className={`text-base md:text-2xl font-bold leading-tight ${saldoAtual >= 0 ? "text-success" : "text-destructive"}`}>
                 {formatCurrency(saldoAtual)}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[10px] md:text-xs text-muted-foreground mt-1 hidden md:block">
                 Calculado a partir de todas as movimentações
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-success/5 border-success/30">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {hasFilters ? "Entradas (filtrado)" : "Total Entradas"}
+            <CardHeader className="flex flex-row items-center justify-between pb-1 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-sm font-medium leading-tight">
+                Entradas
               </CardTitle>
-              <TrendingUp className="h-5 w-5 text-success" />
+              <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-success" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className="text-base md:text-2xl font-bold text-success leading-tight">
                 {formatCurrency(hasFilters ? filteredTotals.totalEntradas : (balance?.total_entradas || 0))}
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-destructive/5 border-destructive/30">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {hasFilters ? "Saídas (filtrado)" : "Total Saídas"}
+            <CardHeader className="flex flex-row items-center justify-between pb-1 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-sm font-medium leading-tight">
+                Saídas
               </CardTitle>
-              <TrendingDown className="h-5 w-5 text-destructive" />
+              <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-destructive" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className="text-base md:text-2xl font-bold text-destructive leading-tight">
                 {formatCurrency(hasFilters ? filteredTotals.totalSaidas : (balance?.total_saidas || 0))}
               </div>
             </CardContent>
@@ -377,34 +384,36 @@ export default function Caixa() {
 
         {/* Area Filter (if active) */}
         {hasFilters && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary" className="gap-1">
               <Filter className="h-3 w-3" />
               Filtrado por: {selectedArea?.nome || "Área"}
             </Badge>
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground h-8">
               <X className="h-4 w-4 mr-1" />
-              Limpar filtros
+              Limpar
             </Button>
           </div>
         )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="todos" className="gap-2">
+          <TabsList className="grid w-full grid-cols-4 h-11 md:h-10">
+            <TabsTrigger value="todos" className="gap-1.5 text-xs md:text-sm">
               <Wallet className="h-4 w-4" />
-              Todos
+              <span className="hidden sm:inline">Todos</span>
+              <span className="sm:hidden">Tudo</span>
             </TabsTrigger>
-            <TabsTrigger value="custos" className="gap-2">
+            <TabsTrigger value="custos" className="gap-1.5 text-xs md:text-sm">
               <DollarSign className="h-4 w-4" />
               Custos
             </TabsTrigger>
-            <TabsTrigger value="investimentos" className="gap-2">
+            <TabsTrigger value="investimentos" className="gap-1.5 text-xs md:text-sm">
               <FileText className="h-4 w-4" />
-              Implantação
+              <span className="hidden sm:inline">Implantação</span>
+              <span className="sm:hidden">Impl.</span>
             </TabsTrigger>
-            <TabsTrigger value="receitas" className="gap-2">
+            <TabsTrigger value="receitas" className="gap-1.5 text-xs md:text-sm">
               <TrendingUp className="h-4 w-4" />
               Receitas
             </TabsTrigger>
