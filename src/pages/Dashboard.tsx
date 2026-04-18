@@ -100,7 +100,7 @@ export default function Dashboard() {
       )}
 
       {/* ====== FINANCIAL KPIs ====== */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Saldo em Caixa" 
           value={formatCurrency(financial.saldoCaixa)} 
