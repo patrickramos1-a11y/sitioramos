@@ -147,61 +147,61 @@ export default function Operacao() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="hidden sm:block">
             <h1 className="text-2xl font-bold tracking-tight">Operação</h1>
             <p className="text-muted-foreground">Gestão operacional com visão cronológica</p>
           </div>
-          <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId}>
+          <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-1" />Nova Operação
           </Button>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setFilterStatus("em_andamento")}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium">Em Andamento</CardTitle>
+        <div className="grid gap-2 md:gap-3 grid-cols-2 lg:grid-cols-5">
+          <Card className="cursor-pointer hover:shadow-md tap-card" onClick={() => setFilterStatus("em_andamento")}>
+            <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-xs font-medium leading-tight">Em Andamento</CardTitle>
               <Activity className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold text-primary">{emAndamento}</div></CardContent>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0"><div className="text-xl md:text-2xl font-bold text-primary">{emAndamento}</div></CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md" onClick={() => setFilterStatus("all")}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium">Atrasadas</CardTitle>
+          <Card className="cursor-pointer hover:shadow-md tap-card" onClick={() => setFilterStatus("all")}>
+            <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-xs font-medium leading-tight">Atrasadas</CardTitle>
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold text-destructive">{atrasadas + tasksAtrasadas}</div></CardContent>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0"><div className="text-xl md:text-2xl font-bold text-destructive">{atrasadas + tasksAtrasadas}</div></CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium">Pendentes</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-xs font-medium leading-tight">Pendentes</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{pendentes}</div></CardContent>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0"><div className="text-xl md:text-2xl font-bold">{pendentes}</div></CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium">Concluídas</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-xs font-medium leading-tight">Concluídas</CardTitle>
                <CheckCircle2 className="h-4 w-4 text-success" />
             </CardHeader>
-             <CardContent><div className="text-2xl font-bold text-success">{concluidas}</div></CardContent>
+             <CardContent className="p-3 pt-0 md:p-6 md:pt-0"><div className="text-xl md:text-2xl font-bold text-success">{concluidas}</div></CardContent>
           </Card>
           <Card className="col-span-2 lg:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium">Custo Operacional</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:p-6 md:pb-2">
+              <CardTitle className="text-[11px] md:text-xs font-medium leading-tight">Custo Operacional</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent><div className="text-lg font-bold">{formatCurrency(custoTotal)}</div></CardContent>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0"><div className="text-base md:text-lg font-bold">{formatCurrency(custoTotal)}</div></CardContent>
           </Card>
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
           <Select value={filterArea} onValueChange={setFilterArea}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="flex-1 min-w-[140px] sm:flex-initial sm:w-44">
               <SelectValue placeholder="Todas as áreas" />
             </SelectTrigger>
             <SelectContent>
@@ -210,7 +210,7 @@ export default function Operacao() {
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="flex-1 min-w-[140px] sm:flex-initial sm:w-44">
               <SelectValue placeholder="Todos os status" />
             </SelectTrigger>
             <SelectContent>

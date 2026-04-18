@@ -291,168 +291,251 @@ export function CashTransactionsTable({
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    className="cursor-pointer select-none"
-                    onClick={() => toggleSort("data")}
-                  >
-                    Data <SortIcon k="data" />
-                  </TableHead>
-                  <TableHead>
-                    <span
-                      className="cursor-pointer select-none"
-                      onClick={() => toggleSort("tipo")}
-                    >
-                      Tipo <SortIcon k="tipo" />
-                    </span>
-                    <ColumnFilter
-                      options={tipoOptions}
-                      selected={tipoSel}
-                      onChange={setTipoSel}
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <span
-                      className="cursor-pointer select-none"
-                      onClick={() => toggleSort("categoria")}
-                    >
-                      Categoria <SortIcon k="categoria" />
-                    </span>
-                    <ColumnFilter
-                      options={categoriaOptions}
-                      selected={catSel}
-                      onChange={setCatSel}
-                      searchable
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <span
-                      className="cursor-pointer select-none"
-                      onClick={() => toggleSort("area")}
-                    >
-                      Área <SortIcon k="area" />
-                    </span>
-                    <ColumnFilter
-                      options={areaOptions}
-                      selected={areaSel}
-                      onChange={setAreaSel}
-                      searchable
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <span
-                      className="cursor-pointer select-none"
-                      onClick={() => toggleSort("contato")}
-                    >
-                      Contato <SortIcon k="contato" />
-                    </span>
-                    <ColumnFilter
-                      options={contatoOptions}
-                      selected={contatoSel}
-                      onChange={setContatoSel}
-                      searchable
-                    />
-                  </TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead
-                    className="text-right cursor-pointer select-none"
-                    onClick={() => toggleSort("valor")}
-                  >
-                    Valor <SortIcon k="valor" />
-                  </TableHead>
-                  <TableHead className="w-10"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: card list */}
+              <ul className="md:hidden divide-y">
                 {filtered.map((t) => {
                   const c = cashCategoryConfig[t.categoria];
                   const Icon = c?.icon || Wallet;
-                  const contato = (t as any).contatos as
-                    | { nome: string }
-                    | null;
+                  const contato = (t as any).contatos as { nome: string } | null;
                   return (
-                    <TableRow key={t.id}>
-                      <TableCell>
-                        {format(new Date(t.data), "dd/MM/yyyy", {
-                          locale: ptBR,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        {t.tipo === "entrada" ? (
-                          <Badge className="bg-success/20 text-success hover:bg-success/30 border-0">
-                            <ArrowUpCircle className="h-3 w-3 mr-1" />
-                            Entrada
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-destructive/20 text-destructive hover:bg-destructive/30 border-0">
-                            <ArrowDownCircle className="h-3 w-3 mr-1" />
-                            Saída
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`rounded-md p-1.5 ${
-                              c?.bgColor || "bg-muted"
-                            }`}
-                          >
-                            <Icon
-                              className={`h-3.5 w-3.5 ${
-                                c?.color || "text-muted-foreground"
-                              }`}
-                            />
-                          </div>
-                          <span className="text-sm">
-                            {c?.label || t.categoria}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {t.areas?.nome || (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {contato ? (
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            {contato.nome}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[220px] truncate">
-                        {t.descricao || "-"}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-medium ${
-                          t.tipo === "entrada"
-                            ? "text-success"
-                            : "text-destructive"
+                    <li key={t.id} className="p-3 flex gap-3 active:bg-muted/40">
+                      <div
+                        className={`rounded-xl p-2.5 h-fit ${
+                          c?.bgColor || "bg-muted"
                         }`}
                       >
-                        {t.tipo === "entrada" ? "+" : "-"}
-                        {formatCurrency(Number(t.valor))}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => onDelete(t.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                        <Icon
+                          className={`h-5 w-5 ${
+                            c?.color || "text-muted-foreground"
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {c?.label || t.categoria}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {t.descricao || "Sem descrição"}
+                            </p>
+                          </div>
+                          <div
+                            className={`text-sm font-semibold whitespace-nowrap ${
+                              t.tipo === "entrada"
+                                ? "text-success"
+                                : "text-destructive"
+                            }`}
+                          >
+                            {t.tipo === "entrada" ? "+" : "-"}
+                            {formatCurrency(Number(t.valor))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11px] text-muted-foreground">
+                          <span>
+                            {format(new Date(t.data), "dd/MM/yy", {
+                              locale: ptBR,
+                            })}
+                          </span>
+                          {t.areas?.nome && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate max-w-[100px]">
+                                {t.areas.nome}
+                              </span>
+                            </>
+                          )}
+                          {contato && (
+                            <>
+                              <span>•</span>
+                              <span className="flex items-center gap-1 truncate max-w-[100px]">
+                                <User className="h-3 w-3" />
+                                {contato.nome}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive shrink-0"
+                        onClick={() => onDelete(t.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </li>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </ul>
+
+              {/* Desktop: table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead
+                        className="cursor-pointer select-none"
+                        onClick={() => toggleSort("data")}
+                      >
+                        Data <SortIcon k="data" />
+                      </TableHead>
+                      <TableHead>
+                        <span
+                          className="cursor-pointer select-none"
+                          onClick={() => toggleSort("tipo")}
+                        >
+                          Tipo <SortIcon k="tipo" />
+                        </span>
+                        <ColumnFilter
+                          options={tipoOptions}
+                          selected={tipoSel}
+                          onChange={setTipoSel}
+                        />
+                      </TableHead>
+                      <TableHead>
+                        <span
+                          className="cursor-pointer select-none"
+                          onClick={() => toggleSort("categoria")}
+                        >
+                          Categoria <SortIcon k="categoria" />
+                        </span>
+                        <ColumnFilter
+                          options={categoriaOptions}
+                          selected={catSel}
+                          onChange={setCatSel}
+                          searchable
+                        />
+                      </TableHead>
+                      <TableHead>
+                        <span
+                          className="cursor-pointer select-none"
+                          onClick={() => toggleSort("area")}
+                        >
+                          Área <SortIcon k="area" />
+                        </span>
+                        <ColumnFilter
+                          options={areaOptions}
+                          selected={areaSel}
+                          onChange={setAreaSel}
+                          searchable
+                        />
+                      </TableHead>
+                      <TableHead>
+                        <span
+                          className="cursor-pointer select-none"
+                          onClick={() => toggleSort("contato")}
+                        >
+                          Contato <SortIcon k="contato" />
+                        </span>
+                        <ColumnFilter
+                          options={contatoOptions}
+                          selected={contatoSel}
+                          onChange={setContatoSel}
+                          searchable
+                        />
+                      </TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead
+                        className="text-right cursor-pointer select-none"
+                        onClick={() => toggleSort("valor")}
+                      >
+                        Valor <SortIcon k="valor" />
+                      </TableHead>
+                      <TableHead className="w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((t) => {
+                      const c = cashCategoryConfig[t.categoria];
+                      const Icon = c?.icon || Wallet;
+                      const contato = (t as any).contatos as
+                        | { nome: string }
+                        | null;
+                      return (
+                        <TableRow key={t.id}>
+                          <TableCell>
+                            {format(new Date(t.data), "dd/MM/yyyy", {
+                              locale: ptBR,
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {t.tipo === "entrada" ? (
+                              <Badge className="bg-success/20 text-success hover:bg-success/30 border-0">
+                                <ArrowUpCircle className="h-3 w-3 mr-1" />
+                                Entrada
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-destructive/20 text-destructive hover:bg-destructive/30 border-0">
+                                <ArrowDownCircle className="h-3 w-3 mr-1" />
+                                Saída
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`rounded-md p-1.5 ${
+                                  c?.bgColor || "bg-muted"
+                                }`}
+                              >
+                                <Icon
+                                  className={`h-3.5 w-3.5 ${
+                                    c?.color || "text-muted-foreground"
+                                  }`}
+                                />
+                              </div>
+                              <span className="text-sm">
+                                {c?.label || t.categoria}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {t.areas?.nome || (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {contato ? (
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                {contato.nome}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="max-w-[220px] truncate">
+                            {t.descricao || "-"}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right font-medium ${
+                              t.tipo === "entrada"
+                                ? "text-success"
+                                : "text-destructive"
+                            }`}
+                          >
+                            {t.tipo === "entrada" ? "+" : "-"}
+                            {formatCurrency(Number(t.valor))}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => onDelete(t.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

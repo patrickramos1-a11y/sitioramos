@@ -51,8 +51,8 @@ export default function Dashboard() {
   const { territorial, financial, productive, analytical } = stats;
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-4 md:space-y-6">
+      <div className="hidden md:block">
         <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Visão Geral</h1>
         <p className="text-muted-foreground">Resumo da gestão do Sítio Ramos</p>
       </div>
@@ -100,7 +100,7 @@ export default function Dashboard() {
       )}
 
       {/* ====== FINANCIAL KPIs ====== */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Saldo em Caixa" 
           value={formatCurrency(financial.saldoCaixa)} 
