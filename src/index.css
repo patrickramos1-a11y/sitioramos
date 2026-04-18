@@ -116,14 +116,64 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overscroll-behavior-y: none;
+  }
+
+  /* iOS: prevent input zoom by ensuring 16px min font size */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Safer click targets on mobile */
+  @media (max-width: 767px) {
+    button,
+    [role="button"],
+    a {
+      touch-action: manipulation;
+    }
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Safe-area helpers for iOS notch / Android nav bar */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe-nav {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
+  }
+
+  /* Hide scrollbars but allow scrolling (for horizontal filter strips) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Native-app-like card press feedback */
+  .tap-card {
+    @apply transition-transform active:scale-[0.98];
   }
 }
