@@ -14,13 +14,18 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getCategoryEmoji, getCategoryLabel, getResponsavelColor } from "@/lib/operacaoConfig";
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeVariant: "default" | "secondary" | "outline" | "destructive" }> = {
-  nao_iniciada: { label: "Não Iniciada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
+  planejada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
+  nao_iniciada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
   em_andamento: { label: "Em Andamento", icon: Clock, color: "text-primary", badgeVariant: "secondary" },
   concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "default" },
   atrasada: { label: "Atrasada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
   pausada: { label: "Pausada", icon: PauseCircle, color: "text-warning", badgeVariant: "outline" },
+  travada: { label: "Travada", icon: AlertTriangle, color: "text-muted-foreground", badgeVariant: "outline" },
+  cancelada: { label: "Cancelada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
+  reprogramada: { label: "Reprogramada", icon: Clock, color: "text-muted-foreground", badgeVariant: "outline" },
 };
 
 const typeLabels: Record<string, string> = {
