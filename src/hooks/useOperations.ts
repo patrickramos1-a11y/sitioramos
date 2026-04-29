@@ -88,6 +88,68 @@ async function resolveOperationContext(op: OperationInsert) {
   };
 }
 
+/**
+ * Calcula data_inicio_prevista e data_fim_prevista de uma etapa
+ * baseando-se em depends_on_id e duracao_prevista_dias.
+ */
+async function applyAutoDates<T extends OperationInsert | (Partial<Operation> & { id?: string })>(
+  payload: T
+): Promise<T> {
+  const result: any = { ...payload };
+
+  // Se há dependência, buscar a etapa antecessora
+  if (result.depends_on_id) {
+    const { data: dep } = await supabase
+      .from("operational_stages")
+      .select("data_fim_real, data_fim_prevista")
+      .eq("id", result.depends_on_id)
+      .maybeSingle();
+    const baseFim = dep?.data_fim_real || dep?.data_fim_prevista;
+    if (baseFim && !result.data_inicio_real) {
+      result.data_inicio_prevista = addDaysISO(baseFim, 1);
+    }
+  }
+
+  // Se temos início + duração, calcular fim previsto
+  if (result.data_inicio_prevista && result.duracao_prevista_dias) {
+    result.data_fim_prevista = addDaysISO(result.data_inicio_prevista, Math.max(0, Number(result.duracao_prevista_dias) - 1));
+  }
+
+  return result as T;
+}
+
+/**
+ * Recalcula em cascata datas das etapas dependentes desta etapa.
+ */
+async function cascadeUpdateDependents(stageId: string) {
+  const { data: dependents } = await supabase
+    .from("operational_stages")
+    .select("id, data_inicio_real, duracao_prevista_dias")
+    .eq("depends_on_id", stageId);
+  if (!dependents || dependents.length === 0) return;
+
+  const { data: parent } = await supabase
+    .from("operational_stages")
+    .select("data_fim_real, data_fim_prevista")
+    .eq("id", stageId)
+    .maybeSingle();
+  const baseFim = parent?.data_fim_real || parent?.data_fim_prevista;
+  if (!baseFim) return;
+
+  for (const dep of dependents) {
+    if (dep.data_inicio_real) continue; // já iniciada, não recalcular
+    const newStart = addDaysISO(baseFim, 1);
+    const newEnd = dep.duracao_prevista_dias
+      ? addDaysISO(newStart, Math.max(0, dep.duracao_prevista_dias - 1))
+      : null;
+    const updates: any = { data_inicio_prevista: newStart };
+    if (newEnd) updates.data_fim_prevista = newEnd;
+    await supabase.from("operational_stages").update(updates).eq("id", dep.id);
+    // recursão: propagar para netos
+    await cascadeUpdateDependents(dep.id);
+  }
+}
+
 export function useOperations(filters?: OperationFilters) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
