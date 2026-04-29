@@ -18,6 +18,7 @@ import { OperationCard } from "@/components/operacao/OperationCard";
 import { TaskForm } from "@/components/operacao/TaskForm";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
 
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
