@@ -1,16 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { addDaysISO } from "@/lib/operacaoConfig";
 
 export interface Operation {
   id: string;
   parent_id: string | null;
   propriedade_id: string | null;
   talhao_id: string | null;
-  area_id: string;
-  cycle_id: string;
+  area_id: string | null;
+  cycle_id: string | null;
   nome: string;
   tipo: string;
+  categoria: string | null;
   descricao: string | null;
   status: string;
   prioridade: string | null;
@@ -18,6 +20,9 @@ export interface Operation {
   data_inicio_real: string | null;
   data_fim_prevista: string | null;
   data_fim_real: string | null;
+  duracao_prevista_dias: number | null;
+  depends_on_id: string | null;
+  cor_responsavel: string | null;
   responsavel: string | null;
   progresso_percentual: number | null;
   custo_total: number | null;
@@ -34,10 +39,11 @@ export interface OperationInsert {
   parent_id?: string | null;
   propriedade_id?: string | null;
   talhao_id?: string | null;
-  area_id: string;
-  cycle_id: string;
+  area_id?: string | null;
+  cycle_id?: string | null;
   nome: string;
   tipo?: string;
+  categoria?: string | null;
   descricao?: string | null;
   status?: string;
   prioridade?: string | null;
@@ -45,6 +51,9 @@ export interface OperationInsert {
   data_inicio_real?: string | null;
   data_fim_prevista?: string | null;
   data_fim_real?: string | null;
+  duracao_prevista_dias?: number | null;
+  depends_on_id?: string | null;
+  cor_responsavel?: string | null;
   responsavel?: string | null;
   progresso_percentual?: number | null;
   ordem?: number;
