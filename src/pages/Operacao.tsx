@@ -278,10 +278,10 @@ export default function Operacao() {
                     <div className="rounded-full bg-muted p-4 mb-4">
                       <BarChart3 className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-medium">Nenhuma operação cadastrada</h3>
-                    <p className="text-muted-foreground mb-4">Crie operações para gerenciar as atividades do seu ciclo produtivo.</p>
-                    <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId}>
-                      <Plus className="h-4 w-4 mr-1" />Nova Operação
+                    <h3 className="text-lg font-medium">Nenhum projeto cadastrado</h3>
+                    <p className="text-muted-foreground mb-4">Crie um projeto (ex.: Casa de Farinha) para organizar etapas e responsáveis.</p>
+                    <Button onClick={openNewOperation}>
+                      <Plus className="h-4 w-4 mr-1" />Novo Projeto
                     </Button>
                   </CardContent>
                 </Card>
