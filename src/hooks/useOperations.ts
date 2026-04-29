@@ -185,7 +185,8 @@ export function useOperations(filters?: OperationFilters) {
 
   const createOperation = useMutation({
     mutationFn: async (op: OperationInsert) => {
-      const payload = await resolveOperationContext(op);
+      let payload = await resolveOperationContext(op);
+      payload = await applyAutoDates(payload);
       const { data, error } = await supabase
         .from("operational_stages")
         .insert(payload as any)
@@ -210,7 +211,8 @@ export function useOperations(filters?: OperationFilters) {
       const clean = { ...updates };
       delete (clean as any).children;
       delete (clean as any).tasks;
-      const payload = clean.parent_id ? await resolveOperationContext(clean as OperationInsert) : clean;
+      let payload: any = clean.parent_id ? await resolveOperationContext(clean as OperationInsert) : clean;
+      payload = await applyAutoDates(payload);
       const { data, error } = await supabase
         .from("operational_stages")
         .update(payload as any)
@@ -218,6 +220,10 @@ export function useOperations(filters?: OperationFilters) {
         .select()
         .single();
       if (error) throw error;
+      // Cascata se mudou data fim
+      if (payload.data_fim_prevista || payload.data_fim_real || payload.duracao_prevista_dias) {
+        await cascadeUpdateDependents(id);
+      }
       return data;
     },
     onSuccess: () => {
