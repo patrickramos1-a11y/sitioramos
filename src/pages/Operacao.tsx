@@ -30,13 +30,21 @@ export default function Operacao() {
   // Filters
   const [filterArea, setFilterArea] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterCategoria, setFilterCategoria] = useState<string>("all");
 
   const operationFilters = useMemo(() => ({
     areaId: filterArea !== "all" ? filterArea : undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
   }), [filterArea, filterStatus]);
 
-  const { operations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
+  const { operations: rawOperations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
+
+  // Filtro de categoria aplicado em memória
+  const operations = useMemo(() => {
+    if (filterCategoria === "all") return rawOperations;
+    return rawOperations.filter(op => op.categoria === filterCategoria);
+  }, [rawOperations, filterCategoria]);
+
   const { tasks, createTask, updateTask, deleteTask } = useTasks({ areaId: operationFilters.areaId || undefined });
 
   // Form state
