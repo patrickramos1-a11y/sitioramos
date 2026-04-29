@@ -309,20 +309,27 @@ export default function Operacao() {
       </div>
 
       {/* Operation Form */}
-      <OperationForm
-        open={opFormOpen}
-        onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNew(null); } }}
-        operation={editingOp}
-        parentId={parentIdForNew}
-        areaId={editingOp?.area_id || formContext.areaId || defaultAreaId}
-        cycleId={editingOp?.cycle_id || formContext.cycleId || defaultCycleId}
-        talhaoId={editingOp?.talhao_id || formContext.talhaoId}
-        areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
-        cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
-        onSubmit={handleOpSubmit}
-        isSubmitting={createOperation.isPending || updateOperation.isPending}
-      />
-
+      {(() => {
+        const parentLookupId = parentIdForNew || editingOp?.parent_id || null;
+        const parentOp = parentLookupId ? rawOperations.find(o => o.id === parentLookupId) : null;
+        const siblings = parentOp ? (parentOp.children || []).map(s => ({ id: s.id, nome: s.nome })) : [];
+        return (
+          <OperationForm
+            open={opFormOpen}
+            onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNew(null); } }}
+            operation={editingOp}
+            parentId={parentIdForNew}
+            areaId={editingOp?.area_id || formContext.areaId || defaultAreaId}
+            cycleId={editingOp?.cycle_id || formContext.cycleId || defaultCycleId}
+            talhaoId={editingOp?.talhao_id || formContext.talhaoId}
+            areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
+            cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
+            siblingStages={siblings}
+            onSubmit={handleOpSubmit}
+            isSubmitting={createOperation.isPending || updateOperation.isPending}
+          />
+        );
+      })()}
       {/* Task Form */}
       <TaskForm
         open={taskFormOpen}
