@@ -1,16 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { addDaysISO } from "@/lib/operacaoConfig";
 
 export interface Operation {
   id: string;
   parent_id: string | null;
   propriedade_id: string | null;
   talhao_id: string | null;
-  area_id: string;
-  cycle_id: string;
+  area_id: string | null;
+  cycle_id: string | null;
   nome: string;
   tipo: string;
+  categoria: string | null;
   descricao: string | null;
   status: string;
   prioridade: string | null;
@@ -18,6 +20,9 @@ export interface Operation {
   data_inicio_real: string | null;
   data_fim_prevista: string | null;
   data_fim_real: string | null;
+  duracao_prevista_dias: number | null;
+  depends_on_id: string | null;
+  cor_responsavel: string | null;
   responsavel: string | null;
   progresso_percentual: number | null;
   custo_total: number | null;
@@ -34,10 +39,11 @@ export interface OperationInsert {
   parent_id?: string | null;
   propriedade_id?: string | null;
   talhao_id?: string | null;
-  area_id: string;
-  cycle_id: string;
+  area_id?: string | null;
+  cycle_id?: string | null;
   nome: string;
   tipo?: string;
+  categoria?: string | null;
   descricao?: string | null;
   status?: string;
   prioridade?: string | null;
@@ -45,6 +51,9 @@ export interface OperationInsert {
   data_inicio_real?: string | null;
   data_fim_prevista?: string | null;
   data_fim_real?: string | null;
+  duracao_prevista_dias?: number | null;
+  depends_on_id?: string | null;
+  cor_responsavel?: string | null;
   responsavel?: string | null;
   progresso_percentual?: number | null;
   ordem?: number;
@@ -77,6 +86,68 @@ async function resolveOperationContext(op: OperationInsert) {
     area_id: parent.area_id,
     cycle_id: parent.cycle_id,
   };
+}
+
+/**
+ * Calcula data_inicio_prevista e data_fim_prevista de uma etapa
+ * baseando-se em depends_on_id e duracao_prevista_dias.
+ */
+async function applyAutoDates<T extends OperationInsert | (Partial<Operation> & { id?: string })>(
+  payload: T
+): Promise<T> {
+  const result: any = { ...payload };
+
+  // Se há dependência, buscar a etapa antecessora
+  if (result.depends_on_id) {
+    const { data: dep } = await supabase
+      .from("operational_stages")
+      .select("data_fim_real, data_fim_prevista")
+      .eq("id", result.depends_on_id)
+      .maybeSingle();
+    const baseFim = dep?.data_fim_real || dep?.data_fim_prevista;
+    if (baseFim && !result.data_inicio_real) {
+      result.data_inicio_prevista = addDaysISO(baseFim, 1);
+    }
+  }
+
+  // Se temos início + duração, calcular fim previsto
+  if (result.data_inicio_prevista && result.duracao_prevista_dias) {
+    result.data_fim_prevista = addDaysISO(result.data_inicio_prevista, Math.max(0, Number(result.duracao_prevista_dias) - 1));
+  }
+
+  return result as T;
+}
+
+/**
+ * Recalcula em cascata datas das etapas dependentes desta etapa.
+ */
+async function cascadeUpdateDependents(stageId: string) {
+  const { data: dependents } = await supabase
+    .from("operational_stages")
+    .select("id, data_inicio_real, duracao_prevista_dias")
+    .eq("depends_on_id", stageId);
+  if (!dependents || dependents.length === 0) return;
+
+  const { data: parent } = await supabase
+    .from("operational_stages")
+    .select("data_fim_real, data_fim_prevista")
+    .eq("id", stageId)
+    .maybeSingle();
+  const baseFim = parent?.data_fim_real || parent?.data_fim_prevista;
+  if (!baseFim) return;
+
+  for (const dep of dependents) {
+    if (dep.data_inicio_real) continue; // já iniciada, não recalcular
+    const newStart = addDaysISO(baseFim, 1);
+    const newEnd = dep.duracao_prevista_dias
+      ? addDaysISO(newStart, Math.max(0, dep.duracao_prevista_dias - 1))
+      : null;
+    const updates: any = { data_inicio_prevista: newStart };
+    if (newEnd) updates.data_fim_prevista = newEnd;
+    await supabase.from("operational_stages").update(updates).eq("id", dep.id);
+    // recursão: propagar para netos
+    await cascadeUpdateDependents(dep.id);
+  }
 }
 
 export function useOperations(filters?: OperationFilters) {
@@ -114,7 +185,8 @@ export function useOperations(filters?: OperationFilters) {
 
   const createOperation = useMutation({
     mutationFn: async (op: OperationInsert) => {
-      const payload = await resolveOperationContext(op);
+      let payload = await resolveOperationContext(op);
+      payload = await applyAutoDates(payload);
       const { data, error } = await supabase
         .from("operational_stages")
         .insert(payload as any)
@@ -139,7 +211,8 @@ export function useOperations(filters?: OperationFilters) {
       const clean = { ...updates };
       delete (clean as any).children;
       delete (clean as any).tasks;
-      const payload = clean.parent_id ? await resolveOperationContext(clean as OperationInsert) : clean;
+      let payload: any = clean.parent_id ? await resolveOperationContext(clean as OperationInsert) : clean;
+      payload = await applyAutoDates(payload);
       const { data, error } = await supabase
         .from("operational_stages")
         .update(payload as any)
@@ -147,6 +220,10 @@ export function useOperations(filters?: OperationFilters) {
         .select()
         .single();
       if (error) throw error;
+      // Cascata se mudou data fim
+      if (payload.data_fim_prevista || payload.data_fim_real || payload.duracao_prevista_dias) {
+        await cascadeUpdateDependents(id);
+      }
       return data;
     },
     onSuccess: () => {

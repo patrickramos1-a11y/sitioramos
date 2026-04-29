@@ -18,6 +18,7 @@ import { OperationCard } from "@/components/operacao/OperationCard";
 import { TaskForm } from "@/components/operacao/TaskForm";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
 
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -30,13 +31,21 @@ export default function Operacao() {
   // Filters
   const [filterArea, setFilterArea] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterCategoria, setFilterCategoria] = useState<string>("all");
 
   const operationFilters = useMemo(() => ({
     areaId: filterArea !== "all" ? filterArea : undefined,
     status: filterStatus !== "all" ? filterStatus : undefined,
   }), [filterArea, filterStatus]);
 
-  const { operations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
+  const { operations: rawOperations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
+
+  // Filtro de categoria aplicado em memória
+  const operations = useMemo(() => {
+    if (filterCategoria === "all") return rawOperations;
+    return rawOperations.filter(op => op.categoria === filterCategoria);
+  }, [rawOperations, filterCategoria]);
+
   const { tasks, createTask, updateTask, deleteTask } = useTasks({ areaId: operationFilters.areaId || undefined });
 
   // Form state
@@ -152,10 +161,10 @@ export default function Operacao() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="hidden sm:block">
             <h1 className="text-2xl font-bold tracking-tight">Operação</h1>
-            <p className="text-muted-foreground">Gestão operacional com visão cronológica</p>
+            <p className="text-muted-foreground">Projetos com etapas, dependências e linha do tempo</p>
           </div>
-          <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-1" />Nova Operação
+          <Button onClick={openNewOperation} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-1" />Novo Projeto
           </Button>
         </div>
 
@@ -215,11 +224,23 @@ export default function Operacao() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="nao_iniciada">Não Iniciada</SelectItem>
+              <SelectItem value="planejada">Planejada</SelectItem>
               <SelectItem value="em_andamento">Em Andamento</SelectItem>
               <SelectItem value="concluida">Concluída</SelectItem>
               <SelectItem value="atrasada">Atrasada</SelectItem>
               <SelectItem value="pausada">Pausada</SelectItem>
+              <SelectItem value="cancelada">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+            <SelectTrigger className="flex-1 min-w-[140px] sm:flex-initial sm:w-44">
+              <SelectValue placeholder="Todas categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas categorias</SelectItem>
+              {OPERATION_CATEGORIES.map(c => (
+                <SelectItem key={c.value} value={c.value}>{c.emoji} {c.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -257,10 +278,10 @@ export default function Operacao() {
                     <div className="rounded-full bg-muted p-4 mb-4">
                       <BarChart3 className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-medium">Nenhuma operação cadastrada</h3>
-                    <p className="text-muted-foreground mb-4">Crie operações para gerenciar as atividades do seu ciclo produtivo.</p>
-                    <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId}>
-                      <Plus className="h-4 w-4 mr-1" />Nova Operação
+                    <h3 className="text-lg font-medium">Nenhum projeto cadastrado</h3>
+                    <p className="text-muted-foreground mb-4">Crie um projeto (ex.: Casa de Farinha) para organizar etapas e responsáveis.</p>
+                    <Button onClick={openNewOperation}>
+                      <Plus className="h-4 w-4 mr-1" />Novo Projeto
                     </Button>
                   </CardContent>
                 </Card>
@@ -288,20 +309,27 @@ export default function Operacao() {
       </div>
 
       {/* Operation Form */}
-      <OperationForm
-        open={opFormOpen}
-        onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNew(null); } }}
-        operation={editingOp}
-        parentId={parentIdForNew}
-        areaId={editingOp?.area_id || formContext.areaId || defaultAreaId}
-        cycleId={editingOp?.cycle_id || formContext.cycleId || defaultCycleId}
-        talhaoId={editingOp?.talhao_id || formContext.talhaoId}
-        areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
-        cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
-        onSubmit={handleOpSubmit}
-        isSubmitting={createOperation.isPending || updateOperation.isPending}
-      />
-
+      {(() => {
+        const parentLookupId = parentIdForNew || editingOp?.parent_id || null;
+        const parentOp = parentLookupId ? rawOperations.find(o => o.id === parentLookupId) : null;
+        const siblings = parentOp ? (parentOp.children || []).map(s => ({ id: s.id, nome: s.nome })) : [];
+        return (
+          <OperationForm
+            open={opFormOpen}
+            onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNew(null); } }}
+            operation={editingOp}
+            parentId={parentIdForNew}
+            areaId={editingOp?.area_id || formContext.areaId || defaultAreaId}
+            cycleId={editingOp?.cycle_id || formContext.cycleId || defaultCycleId}
+            talhaoId={editingOp?.talhao_id || formContext.talhaoId}
+            areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
+            cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
+            siblingStages={siblings}
+            onSubmit={handleOpSubmit}
+            isSubmitting={createOperation.isPending || updateOperation.isPending}
+          />
+        );
+      })()}
       {/* Task Form */}
       <TaskForm
         open={taskFormOpen}

@@ -586,15 +586,19 @@ export type Database = {
       }
       operational_stages: {
         Row: {
-          area_id: string
+          area_id: string | null
+          categoria: string | null
+          cor_responsavel: string | null
           created_at: string
           custo_total: number | null
-          cycle_id: string
+          cycle_id: string | null
           data_fim_prevista: string | null
           data_fim_real: string | null
           data_inicio_prevista: string | null
           data_inicio_real: string | null
+          depends_on_id: string | null
           descricao: string | null
+          duracao_prevista_dias: number | null
           id: string
           nome: string
           observacoes: string | null
@@ -610,15 +614,19 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          area_id: string
+          area_id?: string | null
+          categoria?: string | null
+          cor_responsavel?: string | null
           created_at?: string
           custo_total?: number | null
-          cycle_id: string
+          cycle_id?: string | null
           data_fim_prevista?: string | null
           data_fim_real?: string | null
           data_inicio_prevista?: string | null
           data_inicio_real?: string | null
+          depends_on_id?: string | null
           descricao?: string | null
+          duracao_prevista_dias?: number | null
           id?: string
           nome: string
           observacoes?: string | null
@@ -634,15 +642,19 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          area_id?: string
+          area_id?: string | null
+          categoria?: string | null
+          cor_responsavel?: string | null
           created_at?: string
           custo_total?: number | null
-          cycle_id?: string
+          cycle_id?: string | null
           data_fim_prevista?: string | null
           data_fim_real?: string | null
           data_inicio_prevista?: string | null
           data_inicio_real?: string | null
+          depends_on_id?: string | null
           descricao?: string | null
+          duracao_prevista_dias?: number | null
           id?: string
           nome?: string
           observacoes?: string | null
@@ -1153,6 +1165,10 @@ export type Database = {
         | "concluida"
         | "atrasada"
         | "pausada"
+        | "planejada"
+        | "travada"
+        | "cancelada"
+        | "reprogramada"
       stage_type:
         | "preparo"
         | "plantio"
@@ -1358,6 +1374,10 @@ export const Constants = {
         "concluida",
         "atrasada",
         "pausada",
+        "planejada",
+        "travada",
+        "cancelada",
+        "reprogramada",
       ],
       stage_type: [
         "preparo",
