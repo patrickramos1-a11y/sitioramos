@@ -1,174 +1,120 @@
+# Plano: Operações Avançadas (Projetos com Etapas Dependentes)
 
+## Visão geral
 
-# Plano: Refatoracao Completa do Modulo de Operacoes
+Hoje, "Operação" usa a tabela `operational_stages` em 2 níveis (operação principal + sub-operação) sem dependência entre etapas, sem categoria de projeto e sem cálculo automático de datas. Vamos transformá-la em um módulo de **Projetos Operacionais** onde:
 
-## Resumo
+- A **Operação Principal** funciona como o "projeto" (ex.: "Projeto da Casa de Farinha").
+- Suas **Etapas** são as sub-operações, agora com **dependência sequencial** e **cálculo automático de datas**.
+- A **linha do tempo (Gantt)** ganha agrupamento, filtros, zoom (semana/mês/geral), cores por responsável e indicadores visuais de atraso/bloqueio/conclusão.
+- Operações não exigem mais Área/Ciclo (ficam opcionais), permitindo projetos administrativos como "Casa de Farinha", "Documentação", "Licenciamento".
 
-Transformar o modulo Operacao de uma lista simples de tarefas em um sistema hierarquico com visualizacao Gantt (timeline), estruturado em 3 niveis: **Operacao Principal** (projeto) > **Suboperacoes/Etapas** > **Tarefas**, com integracao financeira e controle cronologico completo.
+## 1. Banco de Dados (migração)
 
-## Situacao Atual
+Tabelas afetadas: `operational_stages` (atual base de operações e etapas).
 
-- 1 tarefa cadastrada, 0 etapas
-- Tabelas `operational_stages` e `operational_tasks` ja existem no banco
-- Visualizacao atual: lista plana de tarefas com filtros por status
-- Sem hierarquia, sem timeline, sem integracao financeira real
+**Novos campos em `operational_stages`:**
+- `categoria` (text) — Produção agrícola, Manejo e limpeza, Infraestrutura, Casa de farinha, Financeiro, Documentação, Licenciamento, Comercial, Logística.
+- `duracao_prevista_dias` (integer, nullable) — duração planejada da etapa.
+- `depends_on_id` (uuid, nullable) — FK lógica para outra `operational_stages.id` (etapa antecessora).
+- `cor_responsavel` (text, nullable) — cor opcional fixa por responsável (fallback: hash do nome).
+- Ampliar enum `stage_status` para incluir: `planejada`, `travada`, `cancelada`, `reprogramada` (manter compatibilidade com `nao_iniciada`/`em_andamento`/`concluida`/`atrasada`/`pausada` já existentes — mapearemos `nao_iniciada` → `planejada` na UI).
 
-## Arquitetura da Solucao
+**Tornar opcionais:**
+- `area_id` e `cycle_id` em `operational_stages` passam a ser **nullable** (projetos podem não ter área/ciclo — ex.: Documentação).
 
-```text
-Operacao Principal (operational_stages com parent_id = null)
-  └── Suboperacao / Etapa (operational_stages com parent_id)
-        └── Tarefa (operational_tasks com stage_id)
-```
+Sem trigger de cálculo: as datas previstas serão calculadas no cliente ao salvar (mais simples, transparente, edição livre depois).
 
-Reutilizamos a tabela `operational_stages` para os niveis 1 e 2 (operacao principal e suboperacoes), adicionando um campo `parent_id` para criar a hierarquia. Tarefas continuam em `operational_tasks`.
+## 2. Lógica de cálculo automático
 
----
+Implementada no hook `useOperations`/`useStages` ao criar ou atualizar uma etapa:
 
-## Fase 1 — Banco de Dados (Migracao)
+- Se `depends_on_id` definido → `data_inicio_prevista` = `data_fim_prevista` (ou `data_fim_real` se concluída) da etapa antecessora **+ 1 dia**.
+- Se `data_inicio_prevista` + `duracao_prevista_dias` definidos → `data_fim_prevista` = início + duração.
+- Quando uma etapa antecessora é alterada/concluída, recalcular em **cascata** as datas previstas das dependentes (somente as ainda não iniciadas).
 
-**Alterar `operational_stages`:**
-- Adicionar `parent_id uuid` (referencia a si mesma, nullable) — permite hierarquia
-- Adicionar `custo_total numeric default 0` — consolidacao de custos
+**Status derivado** (computed na UI, não persistido):
+- `concluida` se `data_fim_real` preenchida.
+- `travada` se a antecessora não está concluída.
+- `atrasada` se hoje > `data_fim_prevista` e não concluída.
+- `em_andamento` se `data_inicio_real` preenchida e não concluída.
+- `planejada` caso contrário.
 
-**Alterar `operational_tasks`:**
-- Adicionar `parent_task_id uuid` (nullable) — para sub-tarefas opcionais
+**Métricas computadas por etapa:**
+- % tempo previsto consumido = (dias decorridos / duração prevista) × 100.
+- Dias restantes = `data_fim_prevista` − hoje.
+- Dias de atraso = hoje − `data_fim_prevista` (se positivo).
+- Duração real = `data_fim_real` − `data_inicio_real`.
+- Diferença planejado vs executado = duração real − duração prevista.
 
-Nenhuma tabela nova. A tarefa existente sera preservada.
+## 3. Formulários
 
----
+**`OperationForm` (Operação/Projeto):**
+- Tornar Área e Ciclo **opcionais** (com opção "Sem área / projeto geral").
+- Adicionar campo **Categoria** (select com as 9 categorias).
+- Manter: nome, descrição, responsável principal, data de início, prioridade, status, observações.
 
-## Fase 2 — Hooks Refatorados
+**`StageForm` (Etapa):**
+- Adicionar campo **Duração prevista (dias)**.
+- Adicionar campo **Depende de** (select com outras etapas do mesmo projeto).
+- Adicionar campo **Categoria** (herda do projeto, editável).
+- Mostrar **data prevista de conclusão calculada** em tempo real conforme usuário preenche início + duração ou seleciona dependência.
+- Manter: nome, descrição, responsável, datas (início prevista/real, fim prevista/real), status, observações.
 
-### `useOperations.ts` (novo hook principal)
-- Busca `operational_stages` onde `parent_id IS NULL` como "Operacoes Principais"
-- Busca sub-stages onde `parent_id IS NOT NULL` como "Suboperacoes"
-- CRUD completo para operacoes e suboperacoes
-- Funcao para duplicar operacao com suas suboperacoes e tarefas
-- Consolidacao de custos: soma `custo_real` das tarefas filhas
+## 4. Visualização Gantt (`GanttTimeline`)
 
-### `useTasks.ts` (refatorado)
-- Heranca automatica: ao criar tarefa dentro de uma operacao, herda `area_id`, `talhao_id`, `cycle_id`
-- Suporte a filtros por operacao principal
+Reescrever para suportar:
 
----
+- **Agrupamento por projeto** (operação principal): linha do projeto + etapas indentadas.
+- **Expandir/recolher** etapas por projeto.
+- **Zoom**: botões "Semana / Mês / Geral" alterando a escala do CSS Grid.
+- **Filtros** (acima do Gantt):
+  - Responsável (multi-select).
+  - Status (multi-select).
+  - Categoria (multi-select).
+  - Toggle "Apenas atrasadas".
+  - Toggle "Apenas com dependência".
+- **Cores por responsável**: paleta determinística (hash do nome → HSL) ou cor manual.
+- **Estilo da barra** conforme status:
+  - Sólida (cor do responsável) → em andamento.
+  - Cinza → concluída.
+  - Tracejada (border-dashed) → planejada.
+  - Vermelha com ícone de alerta → atrasada.
+  - Tracejada cinza com ícone de cadeado → travada por dependência.
+- **Linhas finas conectoras** (SVG) entre etapa antecessora e dependente.
+- **Barra de progresso interno**: faixa preenchida = % executado dentro da barra prevista; se ultrapassou, a barra **se estende** com hachura vermelha mostrando os dias de atraso.
+- Tooltip ao passar o mouse: nome, responsável, datas, % consumido, dias restantes/atraso.
+- **Mobile**: scroll horizontal nativo, header sticky à esquerda com nome do projeto/etapa.
 
-## Fase 3 — Componente Gantt Timeline
+## 5. Página `Operacao.tsx`
 
-### `GanttTimeline.tsx` (novo componente principal)
+- Header com botão "Novo Projeto" (renomear "Nova Operação").
+- KPIs já existentes mantidos, somando: **Projetos ativos**, **Etapas atrasadas**, **Etapas travadas**, **Concluídas no mês**.
+- Filtros movidos para dentro do Gantt (acima da timeline).
+- Tab "Lista" mostra cards por projeto com badges de categoria, contagem de etapas (planejadas/em andamento/concluídas/atrasadas) e barra de progresso geral.
 
-Visualizacao horizontal tipo Gantt:
-- **Eixo X**: tempo (dias/semanas/meses/trimestre com controle de zoom)
-- **Eixo Y**: linhas com operacoes principais, suboperacoes indentadas, tarefas indentadas 2x
-- **Barras**: representam duracao (inicio a fim), coloridas por status
-- **Interacao**: expandir/recolher subniveis, scroll horizontal, click para editar
-- **Indicadores visuais**: barra de progresso, alerta de atraso (borda vermelha), diferenca planejado vs real
+## 6. Sementes (opcional, sob demanda do usuário)
 
-Modos de visualizacao:
-- **Condensado**: so operacoes principais
-- **Detalhado**: com suboperacoes e tarefas
+Inserir o exemplo "Projeto da Casa de Farinha" com 3 etapas demonstrativas para o usuário testar imediatamente após a aprovação.
 
-Implementacao com HTML/CSS puro (divs posicionadas) + scroll container, sem dependencia externa.
+## Detalhes técnicos
 
----
+**Arquivos a editar:**
+- `supabase/migrations/<nova>.sql` — alter table + alter type enum + alter nullable.
+- `src/hooks/useOperations.ts` — incluir novos campos, lógica de cálculo de datas em cascata, status derivado.
+- `src/hooks/useStages.ts` — idem para etapas.
+- `src/components/operacao/OperationForm.tsx` — categoria, área/ciclo opcionais.
+- `src/components/operacao/StageForm.tsx` — duração, depende de, preview de data prevista.
+- `src/components/operacao/GanttTimeline.tsx` — reescrita com zoom, filtros, cores por responsável, barras com estilo por status, conectores SVG.
+- `src/components/operacao/OperationCard.tsx` — categoria, badges agregados.
+- `src/pages/Operacao.tsx` — filtros, KPIs, terminologia "Projeto".
+- `src/lib/responsavelColors.ts` (novo) — paleta determinística.
 
-## Fase 4 — Pagina Operacao Refatorada
+**Compatibilidade:** todas as operações existentes continuam funcionando — novos campos têm default ou nullable, status legados (`nao_iniciada`, `pausada`) continuam aceitos e renderizados.
 
-### Layout da pagina `/operacao`:
+## Fora do escopo (podem virar próximos passos)
 
-**Topo — Dashboard KPIs:**
-- Operacoes em andamento / Atrasadas / Pendentes / Concluidas
-- Custo total em aberto
-- Proximas atividades
-
-**Centro — Visualizacao principal:**
-- Tabs: "Timeline" (Gantt) | "Lista" (cards hierarquicos)
-- Filtros: area, talhao, ciclo, status, prioridade, tipo, periodo
-- Controle de zoom (dia/semana/mes/trimestre)
-
-**Acoes:**
-- Nova Operacao Principal (abre formulario)
-- Dentro de cada operacao: adicionar suboperacao, adicionar tarefa
-- Menu de contexto: editar, duplicar, excluir, arquivar, pausar, reagendar, concluir
-
-### `OperationForm.tsx` (novo)
-Formulario para criar/editar operacao principal ou suboperacao:
-- Nome, tipo, descricao
-- Vinculo: propriedade, talhao, area, ciclo
-- Datas: inicio/fim planejado e real
-- Status, prioridade, responsavel
-- Custo estimado
-
-### `OperationCard.tsx` (novo)
-Card expansivel mostrando operacao principal com:
-- Barra de progresso
-- Status, tipo, datas
-- Custo consolidado
-- Lista de suboperacoes (colapsavel)
-- Lista de tarefas (colapsavel)
-- Acoes rapidas
-
----
-
-## Fase 5 — Integracao Financeira
-
-- Cada tarefa pode ter `custo_estimado` e `custo_real` (ja existe)
-- Cada tarefa pode vincular `cash_transaction_id` (ja existe)
-- Botao "Vincular Custo" busca transacoes existentes em `cash_transactions`
-- Botao "Criar Custo" gera nova transacao no fluxo de caixa e vincula
-- Operacao principal exibe custo total = soma dos custos das sub-tarefas
-
----
-
-## Fase 6 — Integracao com Area, Talhao, Ciclo
-
-- Dentro de `AreaDetalhe.tsx`: aba "Operacoes" mostra operacoes filtradas por `area_id`
-- Dentro de `TalhaoDetalhe.tsx`: aba "Operacoes" mostra operacoes do talhao
-- Operacoes aparecem no Dashboard com indicadores operacionais
-
----
-
-## Fase 7 — Tipos de Operacao e UX
-
-**Tipos de operacao** (enum no formulario):
-- Operacional agricola, Logistica, Compra, Contratacao, Manutencao, Documentacao, Regularizacao, Beneficiamento
-
-**UX Mobile-ready:**
-- Cards verticais no mobile, Gantt com scroll horizontal
-- Icones por tipo, cores por status
-- Botoes de acao rapida grandes
-- Filtros em drawer no mobile
-
----
-
-## Detalhes Tecnicos
-
-| Item | Decisao |
-|---|---|
-| Gantt | Implementacao custom com CSS Grid + scroll container, sem lib externa |
-| Hierarquia | `parent_id` em `operational_stages` |
-| Heranca | Subtarefas herdam area/talhao/ciclo da operacao pai via logica no hook |
-| Duplicacao | Copia operacao + suboperacoes + tarefas com novos UUIDs |
-| Dados existentes | A tarefa existente permanece como tarefa solta (sem operacao pai) ate ser reorganizada manualmente |
-| Status "atrasada" | Calculado automaticamente: `data_fim_prevista < hoje && status != concluida` |
-
-## Arquivos Afetados
-
-**Novos:**
-- `src/hooks/useOperations.ts`
-- `src/components/operacao/GanttTimeline.tsx`
-- `src/components/operacao/OperationForm.tsx`
-- `src/components/operacao/OperationCard.tsx`
-
-**Refatorados:**
-- `src/pages/Operacao.tsx` (reescrita completa)
-- `src/hooks/useTasks.ts` (heranca, filtros)
-- `src/hooks/useStages.ts` (suporte a parent_id)
-- `src/pages/AreaDetalhe.tsx` (aba operacoes)
-- `src/pages/TalhaoDetalhe.tsx` (aba operacoes)
-
-**Migracao SQL:**
-- `ALTER TABLE operational_stages ADD COLUMN parent_id uuid REFERENCES operational_stages(id)`
-- `ALTER TABLE operational_stages ADD COLUMN custo_total numeric DEFAULT 0`
-- `ALTER TABLE operational_tasks ADD COLUMN parent_task_id uuid`
+- Anexos por etapa (precisaria de Storage bucket).
+- Notificações de atraso por e-mail.
+- Drag-and-drop para reordenar/redimensionar barras no Gantt.
 
