@@ -89,6 +89,11 @@ export function OperationCard({
                   </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge variant={sc.badgeVariant} className="text-xs">{sc.label}</Badge>
+                    {operation.categoria && (
+                      <Badge variant="outline" className="text-xs">
+                        {getCategoryEmoji(operation.categoria)} {getCategoryLabel(operation.categoria)}
+                      </Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">{typeLabels[operation.tipo] || operation.tipo}</span>
                     {operation.prioridade === "alta" && <Badge variant="destructive" className="text-xs">Alta</Badge>}
                     {operation.prioridade === "critica" && <Badge variant="destructive" className="text-xs">Crítica</Badge>}
