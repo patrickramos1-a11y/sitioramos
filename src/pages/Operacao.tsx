@@ -224,11 +224,23 @@ export default function Operacao() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="nao_iniciada">Não Iniciada</SelectItem>
+              <SelectItem value="planejada">Planejada</SelectItem>
               <SelectItem value="em_andamento">Em Andamento</SelectItem>
               <SelectItem value="concluida">Concluída</SelectItem>
               <SelectItem value="atrasada">Atrasada</SelectItem>
               <SelectItem value="pausada">Pausada</SelectItem>
+              <SelectItem value="cancelada">Cancelada</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+            <SelectTrigger className="flex-1 min-w-[140px] sm:flex-initial sm:w-44">
+              <SelectValue placeholder="Todas categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas categorias</SelectItem>
+              {OPERATION_CATEGORIES.map(c => (
+                <SelectItem key={c.value} value={c.value}>{c.emoji} {c.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
