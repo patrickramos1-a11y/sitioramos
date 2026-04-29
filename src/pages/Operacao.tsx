@@ -161,10 +161,10 @@ export default function Operacao() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="hidden sm:block">
             <h1 className="text-2xl font-bold tracking-tight">Operação</h1>
-            <p className="text-muted-foreground">Gestão operacional com visão cronológica</p>
+            <p className="text-muted-foreground">Projetos com etapas, dependências e linha do tempo</p>
           </div>
-          <Button onClick={openNewOperation} disabled={!defaultAreaId || !defaultCycleId} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-1" />Nova Operação
+          <Button onClick={openNewOperation} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-1" />Novo Projeto
           </Button>
         </div>
 
