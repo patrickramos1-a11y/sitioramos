@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Operation, OperationInsert } from "@/hooks/useOperations";
+import { OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, addDaysISO } from "@/lib/operacaoConfig";
+
+const NONE = "__none__";
 
 const operationTypes = [
   { value: "preparo", label: "Preparo" },
@@ -19,14 +22,6 @@ const operationTypes = [
   { value: "documentacao", label: "Documentação" },
   { value: "manutencao", label: "Manutenção" },
   { value: "outro", label: "Outro" },
-];
-
-const statusOptions = [
-  { value: "nao_iniciada", label: "Não Iniciada" },
-  { value: "em_andamento", label: "Em Andamento" },
-  { value: "concluida", label: "Concluída" },
-  { value: "atrasada", label: "Atrasada" },
-  { value: "pausada", label: "Pausada" },
 ];
 
 const priorityOptions = [
@@ -46,6 +41,8 @@ interface OperationFormProps {
   talhaoId?: string | null;
   areas?: { id: string; nome: string }[];
   cycles?: { id: string; cultura: string; area_id: string }[];
+  /** Possíveis etapas para vínculo "depende de" (mesma operação principal) */
+  siblingStages?: { id: string; nome: string }[];
   onSubmit: (data: OperationInsert) => void;
   isSubmitting: boolean;
   title?: string;
@@ -53,24 +50,29 @@ interface OperationFormProps {
 
 export function OperationForm({
   open, onOpenChange, operation, parentId, areaId, cycleId, talhaoId,
-  areas, cycles, onSubmit, isSubmitting, title,
+  areas, cycles, siblingStages, onSubmit, isSubmitting, title,
 }: OperationFormProps) {
   const isInheritedContext = Boolean(parentId || operation?.parent_id);
+  const isStage = isInheritedContext; // sub-operações = etapas
+
   const [formData, setFormData] = useState({
     nome: "",
     tipo: "outro",
+    categoria: "" as string,
     descricao: "",
-    status: "nao_iniciada",
+    status: "planejada",
     prioridade: "media",
     data_inicio_prevista: "",
     data_inicio_real: "",
     data_fim_prevista: "",
     data_fim_real: "",
+    duracao_prevista_dias: "" as string | number,
+    depends_on_id: "" as string,
     responsavel: "",
     ordem: 0,
     observacoes: "",
-    area_id: areaId,
-    cycle_id: cycleId,
+    area_id: areaId || "",
+    cycle_id: cycleId || "",
   });
 
   useEffect(() => {
@@ -78,55 +80,72 @@ export function OperationForm({
       setFormData({
         nome: operation.nome,
         tipo: operation.tipo,
+        categoria: operation.categoria || "",
         descricao: operation.descricao || "",
-        status: operation.status,
+        status: operation.status === "nao_iniciada" ? "planejada" : operation.status,
         prioridade: operation.prioridade || "media",
         data_inicio_prevista: operation.data_inicio_prevista || "",
         data_inicio_real: operation.data_inicio_real || "",
         data_fim_prevista: operation.data_fim_prevista || "",
         data_fim_real: operation.data_fim_real || "",
+        duracao_prevista_dias: operation.duracao_prevista_dias ?? "",
+        depends_on_id: operation.depends_on_id || "",
         responsavel: operation.responsavel || "",
         ordem: operation.ordem,
         observacoes: operation.observacoes || "",
-        area_id: operation.area_id,
-        cycle_id: operation.cycle_id,
+        area_id: operation.area_id || "",
+        cycle_id: operation.cycle_id || "",
       });
     } else {
       setFormData({
-        nome: "", tipo: "outro", descricao: "", status: "nao_iniciada",
+        nome: "", tipo: "outro", categoria: "", descricao: "", status: "planejada",
         prioridade: "media", data_inicio_prevista: "", data_inicio_real: "",
-        data_fim_prevista: "", data_fim_real: "", responsavel: "", ordem: 0,
-        observacoes: "", area_id: areaId, cycle_id: cycleId,
+        data_fim_prevista: "", data_fim_real: "", duracao_prevista_dias: "",
+        depends_on_id: "", responsavel: "", ordem: 0,
+        observacoes: "", area_id: areaId || "", cycle_id: cycleId || "",
       });
     }
   }, [operation, open, areaId, cycleId]);
 
   const availableCycles = (cycles || []).filter((cycle) => cycle.area_id === formData.area_id);
 
-  useEffect(() => {
-    if (availableCycles.length === 0) return;
-    if (!availableCycles.some((cycle) => cycle.id === formData.cycle_id)) {
-      setFormData((prev) => ({ ...prev, cycle_id: availableCycles[0].id }));
+  // Preview da data prevista de conclusão
+  const previewFimPrevisto = useMemo(() => {
+    const dur = Number(formData.duracao_prevista_dias);
+    if (formData.data_inicio_prevista && dur > 0) {
+      return addDaysISO(formData.data_inicio_prevista, dur - 1);
     }
-  }, [availableCycles, formData.cycle_id]);
+    return formData.data_fim_prevista || "";
+  }, [formData.data_inicio_prevista, formData.duracao_prevista_dias, formData.data_fim_prevista]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      ...formData,
-      parent_id: parentId || null,
-      talhao_id: talhaoId || null,
-      data_inicio_prevista: formData.data_inicio_prevista || null,
-      data_inicio_real: formData.data_inicio_real || null,
-      data_fim_prevista: formData.data_fim_prevista || null,
-      data_fim_real: formData.data_fim_real || null,
+      nome: formData.nome,
+      tipo: formData.tipo,
+      categoria: formData.categoria || null,
       descricao: formData.descricao || null,
+      status: formData.status,
+      prioridade: formData.prioridade,
+      ordem: formData.ordem,
       observacoes: formData.observacoes || null,
       responsavel: formData.responsavel || null,
+      parent_id: parentId || null,
+      talhao_id: talhaoId || null,
+      area_id: formData.area_id || null,
+      cycle_id: formData.cycle_id || null,
+      data_inicio_prevista: formData.data_inicio_prevista || null,
+      data_inicio_real: formData.data_inicio_real || null,
+      data_fim_prevista: previewFimPrevisto || null,
+      data_fim_real: formData.data_fim_real || null,
+      duracao_prevista_dias: formData.duracao_prevista_dias ? Number(formData.duracao_prevista_dias) : null,
+      depends_on_id: formData.depends_on_id || null,
     });
   };
 
-  const formTitle = title || (operation ? "Editar Operação" : parentId ? "Nova Suboperação" : "Nova Operação");
+  const formTitle = title || (operation
+    ? (isStage ? "Editar Etapa" : "Editar Projeto")
+    : (isStage ? "Nova Etapa" : "Novo Projeto"));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,36 +153,53 @@ export function OperationForm({
         <DialogHeader>
           <DialogTitle>{formTitle}</DialogTitle>
           <DialogDescription>
-            {isInheritedContext
-              ? "Esta suboperação herda automaticamente área, talhão e ciclo da operação principal."
-              : "Defina o contexto produtivo e o planejamento da operação."}
+            {isStage
+              ? "Defina duração, responsável e dependência. Datas são calculadas automaticamente."
+              : "Cadastre um projeto. Área/Ciclo são opcionais para projetos administrativos."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <Label>Nome *</Label>
-              <Input value={formData.nome} onChange={e => setFormData(p => ({ ...p, nome: e.target.value }))} required placeholder="Ex: Plantio mandioca 5,2 ha" />
+              <Input value={formData.nome} onChange={e => setFormData(p => ({ ...p, nome: e.target.value }))} required placeholder={isStage ? "Ex: Visitas técnicas" : "Ex: Projeto da Casa de Farinha"} />
             </div>
 
-            {areas && areas.length > 0 && (
-              <div>
-                <Label>Área *</Label>
-                <Select value={formData.area_id} onValueChange={v => setFormData(p => ({ ...p, area_id: v }))} disabled={isInheritedContext}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+            {!isStage && (
+              <div className="col-span-2">
+                <Label>Categoria</Label>
+                <Select value={formData.categoria || NONE} onValueChange={v => setFormData(p => ({ ...p, categoria: v === NONE ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NONE}>— Sem categoria —</SelectItem>
+                    {OPERATION_CATEGORIES.map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.emoji} {c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {!isStage && areas && areas.length > 0 && (
+              <div>
+                <Label>Área (opcional)</Label>
+                <Select value={formData.area_id || NONE} onValueChange={v => setFormData(p => ({ ...p, area_id: v === NONE ? "" : v, cycle_id: "" }))}>
+                  <SelectTrigger><SelectValue placeholder="Sem área" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— Sem área —</SelectItem>
                     {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             )}
 
-            {availableCycles.length > 0 && (
+            {!isStage && availableCycles.length > 0 && (
               <div>
-                <Label>Ciclo *</Label>
-                <Select value={formData.cycle_id} onValueChange={v => setFormData(p => ({ ...p, cycle_id: v }))} disabled={isInheritedContext}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label>Ciclo (opcional)</Label>
+                <Select value={formData.cycle_id || NONE} onValueChange={v => setFormData(p => ({ ...p, cycle_id: v === NONE ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Sem ciclo" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NONE}>— Sem ciclo —</SelectItem>
                     {availableCycles.map(c => <SelectItem key={c.id} value={c.id}>{c.cultura}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -184,7 +220,7 @@ export function OperationForm({
               <Select value={formData.status} onValueChange={v => setFormData(p => ({ ...p, status: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {statusOptions.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  {STAGE_STATUS_OPTIONS_FORM.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -201,33 +237,60 @@ export function OperationForm({
               <Label>Ordem</Label>
               <Input type="number" value={formData.ordem} onChange={e => setFormData(p => ({ ...p, ordem: Number(e.target.value) }))} />
             </div>
+
+            <div className="col-span-2">
+              <Label>Responsável</Label>
+              <Input value={formData.responsavel} onChange={e => setFormData(p => ({ ...p, responsavel: e.target.value }))} placeholder="Ex: Patrick" />
+            </div>
+
+            {isStage && siblingStages && siblingStages.length > 0 && (
+              <div className="col-span-2">
+                <Label>Depende de (etapa antecessora)</Label>
+                <Select value={formData.depends_on_id || NONE} onValueChange={v => setFormData(p => ({ ...p, depends_on_id: v === NONE ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Sem dependência" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>— Sem dependência —</SelectItem>
+                    {siblingStages.filter(s => s.id !== operation?.id).map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">A data de início será calculada automaticamente.</p>
+              </div>
+            )}
+
             <div>
               <Label>Início Previsto</Label>
               <Input type="date" value={formData.data_inicio_prevista} onChange={e => setFormData(p => ({ ...p, data_inicio_prevista: e.target.value }))} />
             </div>
             <div>
+              <Label>Duração prevista (dias)</Label>
+              <Input type="number" min="1" value={formData.duracao_prevista_dias} onChange={e => setFormData(p => ({ ...p, duracao_prevista_dias: e.target.value }))} placeholder="Ex: 30" />
+            </div>
+
+            <div className="col-span-2 rounded-md bg-muted/40 p-2 text-xs text-muted-foreground">
+              📅 <strong>Fim previsto calculado:</strong>{" "}
+              {previewFimPrevisto
+                ? new Date(previewFimPrevisto).toLocaleDateString("pt-BR")
+                : "preencha início e duração"}
+            </div>
+
+            <div>
               <Label>Início Real</Label>
               <Input type="date" value={formData.data_inicio_real} onChange={e => setFormData(p => ({ ...p, data_inicio_real: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Fim Previsto</Label>
-              <Input type="date" value={formData.data_fim_prevista} onChange={e => setFormData(p => ({ ...p, data_fim_prevista: e.target.value }))} />
             </div>
             <div>
               <Label>Fim Real</Label>
               <Input type="date" value={formData.data_fim_real} onChange={e => setFormData(p => ({ ...p, data_fim_real: e.target.value }))} />
             </div>
-            <div className="col-span-2">
-              <Label>Responsável</Label>
-              <Input value={formData.responsavel} onChange={e => setFormData(p => ({ ...p, responsavel: e.target.value }))} />
-            </div>
+
             <div className="col-span-2">
               <Label>Descrição</Label>
-              <Textarea value={formData.descricao} onChange={e => setFormData(p => ({ ...p, descricao: e.target.value }))} />
+              <Textarea value={formData.descricao} onChange={e => setFormData(p => ({ ...p, descricao: e.target.value }))} rows={2} />
             </div>
             <div className="col-span-2">
               <Label>Observações</Label>
-              <Textarea value={formData.observacoes} onChange={e => setFormData(p => ({ ...p, observacoes: e.target.value }))} />
+              <Textarea value={formData.observacoes} onChange={e => setFormData(p => ({ ...p, observacoes: e.target.value }))} rows={2} />
             </div>
           </div>
           <div className="flex justify-end gap-2">
