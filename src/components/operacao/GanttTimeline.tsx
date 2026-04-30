@@ -266,7 +266,42 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
             </Button>
           )}
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1 flex-wrap">
+            {/* Navegação temporal */}
+            <div className="flex items-center gap-1 mr-2 bg-muted/40 rounded-md p-0.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setAnchorDate(d => addMonths(d, -1))}
+                title="Mês anterior"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setAnchorDate(startOfDay(new Date()))}
+                title="Ir para hoje"
+              >
+                <CalendarDays className="h-3 w-3" />
+                Hoje
+              </Button>
+              <span className="text-[10px] text-muted-foreground px-1 min-w-[68px] text-center">
+                {format(anchorDate, "MMM/yy", { locale: ptBR })}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setAnchorDate(d => addMonths(d, 1))}
+                title="Próximo mês"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
             <span className="text-xs text-muted-foreground mr-1">Zoom:</span>
             {(["week", "month", "geral"] as ZoomLevel[]).map(z => (
               <Button key={z} variant={zoom === z ? "default" : "outline"} size="sm" className="h-7 text-xs" onClick={() => setZoom(z)}>
