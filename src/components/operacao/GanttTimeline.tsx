@@ -48,6 +48,8 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
   const [filterCategoria, setFilterCategoria] = useState<string>("all");
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [onlyDeps, setOnlyDeps] = useState(false);
+  // Data âncora da janela visível (centro/início aproximado)
+  const [anchorDate, setAnchorDate] = useState<Date>(() => startOfDay(new Date()));
 
   useEffect(() => {
     setExpandedIds(new Set(operations.map(o => o.id)));
