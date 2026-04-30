@@ -158,32 +158,18 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
     return result;
   }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
 
-  // Range de datas
+  // Janela de tempo navegável: 1 mês para trás + horizonte conforme zoom
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
-    const allDates: Date[] = [];
-    items.forEach(item => {
-      if (item.startPrev) allDates.push(item.startPrev);
-      if (item.endPrev) allDates.push(item.endPrev);
-      if (item.startReal) allDates.push(item.startReal);
-      if (item.endReal) allDates.push(item.endReal);
-    });
-
-    if (allDates.length === 0) {
-      const now = new Date();
-      allDates.push(addDays(now, -30), addDays(now, 60));
-    }
-
-    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-    const start = addDays(startOfDay(minDate), -7);
-    const end = addDays(startOfDay(maxDate), 14);
+    // Janela: 1 mês antes do anchor até 11 meses depois (12 meses totais = visão anual)
+    const start = startOfDay(addMonths(startOfMonth(anchorDate), -1));
+    const end = startOfDay(addMonths(start, 13));
 
     let cols: { label: string; date: Date }[] = [];
     let cw = 80;
 
     switch (zoom) {
       case "week":
-        cols = eachDayOfInterval({ start, end }).filter((_, i) => i % 1 === 0).map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
+        cols = eachDayOfInterval({ start, end }).map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
         cw = 36;
         break;
       case "month":
@@ -197,7 +183,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
     }
 
     return { timelineStart: start, timelineEnd: end, columns: cols, colWidth: cw };
-  }, [items, zoom]);
+  }, [anchorDate, zoom]);
 
   const totalWidth = columns.length * colWidth;
   const totalDays = Math.max(1, differenceInDays(timelineEnd, timelineStart));
