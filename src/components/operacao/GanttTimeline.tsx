@@ -537,22 +537,25 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
         {/* Legenda */}
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded bg-primary" />Em andamento
+            <span className="inline-block w-4 h-2.5 rounded border-2 border-dashed" style={{ borderColor: "hsl(142 40% 65%)", background: "hsl(142 40% 95%)" }} />Planejado
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded border-2 border-dashed border-primary" />Planejada
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)" }} />Em execução
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded bg-muted border border-border" />Concluída
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 60% 38%)" }} />Concluído
           </span>
           <span className="flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3 text-destructive" />Atrasada
+            <span
+              className="inline-block w-4 h-2.5 rounded"
+              style={{ background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 3px, hsl(142 60% 32%) 3px, hsl(142 60% 32%) 6px)" }}
+            />Tempo excedido
           </span>
           <span className="flex items-center gap-1">
-            <Lock className="h-3 w-3" />Travada por dependência
+            <Lock className="h-3 w-3" />Travada
           </span>
           <span className="flex items-center gap-1 ml-auto">
-            <span className="inline-block w-0.5 h-3 bg-primary" />Hoje
+            <span className="inline-block w-0.5 h-3 bg-destructive" />Hoje
           </span>
         </div>
       </div>
