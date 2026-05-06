@@ -3,6 +3,7 @@ import { Operation } from "@/hooks/useOperations";
 import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { addDays, addMonths, addWeeks, addYears, differenceInDays, format, startOfDay, startOfMonth, startOfWeek, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -87,7 +88,6 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   });
   // Largura disponível para a faixa do timeline (medida)
   const timelineRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(800);
 
   useEffect(() => {
@@ -537,11 +537,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
             </div>
 
             {/* Timeline — scroll horizontal interno apenas nesta área */}
-            <div
-              ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
-              className="overflow-x-auto overflow-y-hidden flex-1 min-w-0"
-            >
-              <div style={{ width: totalWidth }} className="relative">
+            <ScrollArea ref={timelineRef} className="flex-1 min-w-0 overflow-hidden" type="always">
+              <div
+                className="overflow-y-hidden w-max min-w-full"
+              >
+                <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
                 <div className="h-10 border-b flex bg-muted/20 sticky top-0 z-10">
                   {columns.map((col, i) => (
@@ -729,8 +729,10 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                     );
                   })}
                 </svg>
+                </div>
               </div>
-            </div>
+              <ScrollBar orientation="horizontal" className="bg-background/90" />
+            </ScrollArea>
           </div>
         </div>
 
