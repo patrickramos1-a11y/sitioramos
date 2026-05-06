@@ -357,6 +357,18 @@ export default function Operacao() {
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
 
+      {/* Quick Operation */}
+      <QuickOperationSheet
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+        areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
+        cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
+        defaultAreaId={filterArea !== "all" ? filterArea : undefined}
+        knownResponsaveis={knownResponsaveis}
+        onSubmit={(data) => { createOperation.mutate(data); setQuickOpen(false); }}
+        isSubmitting={createOperation.isPending}
+      />
+
       {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
