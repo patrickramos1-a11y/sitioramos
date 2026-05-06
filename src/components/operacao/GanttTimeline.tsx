@@ -471,7 +471,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
             {/* Timeline — scroll horizontal fluido */}
             <div
               ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
-              className="overflow-x-auto overflow-y-hidden flex-1 scroll-smooth"
+              className="overflow-x-auto overflow-y-hidden flex-1 min-w-0 scroll-smooth overscroll-x-contain"
             >
               <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
