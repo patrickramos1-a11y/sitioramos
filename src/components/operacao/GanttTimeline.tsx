@@ -469,19 +469,20 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
             </div>
 
             {/* Timeline — scroll horizontal fluido */}
-            <div ref={(el) => { timelineRef.current = el; scrollRef.current = el; }} className="overflow-x-auto overflow-y-hidden flex-1 scroll-smooth">
-
-            {/* Timeline — grid fixo, sem scroll horizontal */}
-            <div ref={timelineRef} className="overflow-hidden flex-1">
+            <div
+              ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
+              className="overflow-x-auto overflow-y-hidden flex-1 scroll-smooth"
+            >
               <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
-                <div className="h-9 border-b flex bg-muted/20 sticky top-0 z-10">
+                <div className="h-10 border-b flex bg-muted/20 sticky top-0 z-10">
                   {columns.map((col, i) => (
-                    <div key={i} className="border-r flex items-center justify-center text-[10px] text-muted-foreground shrink-0" style={{ width: colWidth }}>
+                    <div key={i} className="border-r flex items-center justify-center text-[11px] font-medium text-muted-foreground shrink-0" style={{ width: colWidth }}>
                       {col.label}
                     </div>
                   ))}
                 </div>
+
 
                 {/* Linhas */}
                 {items.map((item, rowIdx) => {
