@@ -88,7 +88,6 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   });
   // Largura disponível para a faixa do timeline (medida)
   const timelineRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(800);
 
   useEffect(() => {
@@ -538,9 +537,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
             </div>
 
             {/* Timeline — scroll horizontal interno apenas nesta área */}
-            <ScrollArea className="flex-1 min-w-0 overflow-hidden" type="always">
+            <ScrollArea ref={timelineRef} className="flex-1 min-w-0 overflow-hidden" type="always">
               <div
-                ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
                 className="overflow-y-hidden w-max min-w-full"
               >
                 <div style={{ width: totalWidth }} className="relative">
