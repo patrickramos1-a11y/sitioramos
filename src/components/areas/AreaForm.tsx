@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Area, AreaInsert } from "@/hooks/useAreas";
 import { Loader2, TreePine } from "lucide-react";
 import { calculateAppFromRiver } from "@/lib/categoryConfig";
+import { EnvironmentalLimitGuard } from "@/components/operacao/EnvironmentalLimitGuard";
 
 const areaSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
@@ -68,6 +69,8 @@ export function AreaForm({ open, onOpenChange, area, talhaoId, onSubmit, isSubmi
 
   const possuiRio = form.watch("possui_rio");
   const metrosRio = form.watch("metros_rio");
+  const tamanhoHa = form.watch("tamanho_hectares");
+  const tipoSel = form.watch("tipo");
   const appCalculada = possuiRio ? calculateAppFromRiver(metrosRio || 0) : 0;
 
   useEffect(() => {
@@ -127,6 +130,11 @@ export function AreaForm({ open, onOpenChange, area, talhaoId, onSubmit, isSubmi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <EnvironmentalLimitGuard
+              novaAreaHectares={Number(tamanhoHa) || 0}
+              excludeAreaId={area?.id}
+              tipoArea={tipoSel}
+            />
             <FormField
               control={form.control}
               name="nome"

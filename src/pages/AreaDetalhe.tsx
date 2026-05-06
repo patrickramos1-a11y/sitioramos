@@ -29,6 +29,8 @@ import { OperationCard } from "@/components/operacao/OperationCard";
 import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { CycleTimeline } from "@/components/operacao/CycleTimeline";
 import { TaskList } from "@/components/operacao/TaskList";
+import { CultureTemplatePicker } from "@/components/operacao/CultureTemplatePicker";
+import { Sprout as SproutIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -72,6 +74,7 @@ export default function AreaDetalhe() {
   const [editingOp, setEditingOp] = useState<Operation | null>(null);
   const [parentIdForNewOp, setParentIdForNewOp] = useState<string | null>(null);
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
 
   const area = areas.find(a => a.id === id);
   const areaCycles = cycles.filter((c: any) => c.area_id === id);
@@ -453,8 +456,8 @@ export default function AreaDetalhe() {
                     </div>
                     <div className="flex gap-2">
                       {activeCycleId && stages.length === 0 && (
-                        <Button variant="outline" size="sm" onClick={handleGenerateTemplateStages} disabled={createFromTemplate.isPending}>
-                          <Wand2 className="h-4 w-4 mr-1" />Gerar Padrão
+                        <Button variant="outline" size="sm" onClick={() => setTemplatePickerOpen(true)}>
+                          <SproutIcon className="h-4 w-4 mr-1" />Aplicar Padrão de Cultura
                         </Button>
                       )}
                       {activeCycleId && (
@@ -537,6 +540,17 @@ export default function AreaDetalhe() {
 
       <CycleForm open={cycleFormOpen} onOpenChange={setCycleFormOpen} cycle={editingCycle} areas={areas.filter(a => a.id === id)} onSubmit={handleCycleSubmit} isSubmitting={createCycle.isPending || updateCycle.isPending} />
 
+      {activeCycleId && activeCycle && (
+        <CultureTemplatePicker
+          open={templatePickerOpen}
+          onOpenChange={setTemplatePickerOpen}
+          cycleId={activeCycleId}
+          areaId={id!}
+          talhaoId={talhaoId}
+          dataInicio={(activeCycle as any).data_inicio_plantio || new Date().toISOString().slice(0, 10)}
+          culturaSugerida={(activeCycle as any).cultura}
+        />
+      )}
       {activeCycleId && (
         <StageForm
           open={stageFormOpen}

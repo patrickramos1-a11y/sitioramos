@@ -329,6 +329,36 @@ export type Database = {
           },
         ]
       }
+      culture_cost_templates: {
+        Row: {
+          created_at: string
+          cultura: string
+          custo_estimado_por_ha: number
+          etapas: Json
+          id: string
+          observacoes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cultura: string
+          custo_estimado_por_ha?: number
+          etapas?: Json
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cultura?: string
+          custo_estimado_por_ha?: number
+          etapas?: Json
+          id?: string
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cycles: {
         Row: {
           area_id: string
