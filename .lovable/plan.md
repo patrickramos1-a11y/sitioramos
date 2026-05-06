@@ -1,69 +1,34 @@
-## Reestruturação da hierarquia e visualização da Operação
+## Padronizar tamanho das barras na timeline
 
-### Modelo conceitual
+Hoje as barras encolhem conforme o nível e o swimlane (linha de empilhamento), o que dificulta a leitura do texto dentro delas — exatamente o que aparece na imagem (a barra "Projeto da Casa de Farinha" no topo está alta, e os subprojetos abaixo vão ficando cada vez mais finos).
 
-Reduzir os níveis para apenas 3, eliminando "subdemanda":
-
-```
-Projeto
-└── Subprojeto (pode ter outros subprojetos vinculados em sequência)
-    └── Subtarefa
-```
-
-Um subprojeto pode ser vinculado a outro subprojeto. Visualmente:
-- **Recolhido**: os subprojetos vinculados aparecem na MESMA linha, em sequência horizontal (encadeados na timeline, um após o outro).
-- **Expandido**: cada subprojeto vinculado quebra para sua própria linha, mostrando as dependências verticalmente.
-
-Cada subprojeto que tenha filhos vinculados ganha um ícone de expansão (▶) para alternar entre os modos.
-
-### Exemplo (caso atual)
-
-O subprojeto "Levantamento" tem "Projeto da Casa de Farinha" e "teste" vinculados.
+A causa é uma fórmula em `GanttTimeline.tsx` que reduz a altura de cada subprojeto com base no nível e no swimlane:
 
 ```
-Recolhido:
-[Levantamento]──[Projeto Casa de Farinha]──[teste]    ← tudo em uma linha
-
-Expandido:
-[Levantamento] ▼
-   └─[Projeto Casa de Farinha]
-   └─[teste]
+baseTop  = isProject ? 5 : 9 + swimlane * 4
+baseHeight = isProject ? ROW_HEIGHT - 10
+                       : max(12, ROW_HEIGHT - 18 - swimlane * 6)
 ```
 
-### Mudanças no menu de ações
+### Mudança
 
-Renomear/reorganizar o `ProjectActionsMenu`:
-- "Adicionar dentro" → opções: **Subprojeto** e **Subtarefa** (remove "Subdemanda").
-- Manter: Marcar como concluído, Editar, Duplicar, Vincular a outro projeto/subprojeto, Excluir.
+Usar **a mesma altura de barra para todos os itens** (projeto, subprojeto, qualquer nível, qualquer swimlane), mantendo a aparência visual atual de cores/borda e o sistema de cadeia inline:
 
-### Mudanças na timeline (GanttTimeline)
+- `baseTop = 5`
+- `baseHeight = ROW_HEIGHT - 10`
 
-1. **Agrupamento por cadeia**: criar conceito de "chain" — quando um subprojeto B tem `parent_id` igual a outro subprojeto A (cadeia entre subprojetos), B é renderizado na mesma swimlane de A enquanto a cadeia estiver recolhida.
-2. **Estado de expansão por subprojeto**: hoje o expand/collapse só existe no projeto raiz. Estender para subprojetos que possuem filhos.
-3. **Renderização sequencial**: quando recolhido, ajustar o `swimlane` dos filhos diretos para coincidir com o pai e empilhá-los após o `endPrev/endReal` do antecessor (preservando ordem cronológica).
-4. **Botão expansão (▶)** ao lado do nome do subprojeto na coluna esquerda quando ele tiver filhos.
-5. **Indicador visual**: um pequeno conector horizontal (linha pontilhada) entre as barras encadeadas para reforçar que são parte da mesma cadeia.
+Com isso, todas as barras ficam do mesmo tamanho do "Projeto da Casa de Farinha".
 
-### Mudanças no banco
+### Trade-off (e como mitigamos)
 
-Nenhuma alteração de schema. O campo `parent_id` já suporta encadeamento N níveis (corrigido anteriormente). A diferença é apenas semântica/visual.
+Quando dois subprojetos do mesmo pai se sobrepõem no tempo, hoje eles ficam lado a lado verticalmente dentro da mesma linha (swimlane reduzindo a altura). Com altura fixa, a sobreposição deixaria de ter o "degrau" visual.
 
-### Migração leve dos dados existentes
+Solução: continuar **calculando o swimlane** (já existe), mas em vez de diminuir a altura, manter a altura padrão. Como cada item ocupa sua própria linha na lista (uma `row` por subprojeto), na prática só há sobreposição visual quando há cadeia inline (subprojetos vinculados encadeados na mesma linha do pai recolhido) — e nesse caso o conector pontilhado entre as barras já indica a sequência. Não há perda de informação relevante.
 
-Atualizar `nivel_tipo` dos registros existentes que estavam como `subdemanda` para `subprojeto`, para uniformizar a nomenclatura.
+### Arquivos
 
-### Arquivos a alterar
-
-- `src/components/operacao/ProjectActionsMenu.tsx` — remover "Subdemanda".
-- `src/components/operacao/OperationForm.tsx` — remover opção "subdemanda" do seletor de nível.
-- `src/components/operacao/GanttTimeline.tsx` — lógica de cadeia, swimlane compartilhada, expansão por subprojeto, conector visual.
-- `src/pages/Operacao.tsx` — remover handler `onAddSubdemand`, ajustar criação para sempre usar `subprojeto` ou `subtarefa`.
-- `src/lib/operacaoConfig.ts` — atualizar labels/nomenclatura se houver "subdemanda".
-- Migration SQL: `UPDATE operational_stages SET nivel_tipo = 'subprojeto' WHERE nivel_tipo = 'subdemanda';`
+- `src/components/operacao/GanttTimeline.tsx` — substituir o bloco de cálculo de `baseTop`/`baseHeight` (linhas ~765–769) pela versão fixa.
 
 ### Resultado esperado
 
-- Apenas 3 níveis claros: Projeto → Subprojeto → Subtarefa.
-- Subprojetos encadeados aparecem inline (mesma linha) quando recolhidos, e quebram em linhas próprias quando expandidos.
-- Cada subprojeto com filhos exibe seu próprio botão de expandir/recolher.
-- Timeline visualmente mais limpa, com leitura cronológica natural da cadeia.
+Todas as barras (projeto raiz, subprojetos de qualquer nível, cadeias inline) ficam com o mesmo tamanho confortável, com texto sempre legível.

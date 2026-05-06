@@ -763,10 +763,9 @@ export function GanttTimeline({
                   }
 
                   const isProject = item.level === 0;
-                  const baseTop = isProject ? 5 : 9 + item.swimlane * 4;
-                  const baseHeight = isProject
-                    ? ROW_HEIGHT - 10
-                    : Math.max(12, ROW_HEIGHT - 18 - item.swimlane * 6);
+                  // Tamanho uniforme para todas as barras (independente de nível/swimlane)
+                  const baseTop = 5;
+                  const baseHeight = ROW_HEIGHT - 10;
 
                   // Tarefas: linha simples sem barra (somente grid + linha de hoje)
                   if (item.type === "task") {
