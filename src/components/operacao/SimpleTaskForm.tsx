@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Task, TaskInsert } from "@/hooks/useTasks";
 import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
 
@@ -18,14 +19,20 @@ interface SimpleTaskFormProps {
 export function SimpleTaskForm({ open, onOpenChange, task, defaultStageId, onSubmit, isSubmitting }: SimpleTaskFormProps) {
   const [titulo, setTitulo] = useState("");
   const [responsavelId, setResponsavelId] = useState<string>("");
+  const [data, setData] = useState<string>("");
+  const [observacoes, setObservacoes] = useState<string>("");
 
   useEffect(() => {
     if (task) {
       setTitulo(task.titulo);
       setResponsavelId((task as any).responsavel_id || "");
+      setData(task.data_prazo || "");
+      setObservacoes(task.observacoes || "");
     } else {
       setTitulo("");
       setResponsavelId("");
+      setData("");
+      setObservacoes("");
     }
   }, [task, open]);
 
@@ -36,6 +43,8 @@ export function SimpleTaskForm({ open, onOpenChange, task, defaultStageId, onSub
       titulo: titulo.trim(),
       stage_id: task?.stage_id || defaultStageId || null,
       responsavel_id: responsavelId || null,
+      data_prazo: data || null,
+      observacoes: observacoes.trim() || null,
       tipo: task?.tipo || "operacional",
       status: task?.status || "pendente",
     });
@@ -45,8 +54,8 @@ export function SimpleTaskForm({ open, onOpenChange, task, defaultStageId, onSub
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{task ? "Editar tarefa" : "Nova tarefa"}</DialogTitle>
-          <DialogDescription>Apenas descrição e responsável. Sem prazos.</DialogDescription>
+          <DialogTitle>{task ? "Editar subtarefa" : "Nova subtarefa"}</DialogTitle>
+          <DialogDescription>Item de checklist operacional. Tudo opcional além da descrição.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -55,15 +64,30 @@ export function SimpleTaskForm({ open, onOpenChange, task, defaultStageId, onSub
               autoFocus
               value={titulo}
               onChange={e => setTitulo(e.target.value)}
-              placeholder="Ex.: Comprar mudas"
+              placeholder="Ex.: Comprar herbicida"
               required
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Data</Label>
+              <Input type="date" value={data} onChange={e => setData(e.target.value)} />
+            </div>
+            <div>
+              <ResponsavelSelect
+                label="Responsável"
+                value={responsavelId}
+                onChange={(id) => setResponsavelId(id || "")}
+              />
+            </div>
+          </div>
           <div>
-            <ResponsavelSelect
-              label="Responsável"
-              value={responsavelId}
-              onChange={(id) => setResponsavelId(id || "")}
+            <Label>Observações</Label>
+            <Textarea
+              value={observacoes}
+              onChange={e => setObservacoes(e.target.value)}
+              placeholder="Notas, links de anexos, etc."
+              rows={3}
             />
           </div>
           <div className="flex justify-end gap-2">
