@@ -310,7 +310,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   }, []);
 
   const ROW_HEIGHT = 40;
-  const LABEL_WIDTH = 240;
+  const LABEL_WIDTH = projectsCollapsed ? 40 : 240;
 
   if (operations.length === 0) {
     return (
