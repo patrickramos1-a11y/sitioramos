@@ -414,51 +414,62 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         {/* Gantt */}
         <div className="border rounded-lg overflow-hidden bg-background">
           <div className="flex">
-            {/* Painel de Camadas */}
-            <LayersPanel
-              areas={layerItems.areaItems}
-              projects={layerItems.projectItems}
-              cycles={layerItems.cycleItems}
-              responsaveis={layerItems.respItems}
-              state={layers}
-              onChange={setLayers}
-            />
-            {/* Labels */}
-            <div className="shrink-0 border-r bg-muted/30 sticky left-0 z-20" style={{ width: LABEL_WIDTH }}>
-              <div className="h-9 border-b flex items-center px-3 bg-muted/50">
-                <span className="text-xs font-semibold text-muted-foreground">Projeto / Etapa</span>
+            {/* Labels (sticky à esquerda) */}
+            <div className="shrink-0 border-r bg-muted/20 sticky left-0 z-30" style={{ width: LABEL_WIDTH }}>
+              <div className="h-10 border-b flex items-center px-3 bg-muted/40">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Projetos</span>
               </div>
-              {items.map(item => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-1 border-b hover:bg-muted/50 cursor-pointer transition-colors"
-                  style={{ height: ROW_HEIGHT, paddingLeft: 6 + item.level * 14 }}
-                  onClick={() => onItemClick?.(item.id, item.type)}
-                >
-                  {item.hasChildren && item.level === 0 ? (
-                    <button className="p-0.5" onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}>
-                      {expandedIds.has(item.id)
-                        ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </button>
-                  ) : (
-                    <span className="w-4" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-xs truncate ${item.level === 0 ? "font-semibold" : ""}`}>
-                      {item.level === 0 && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
-                      {item.name}
-                    </div>
-                    {item.responsavel && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
-                        <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel) }} />
-                        {item.responsavel}
-                      </div>
+              {items.map(item => {
+                const isProject = item.level === 0;
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-1.5 border-b cursor-pointer transition-colors ${
+                      isProject ? "bg-muted/10 hover:bg-muted/30" : "hover:bg-muted/20"
+                    }`}
+                    style={{ height: ROW_HEIGHT, paddingLeft: 6 + item.level * 16 }}
+                    onClick={() => onItemClick?.(item.id, item.type)}
+                  >
+                    {item.hasChildren && isProject ? (
+                      <button
+                        className="p-0.5 rounded hover:bg-muted transition-transform"
+                        onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
+                        aria-label={expandedIds.has(item.id) ? "Recolher" : "Expandir"}
+                      >
+                        <ChevronRight
+                          className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                            expandedIds.has(item.id) ? "rotate-90" : ""
+                          }`}
+                        />
+                      </button>
+                    ) : (
+                      <span className="w-4 inline-flex justify-center">
+                        {!isProject && <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />}
+                      </span>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className={`truncate ${
+                        isProject
+                          ? "text-sm font-semibold text-foreground"
+                          : "text-xs text-muted-foreground"
+                      }`}>
+                        {isProject && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
+                        {item.name}
+                      </div>
+                      {item.responsavel && isProject && (
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel) }} />
+                          {item.responsavel}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
+            {/* Timeline — scroll horizontal fluido */}
+            <div ref={(el) => { timelineRef.current = el; scrollRef.current = el; }} className="overflow-x-auto overflow-y-hidden flex-1 scroll-smooth">
 
             {/* Timeline — grid fixo, sem scroll horizontal */}
             <div ref={timelineRef} className="overflow-hidden flex-1">
