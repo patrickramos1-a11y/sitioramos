@@ -48,6 +48,7 @@ interface GanttItem {
   derivedStatus: string;
   rawStatus: string;
   responsavel: string | null;
+  responsavelId: string | null;
   categoria: string | null;
   dependsOnId: string | null;
   startPrev: Date | null;
@@ -156,6 +157,7 @@ export function GanttTimeline({
       derivedStatus: derived,
       rawStatus: s.status,
       responsavel: s.responsavel,
+      responsavelId: (s as any).responsavel_id || null,
       categoria: s.categoria,
       dependsOnId: s.depends_on_id,
       startPrev: s.data_inicio_prevista ? new Date(s.data_inicio_prevista) : null,
@@ -537,10 +539,16 @@ export function GanttTimeline({
                         {isProject && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
                         {item.name}
                       </div>
-                      {item.responsavel && isProject && (
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
-                          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel) }} />
-                          {item.responsavel}
+                      {(item.responsavelId || item.responsavel) && isProject && (
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {item.responsavelId ? (
+                            <ResponsavelBadge responsavelId={item.responsavelId} size="xs" />
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel!) }} />
+                              {item.responsavel}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
