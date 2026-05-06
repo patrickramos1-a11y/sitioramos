@@ -14,6 +14,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ProjectActionsMenu } from "./ProjectActionsMenu";
+import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
 // Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
