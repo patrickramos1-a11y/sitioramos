@@ -28,6 +28,8 @@ export interface Operation {
   custo_total: number | null;
   ordem: number;
   observacoes: string | null;
+  nivel_tipo?: string | null;
+  linked_project_id?: string | null;
   created_at: string;
   updated_at: string;
   // computed
@@ -58,6 +60,8 @@ export interface OperationInsert {
   progresso_percentual?: number | null;
   ordem?: number;
   observacoes?: string | null;
+  nivel_tipo?: string | null;
+  linked_project_id?: string | null;
 }
 
 interface OperationFilters {
