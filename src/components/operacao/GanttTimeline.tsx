@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ProjectActionsMenu } from "./ProjectActionsMenu";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
+import { useResponsaveis } from "@/hooks/useResponsaveis";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
 // Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
@@ -132,6 +133,7 @@ export function GanttTimeline({
   }, [operations]);
 
   // Lista de responsáveis únicos
+  const { data: responsaveisList = [] } = useResponsaveis();
   const responsaveis = useMemo(() => {
     const set = new Set<string>();
     operations.forEach(op => {
