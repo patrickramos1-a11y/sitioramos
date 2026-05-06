@@ -84,6 +84,8 @@ interface GanttTimelineProps {
   onDuplicateOperation?: (id: string) => void;
   onCompleteOperation?: (id: string) => void;
   onReopenOperation?: (id: string) => void;
+  onToggleTaskComplete?: (taskId: string, currentStatus: string) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export function GanttTimeline({
