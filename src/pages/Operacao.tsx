@@ -53,6 +53,7 @@ export default function Operacao() {
   const [opFormOpen, setOpFormOpen] = useState(false);
   const [editingOp, setEditingOp] = useState<Operation | null>(null);
   const [parentIdForNew, setParentIdForNew] = useState<string | null>(null);
+  const [defaultNivelTipo, setDefaultNivelTipo] = useState<string>("projeto");
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
@@ -135,19 +136,23 @@ export default function Operacao() {
   const openNewOperation = () => {
     setEditingOp(null);
     setParentIdForNew(null);
+    setDefaultNivelTipo("projeto");
     setFormContext({ areaId: defaultAreaId, cycleId: defaultCycleId, talhaoId: null });
     setOpFormOpen(true);
   };
 
-  const openNewSubOperation = (parentId: string) => {
+  const openNewChild = (parentId: string, nivel: "subprojeto" | "subdemanda") => {
     const parentOperation = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === parentId);
     setEditingOp(null);
     setParentIdForNew(parentId);
+    setDefaultNivelTipo(nivel);
     if (parentOperation) {
       setFormContext({ areaId: parentOperation.area_id, cycleId: parentOperation.cycle_id, talhaoId: parentOperation.talhao_id });
     }
     setOpFormOpen(true);
   };
+
+  const openNewSubOperation = (parentId: string) => openNewChild(parentId, "subprojeto");
 
   const openNewTask = (stageId: string) => {
     setEditingTask(null);
