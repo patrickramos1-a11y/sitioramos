@@ -409,9 +409,9 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
               ))}
             </div>
 
-            {/* Timeline */}
-            <div className="overflow-x-auto flex-1">
-              <div style={{ width: totalWidth, minWidth: "100%" }} className="relative">
+            {/* Timeline — grid fixo, sem scroll horizontal */}
+            <div ref={timelineRef} className="overflow-hidden flex-1">
+              <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
                 <div className="h-9 border-b flex bg-muted/20 sticky top-0 z-10">
                   {columns.map((col, i) => (
