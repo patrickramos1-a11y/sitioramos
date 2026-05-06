@@ -601,11 +601,12 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                       {/* Extensão de tempo excedido (verde escuro hachurado) */}
                       {overdueExt && (
                         <div
-                          className="absolute top-1.5 rounded-r"
+                          className="absolute rounded-r"
                           style={{
+                            top: 6 + item.swimlane * 4,
                             left: overdueExt.left,
                             width: overdueExt.width,
-                            height: ROW_HEIGHT - 12,
+                            height: Math.max(14, ROW_HEIGHT - 12 - item.swimlane * 6),
                             background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 5px, hsl(142 60% 32%) 5px, hsl(142 60% 32%) 10px)",
                           }}
                         />
@@ -617,7 +618,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                           <TooltipTrigger asChild>
                             <div
                               className={barClasses}
-                              style={{ ...barStyle, left: pos.left, width: pos.width, height: ROW_HEIGHT - 12 }}
+                              style={{ ...barStyle, top: 6 + item.swimlane * 4, left: pos.left, width: pos.width, height: Math.max(14, ROW_HEIGHT - 12 - item.swimlane * 6) }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
                               {/* Progresso interno — preenchimento com cor do responsável */}
