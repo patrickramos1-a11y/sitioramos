@@ -4,15 +4,16 @@ import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen, Link2 } from "lucide-react";
 import { addDays, addMonths, addWeeks, addYears, differenceInDays, format, startOfDay, startOfMonth, startOfWeek, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
-  computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM,
+  computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, getCategoryColor,
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProjectActionsMenu } from "./ProjectActionsMenu";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
 // Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
@@ -70,9 +71,17 @@ interface GanttTimelineProps {
   areas?: Array<{ id: string; nome: string }>;
   cycles?: Array<{ id: string; cultura?: string | null; area_id?: string | null }>;
   onItemClick?: (id: string, type: "operation" | "sub-operation" | "task") => void;
+  onAddSubproject?: (parentId: string) => void;
+  onAddSubdemand?: (parentId: string) => void;
+  onAddSubtask?: (parentId: string) => void;
+  onDeleteOperation?: (id: string) => void;
+  onDuplicateOperation?: (id: string) => void;
 }
 
-export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onItemClick }: GanttTimelineProps) {
+export function GanttTimeline({
+  operations, tasks, areas = [], cycles = [], onItemClick,
+  onAddSubproject, onAddSubdemand, onAddSubtask, onDeleteOperation, onDuplicateOperation,
+}: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
