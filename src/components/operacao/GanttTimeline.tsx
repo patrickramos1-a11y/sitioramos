@@ -330,7 +330,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
 
   return (
     <TooltipProvider>
-      <div className="space-y-3">
+      <div className="space-y-3 w-full min-w-0 max-w-full">
         {/* Filtros */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground flex items-center gap-1"><Filter className="h-3 w-3" />Filtros:</span>
@@ -412,8 +412,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         </div>
 
         {/* Gantt */}
-        <div className="border rounded-lg overflow-hidden bg-background">
-          <div className="flex">
+        <div className="border rounded-lg overflow-hidden bg-background w-full max-w-full">
+          <div className="flex w-full min-w-0">
             {/* Labels (sticky à esquerda) */}
             <div className="shrink-0 border-r bg-muted/20 sticky left-0 z-30" style={{ width: LABEL_WIDTH }}>
               <div className="h-10 border-b flex items-center px-3 bg-muted/40">
@@ -471,7 +471,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
             {/* Timeline — scroll horizontal fluido */}
             <div
               ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
-              className="overflow-x-auto overflow-y-hidden flex-1 scroll-smooth"
+              className="overflow-x-auto overflow-y-hidden flex-1 min-w-0 scroll-smooth overscroll-x-contain"
             >
               <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
