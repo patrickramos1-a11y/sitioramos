@@ -153,16 +153,18 @@ export function OperationCard({
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
-            {/* Sub-operations */}
+            {/* Subprojetos */}
             {(operation.children || []).length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                  <Layers className="h-3 w-3" />Suboperações
+                  <Layers className="h-3 w-3" />Subprojetos
                 </h4>
                 {(operation.children || []).map(sub => {
                   const subSc = statusConfig[sub.status] || statusConfig.nao_iniciada;
                   const SubIcon = subSc.icon;
                   const subTasks = tasks.filter(t => t.stage_id === sub.id);
+                  const subDone = subTasks.filter(t => t.status === "concluida").length;
+                  const subPct = subTasks.length > 0 ? Math.round((subDone / subTasks.length) * 100) : 0;
                   return (
                     <div key={sub.id} className="bg-muted/30 rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
@@ -170,10 +172,15 @@ export function OperationCard({
                           <SubIcon className={`h-3.5 w-3.5 ${subSc.color}`} />
                           <span className="text-sm font-medium truncate">{sub.nome}</span>
                           <Badge variant={subSc.badgeVariant} className="text-[10px]">{subSc.label}</Badge>
+                          {subTasks.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              ☑ {subDone}/{subTasks.length} ({subPct}%)
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onAddTask(sub.id)}>
-                            <Plus className="h-3 w-3" />
+                          <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" onClick={() => onAddTask(sub.id)}>
+                            <Plus className="h-3 w-3 mr-1" />Subtarefa
                           </Button>
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(sub)}>
                             <Pencil className="h-3 w-3" />
@@ -183,10 +190,11 @@ export function OperationCard({
                       {subTasks.length > 0 && (
                         <div className="pl-4 space-y-1">
                           {subTasks.map(task => (
-                            <TaskMiniCard
+                            <ChecklistRow
                               key={task.id}
                               task={task}
                               onEdit={() => onEditTask(task)}
+                              onDelete={() => onDeleteTask(task)}
                               onStatusChange={onTaskStatusChange}
                             />
                           ))}
@@ -198,7 +206,7 @@ export function OperationCard({
               </div>
             )}
 
-            {/* Direct tasks */}
+            {/* Subtarefas diretas no projeto */}
             {(() => {
               const directTasks = tasks.filter(t =>
                 t.stage_id === operation.id
@@ -207,13 +215,14 @@ export function OperationCard({
               return (
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                    <ListTodo className="h-3 w-3" />Tarefas
+                    <ListTodo className="h-3 w-3" />Subtarefas
                   </h4>
                   {directTasks.map(task => (
-                    <TaskMiniCard
+                    <ChecklistRow
                       key={task.id}
                       task={task}
                       onEdit={() => onEditTask(task)}
+                      onDelete={() => onDeleteTask(task)}
                       onStatusChange={onTaskStatusChange}
                     />
                   ))}
