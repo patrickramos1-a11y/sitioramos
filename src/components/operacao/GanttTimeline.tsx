@@ -4,7 +4,7 @@ import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen, Link2 } from "lucide-react";
+import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Circle, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen, Link2, Trash2 } from "lucide-react";
 import { addDays, addMonths, addWeeks, addYears, differenceInDays, format, startOfDay, startOfMonth, startOfWeek, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
