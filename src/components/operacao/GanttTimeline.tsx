@@ -334,6 +334,10 @@ export function GanttTimeline({
       result.push(opItem);
       if (expandedIds.has(op.id)) {
         result.push(...subAccum);
+        // tarefas diretamente vinculadas ao projeto raiz
+        for (const t of opDirectTasks) {
+          result.push(buildTaskItem(t, 1, op.id));
+        }
       }
     }
 
