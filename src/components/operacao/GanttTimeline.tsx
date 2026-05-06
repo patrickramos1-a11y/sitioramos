@@ -603,20 +603,22 @@ export function GanttTimeline({
                   // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
                   // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
                   let barStyle: React.CSSProperties = {};
-                  let barClasses = "absolute rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
+                  let barClasses = "absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
+
+                  // Cor da categoria (identidade visual)
+                  const catColor = getCategoryColor(item.categoria, { sat: 60, light: 45 });
+                  const catGlow = getCategoryColor(item.categoria, { sat: 70, light: 50, alpha: 0.35 });
 
                   if (status === "concluida") {
-                    barStyle = { backgroundColor: "hsl(142 60% 38%)", color: "white" };
+                    barStyle = { backgroundColor: catColor, color: "white", boxShadow: `0 0 0 1.5px ${catColor}, 0 0 8px ${catGlow}` };
                   } else if (status === "em_andamento" || status === "atrasada") {
-                    // base: verde claro outline + barra de progresso interna preenchida com cor do responsável
-                    barStyle = { backgroundColor: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)", color: "hsl(142 60% 25%)" };
+                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${catColor}`, color: getCategoryColor(item.categoria, { light: 25 }), boxShadow: `0 0 6px ${catGlow}` };
                   } else if (status === "travada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", border: "2px dashed hsl(var(--muted-foreground))", color: "hsl(var(--muted-foreground))" };
                   } else if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
                   } else {
-                    // planejada / futura
-                    barStyle = { backgroundColor: "hsl(142 40% 95%)", border: `1.5px dashed hsl(142 40% 65%)`, color: "hsl(142 50% 35%)" };
+                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(item.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(item.categoria, { light: 35 }) };
                   }
 
                   const isProject = item.level === 0;
