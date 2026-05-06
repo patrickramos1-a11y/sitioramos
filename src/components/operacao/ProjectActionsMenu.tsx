@@ -3,7 +3,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, FolderPlus, ListPlus, CheckSquare, Pencil, Trash2, Link2, Copy } from "lucide-react";
+import { MoreVertical, FolderPlus, ListPlus, CheckSquare, Pencil, Trash2, Link2, Copy, CheckCircle2, RotateCcw } from "lucide-react";
 
 export interface ProjectActions {
   onAddSubproject?: () => void;
@@ -13,6 +13,9 @@ export interface ProjectActions {
   onDelete?: () => void;
   onLink?: () => void;
   onDuplicate?: () => void;
+  onComplete?: () => void;
+  onReopen?: () => void;
+  isCompleted?: boolean;
 }
 
 interface Props extends ProjectActions {
@@ -22,7 +25,8 @@ interface Props extends ProjectActions {
 
 export function ProjectActionsMenu({
   onAddSubproject, onAddSubdemand, onAddSubtask, onEdit,
-  onDelete, onLink, onDuplicate, level, variant = "icon",
+  onDelete, onLink, onDuplicate, onComplete, onReopen, isCompleted,
+  level, variant = "icon",
 }: Props) {
   return (
     <DropdownMenu>
