@@ -111,7 +111,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     return Array.from(set);
   }, [operations]);
 
-  const buildItem = (s: Operation, level: number, parentId?: string, type: GanttItem["type"] = "sub-operation"): GanttItem => {
+  const buildItem = (s: Operation, level: number, rootProjectId: string, parentId?: string, type: GanttItem["type"] = "sub-operation"): GanttItem => {
     const dependencyConcluded = s.depends_on_id ? (concludedMap.get(s.depends_on_id) || false) : true;
     const derived = deriveStageStatus({
       status: s.status,
@@ -144,6 +144,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         data_fim_real: s.data_fim_real,
         duracao_prevista_dias: s.duracao_prevista_dias,
       }),
+      areaId: s.area_id ?? null,
+      cycleId: s.cycle_id ?? null,
+      rootProjectId,
+      permiteSimultaneidade: !!(s as any).permite_simultaneidade,
+      swimlane: 0,
     };
   };
 
