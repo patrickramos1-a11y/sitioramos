@@ -557,7 +557,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                   // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
                   // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
                   let barStyle: React.CSSProperties = {};
-                  let barClasses = "absolute top-1.5 rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
+                  let barClasses = "absolute rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
 
                   if (status === "concluida") {
                     barStyle = { backgroundColor: "hsl(142 60% 38%)", color: "white" };
