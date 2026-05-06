@@ -135,6 +135,7 @@ export function AreaForm({ open, onOpenChange, area, talhaoId, onSubmit, isSubmi
               excludeAreaId={area?.id}
               tipoArea={tipoSel}
             />
+            <FormField
               control={form.control}
               name="nome"
               render={({ field }) => (
