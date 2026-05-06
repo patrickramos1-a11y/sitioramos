@@ -527,8 +527,14 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                     barStyle = { backgroundColor: "hsl(142 40% 95%)", border: `1.5px dashed hsl(142 40% 65%)`, color: "hsl(142 50% 35%)" };
                   }
 
+                  const isProject = item.level === 0;
+                  const baseTop = isProject ? 5 : 9 + item.swimlane * 4;
+                  const baseHeight = isProject
+                    ? ROW_HEIGHT - 10
+                    : Math.max(12, ROW_HEIGHT - 18 - item.swimlane * 6);
+
                   return (
-                    <div key={item.id} className="relative border-b" style={{ height: ROW_HEIGHT }}>
+                    <div key={item.id} className={`relative border-b ${isProject ? "bg-muted/5" : ""}`} style={{ height: ROW_HEIGHT }}>
                       {/* Grid */}
                       {columns.map((_, i) => (
                         <div key={i} className="absolute top-0 bottom-0 border-r border-dashed border-muted/30" style={{ left: i * colWidth, width: colWidth }} />
