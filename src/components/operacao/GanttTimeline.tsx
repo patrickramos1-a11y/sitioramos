@@ -515,10 +515,10 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
               })}
             </div>
 
-            {/* Timeline — colunas se ajustam à largura disponível (sem scroll horizontal) */}
+            {/* Timeline — scroll horizontal interno apenas nesta área */}
             <div
               ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
-              className="overflow-hidden flex-1 min-w-0"
+              className="overflow-x-auto overflow-y-hidden flex-1 min-w-0"
             >
               <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
