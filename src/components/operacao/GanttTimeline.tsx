@@ -91,7 +91,7 @@ interface GanttTimelineProps {
 export function GanttTimeline({
   operations, tasks, areas = [], cycles = [], onItemClick,
   onAddSubproject, onAddSubtask, onDeleteOperation, onDuplicateOperation,
-  onCompleteOperation, onReopenOperation,
+  onCompleteOperation, onReopenOperation, onToggleTaskComplete, onDeleteTask,
 }: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
