@@ -189,12 +189,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
       });
       byArea.forEach(groupChildren => {
         const lanes: Array<Date | null> = [];
-        // ⚠️ Cópia para não mutar a ordem original (preserva ordem do banco mesmo após conclusão)
-        const ordered = [...groupChildren].sort((a, b) => {
-          const sa = (a.startReal || a.startPrev)?.getTime() ?? 0;
-          const sb = (b.startReal || b.startPrev)?.getTime() ?? 0;
-          return sa - sb;
-        });
+        // ⚠️ Preserva ordem original do banco — mesmo concluídas mantêm sua linha
+        const ordered = groupChildren;
         for (const child of ordered) {
           const start = child.startReal || child.startPrev;
           const end = child.endReal || child.endPrev;
