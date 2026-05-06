@@ -232,12 +232,45 @@ export function GanttTimeline({
         return out;
       };
 
+      const buildTaskItem = (t: Task, level: number, parentStageId: string): GanttItem => {
+        const isDone = t.status === "concluida";
+        return {
+          id: t.id,
+          name: t.titulo,
+          level,
+          derivedStatus: isDone ? "concluida" : "nao_iniciada",
+          rawStatus: t.status,
+          responsavel: t.responsavel,
+          responsavelId: (t as any).responsavel_id || null,
+          categoria: opItem.categoria,
+          dependsOnId: null,
+          startPrev: null,
+          endPrev: null,
+          startReal: null,
+          endReal: null,
+          parentId: parentStageId,
+          type: "task",
+          hasChildren: false,
+          metrics: computeStageMetrics({
+            data_inicio_prevista: null, data_inicio_real: null,
+            data_fim_prevista: null, data_fim_real: null, duracao_prevista_dias: null,
+          }),
+          areaId: t.area_id,
+          cycleId: t.cycle_id,
+          rootProjectId: op.id,
+          permiteSimultaneidade: false,
+          swimlane: 0,
+        };
+      };
+
       const walk = (parentId: string, level: number, accum: GanttItem[]) => {
         const directs = childrenByParent.get(parentId) || [];
         for (const d of directs) {
           const item = buildItem(d, level, op.id, parentId, "sub-operation");
           if (!item.categoria) item.categoria = opItem.categoria;
-          item.hasChildren = (childrenByParent.get(d.id)?.length ?? 0) > 0;
+          const childStages = childrenByParent.get(d.id)?.length ?? 0;
+          const childTasks = tasks.filter(t => t.stage_id === d.id);
+          item.hasChildren = childStages > 0 || childTasks.length > 0;
 
           if (item.hasChildren && !expandedIds.has(d.id)) {
             // Recolhido: anexa descendentes como cadeia inline (mesma linha)
@@ -249,6 +282,10 @@ export function GanttTimeline({
 
           if (item.hasChildren && expandedIds.has(d.id)) {
             walk(d.id, level + 1, accum);
+            // Adiciona tarefas vinculadas a este subprojeto
+            for (const t of childTasks) {
+              accum.push(buildTaskItem(t, level + 1, d.id));
+            }
           }
         }
       };
