@@ -157,7 +157,7 @@ export default function Operacao() {
     setOpFormOpen(true);
   };
 
-  const openNewChild = (parentId: string, nivel: "subprojeto" | "subdemanda") => {
+  const openNewChild = (parentId: string, nivel: "subprojeto") => {
     const parentOperation = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === parentId);
     setEditingOp(null);
     setParentIdForNew(parentId);
