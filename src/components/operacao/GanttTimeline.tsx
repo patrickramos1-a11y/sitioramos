@@ -544,6 +544,17 @@ export function GanttTimeline({
                         </div>
                       )}
                     </div>
+                    {(onAddSubproject || onAddSubdemand || onAddSubtask || onDeleteOperation) && (
+                      <ProjectActionsMenu
+                        level={item.level}
+                        onAddSubproject={isProject && onAddSubproject ? () => onAddSubproject(item.id) : undefined}
+                        onAddSubdemand={onAddSubdemand ? () => onAddSubdemand(item.id) : undefined}
+                        onAddSubtask={onAddSubtask ? () => onAddSubtask(item.id) : undefined}
+                        onEdit={() => onItemClick?.(item.id, item.type)}
+                        onDuplicate={isProject && onDuplicateOperation ? () => onDuplicateOperation(item.id) : undefined}
+                        onDelete={onDeleteOperation ? () => onDeleteOperation(item.id) : undefined}
+                      />
+                    )}
                   </div>
                 );
               })}
