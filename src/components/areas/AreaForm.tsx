@@ -130,7 +130,11 @@ export function AreaForm({ open, onOpenChange, area, talhaoId, onSubmit, isSubmi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
+            <EnvironmentalLimitGuard
+              novaAreaHectares={Number(tamanhoHa) || 0}
+              excludeAreaId={area?.id}
+              tipoArea={tipoSel}
+            />
               control={form.control}
               name="nome"
               render={({ field }) => (
