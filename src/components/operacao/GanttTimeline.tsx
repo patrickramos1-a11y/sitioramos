@@ -4,7 +4,7 @@ import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen, Link2 } from "lucide-react";
+import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Circle, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen, Link2, Trash2 } from "lucide-react";
 import { addDays, addMonths, addWeeks, addYears, differenceInDays, format, startOfDay, startOfMonth, startOfWeek, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -84,12 +84,14 @@ interface GanttTimelineProps {
   onDuplicateOperation?: (id: string) => void;
   onCompleteOperation?: (id: string) => void;
   onReopenOperation?: (id: string) => void;
+  onToggleTaskComplete?: (taskId: string, currentStatus: string) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export function GanttTimeline({
   operations, tasks, areas = [], cycles = [], onItemClick,
   onAddSubproject, onAddSubtask, onDeleteOperation, onDuplicateOperation,
-  onCompleteOperation, onReopenOperation,
+  onCompleteOperation, onReopenOperation, onToggleTaskComplete, onDeleteTask,
 }: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -215,6 +217,8 @@ export function GanttTimeline({
       }
 
       const opItem = buildItem(op, 0, op.id, undefined, "operation");
+      const opDirectTasks = tasks.filter(t => t.stage_id === op.id);
+      opItem.hasChildren = opItem.hasChildren || opDirectTasks.length > 0;
 
       // Walk recursivo: respeita expandedIds. Quando recolhido, descendentes
       // viram barras inline na mesma linha do pai.
@@ -230,12 +234,45 @@ export function GanttTimeline({
         return out;
       };
 
+      const buildTaskItem = (t: Task, level: number, parentStageId: string): GanttItem => {
+        const isDone = t.status === "concluida";
+        return {
+          id: t.id,
+          name: t.titulo,
+          level,
+          derivedStatus: isDone ? "concluida" : "nao_iniciada",
+          rawStatus: t.status,
+          responsavel: t.responsavel,
+          responsavelId: (t as any).responsavel_id || null,
+          categoria: opItem.categoria,
+          dependsOnId: null,
+          startPrev: null,
+          endPrev: null,
+          startReal: null,
+          endReal: null,
+          parentId: parentStageId,
+          type: "task",
+          hasChildren: false,
+          metrics: computeStageMetrics({
+            data_inicio_prevista: null, data_inicio_real: null,
+            data_fim_prevista: null, data_fim_real: null, duracao_prevista_dias: null,
+          }),
+          areaId: t.area_id,
+          cycleId: t.cycle_id,
+          rootProjectId: op.id,
+          permiteSimultaneidade: false,
+          swimlane: 0,
+        };
+      };
+
       const walk = (parentId: string, level: number, accum: GanttItem[]) => {
         const directs = childrenByParent.get(parentId) || [];
         for (const d of directs) {
           const item = buildItem(d, level, op.id, parentId, "sub-operation");
           if (!item.categoria) item.categoria = opItem.categoria;
-          item.hasChildren = (childrenByParent.get(d.id)?.length ?? 0) > 0;
+          const childStages = childrenByParent.get(d.id)?.length ?? 0;
+          const childTasks = tasks.filter(t => t.stage_id === d.id);
+          item.hasChildren = childStages > 0 || childTasks.length > 0;
 
           if (item.hasChildren && !expandedIds.has(d.id)) {
             // Recolhido: anexa descendentes como cadeia inline (mesma linha)
@@ -247,6 +284,10 @@ export function GanttTimeline({
 
           if (item.hasChildren && expandedIds.has(d.id)) {
             walk(d.id, level + 1, accum);
+            // Adiciona tarefas vinculadas a este subprojeto
+            for (const t of childTasks) {
+              accum.push(buildTaskItem(t, level + 1, d.id));
+            }
           }
         }
       };
@@ -293,6 +334,10 @@ export function GanttTimeline({
       result.push(opItem);
       if (expandedIds.has(op.id)) {
         result.push(...subAccum);
+        // tarefas diretamente vinculadas ao projeto raiz
+        for (const t of opDirectTasks) {
+          result.push(buildTaskItem(t, 1, op.id));
+        }
       }
     }
 
@@ -560,6 +605,8 @@ export function GanttTimeline({
                     </div>
                   );
                 }
+                const isTask = item.type === "task";
+                const isDoneTask = isTask && item.derivedStatus === "concluida";
                 return (
                   <div
                     key={item.id}
@@ -571,9 +618,20 @@ export function GanttTimeline({
                       paddingLeft: 6 + item.level * 16,
                       borderLeft: `3px solid ${getProjectColor(item.rootProjectId)}`,
                     }}
-                    onClick={() => onItemClick?.(item.id, item.type)}
+                    onClick={() => !isTask && onItemClick?.(item.id, item.type)}
                   >
-                    {item.hasChildren ? (
+                    {isTask ? (
+                      <button
+                        className="p-0.5 rounded hover:bg-muted"
+                        onClick={e => { e.stopPropagation(); onToggleTaskComplete?.(item.id, item.rawStatus); }}
+                        aria-label={isDoneTask ? "Reabrir tarefa" : "Concluir tarefa"}
+                        title={isDoneTask ? "Reabrir tarefa" : "Concluir tarefa"}
+                      >
+                        {isDoneTask
+                          ? <CheckCircle2 className="h-4 w-4 text-success" />
+                          : <Circle className="h-4 w-4 text-muted-foreground" />}
+                      </button>
+                    ) : item.hasChildren ? (
                       <button
                         className="p-0.5 rounded hover:bg-muted transition-transform"
                         onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
@@ -590,16 +648,18 @@ export function GanttTimeline({
                         {!isProject && <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />}
                       </span>
                     )}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0" onClick={(e) => { if (isTask) { e.stopPropagation(); onItemClick?.(item.id, item.type); } }}>
                       <div className={`truncate ${
                         isProject
                           ? "text-sm font-semibold text-foreground"
-                          : "text-xs text-muted-foreground"
+                          : isTask
+                            ? `text-xs ${isDoneTask ? "text-muted-foreground line-through" : "text-foreground"}`
+                            : "text-xs text-muted-foreground"
                       }`}>
                         {isProject && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
                         {item.name}
                       </div>
-                      {(item.responsavelId || item.responsavel) && isProject && (
+                      {(item.responsavelId || item.responsavel) && (isProject || isTask) && (
                         <div className="text-[10px] text-muted-foreground truncate">
                           {item.responsavelId ? (
                             <ResponsavelBadge responsavelId={item.responsavelId} size="xs" />
@@ -612,7 +672,18 @@ export function GanttTimeline({
                         </div>
                       )}
                     </div>
-                    {(onAddSubproject || onAddSubtask || onDeleteOperation || onCompleteOperation) && (
+                    {isTask ? (
+                      onDeleteTask && (
+                        <button
+                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={e => { e.stopPropagation(); onDeleteTask(item.id); }}
+                          title="Excluir tarefa"
+                          aria-label="Excluir tarefa"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )
+                    ) : (onAddSubproject || onAddSubtask || onDeleteOperation || onCompleteOperation) && (
                       <ProjectActionsMenu
                         level={item.level}
                         isCompleted={item.derivedStatus === "concluida"}
@@ -696,6 +767,24 @@ export function GanttTimeline({
                   const baseHeight = isProject
                     ? ROW_HEIGHT - 10
                     : Math.max(12, ROW_HEIGHT - 18 - item.swimlane * 6);
+
+                  // Tarefas: linha simples sem barra (somente grid + linha de hoje)
+                  if (item.type === "task") {
+                    return (
+                      <div key={item.id} className="relative border-b bg-muted/5" style={{ height: ROW_HEIGHT }}>
+                        {columns.map((_, i) => (
+                          <div key={i} className="absolute top-0 bottom-0 border-r border-dashed border-muted/30" style={{ left: i * colWidth, width: colWidth }} />
+                        ))}
+                        {(() => {
+                          const todayPx = dayToPx(today);
+                          if (todayPx > 0 && todayPx < totalWidth) {
+                            return <div className="absolute top-0 bottom-0 w-[2px] bg-destructive/80 z-10 pointer-events-none" style={{ left: todayPx }} />;
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    );
+                  }
 
                   return (
                     <div key={item.id} className={`relative border-b ${isProject ? "bg-muted/5" : ""}`} style={{ height: ROW_HEIGHT }}>

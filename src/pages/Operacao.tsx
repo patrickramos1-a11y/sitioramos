@@ -16,7 +16,7 @@ import { useCycles } from "@/hooks/useCycles";
 import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { OperationForm } from "@/components/operacao/OperationForm";
 import { OperationCard } from "@/components/operacao/OperationCard";
-import { TaskForm } from "@/components/operacao/TaskForm";
+import { SimpleTaskForm } from "@/components/operacao/SimpleTaskForm";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
@@ -309,6 +309,11 @@ export default function Operacao() {
                   onDuplicateOperation={(id) => duplicateOperation.mutate(id)}
                   onCompleteOperation={handleCompleteOperation}
                   onReopenOperation={handleReopenOperation}
+                  onToggleTaskComplete={(id, status) => {
+                    const t = allTasks.find(x => x.id === id);
+                    if (t) handleTaskStatusChange(t, status === "concluida" ? "pendente" : "concluida");
+                  }}
+                  onDeleteTask={(id) => { setDeleteTarget({ type: "task", id }); setDeleteDialogOpen(true); }}
                 />
               </CardContent>
             </Card>
@@ -389,13 +394,12 @@ export default function Operacao() {
           />
         );
       })()}
-      {/* Task Form */}
-      <TaskForm
+      {/* Task Form (simples: descrição + responsável) */}
+      <SimpleTaskForm
         open={taskFormOpen}
         onOpenChange={(v) => { setTaskFormOpen(v); if (!v) setEditingTask(null); }}
         task={editingTask}
-        stages={stages}
-        defaultValues={{ stage_id: taskDefaultStageId || undefined, area_id: defaultAreaId || undefined, cycle_id: defaultCycleId || undefined }}
+        defaultStageId={taskDefaultStageId}
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
