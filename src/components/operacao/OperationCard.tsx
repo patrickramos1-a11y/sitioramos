@@ -15,6 +15,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getCategoryEmoji, getCategoryLabel, getResponsavelColor } from "@/lib/operacaoConfig";
+import { OperationCostBlock } from "./OperationCostBlock";
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeVariant: "default" | "secondary" | "outline" | "destructive" }> = {
   planejada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
@@ -219,6 +220,13 @@ export function OperationCard({
                 </div>
               );
             })()}
+
+            {/* Custos vinculados */}
+            <OperationCostBlock
+              operationId={operation.id}
+              subOperationIds={subIds}
+              relatedTasks={allRelatedTasks}
+            />
 
             {/* Actions */}
             <div className="flex gap-2 pt-1">

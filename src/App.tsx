@@ -13,6 +13,7 @@ import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
 import Propriedade from "./pages/Propriedade";
 import Operacao from "./pages/Operacao";
+import Lancamentos from "./pages/Lancamentos";
 import Contatos from "./pages/Contatos";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/talhoes/:id" element={<TalhaoDetalhe />} />
             <Route path="/emprestimos" element={<Emprestimos />} />
             <Route path="/operacao" element={<Operacao />} />
+            <Route path="/lancamentos" element={<Lancamentos />} />
             <Route path="/contatos" element={<Contatos />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
