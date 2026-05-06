@@ -372,7 +372,19 @@ export default function Operacao() {
             areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
             cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
             siblingStages={siblings}
-            allProjects={rawOperations.flatMap(o => [{ id: o.id, nome: o.nome }, ...(o.children || []).map(c => ({ id: c.id, nome: `${o.nome} › ${c.nome}` }))])}
+            allProjects={(() => {
+              // Mapa global id→{nome, parent_id} para construir caminho hierárquico completo
+              const all = rawOperations.flatMap(o => [o, ...((o.children || []) as any[])]);
+              const byId = new Map(all.map(s => [s.id, s] as const));
+              const pathOf = (id: string): string => {
+                const node = byId.get(id);
+                if (!node) return "";
+                return node.parent_id && byId.has(node.parent_id)
+                  ? `${pathOf(node.parent_id)} › ${node.nome}`
+                  : node.nome;
+              };
+              return all.map(s => ({ id: s.id, nome: pathOf(s.id) }));
+            })()}
             onSubmit={handleOpSubmit}
             isSubmitting={createOperation.isPending || updateOperation.isPending}
           />
