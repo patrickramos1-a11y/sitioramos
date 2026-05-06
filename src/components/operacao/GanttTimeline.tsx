@@ -14,6 +14,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
+// Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
+const PROJECT_PALETTE = [
+  "hsl(142 60% 35%)", // verde folha
+  "hsl(43 90% 45%)",  // amarelo sol
+  "hsl(20 65% 45%)",  // terra
+  "hsl(180 45% 35%)", // verde água
+  "hsl(280 35% 45%)", // ameixa
+  "hsl(95 45% 38%)",  // oliva
+  "hsl(15 70% 50%)",  // tijolo
+  "hsl(210 50% 40%)", // azul sereno
+];
+const getProjectColor = (projectId: string) => {
+  let h = 0;
+  for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
+  return PROJECT_PALETTE[h % PROJECT_PALETTE.length];
+};
+
 // Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
 const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
   day:   { columns: 60,  minColWidth: 56, label: "Dia",    shortLabel: "D" },
