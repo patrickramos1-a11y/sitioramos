@@ -919,6 +919,24 @@ export function GanttTimeline({
                                   </span>
                                 );
                               })()}
+                              {/* Chip de checklist (subtarefas) */}
+                              {pos.width > 110 && (() => {
+                                const cl = checklistProgressByStage.get(item.id);
+                                if (!cl || cl.total === 0) return null;
+                                const chipBg = isProject || status === "concluida"
+                                  ? "rgba(255,255,255,0.22)"
+                                  : projectColor(item.rootProjectId, { a: 0.15, l: 35 });
+                                const chipColor = isProject || status === "concluida" ? "white" : dark;
+                                return (
+                                  <span
+                                    className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
+                                    style={{ backgroundColor: chipBg, color: chipColor }}
+                                    title={`${cl.done} de ${cl.total} subtarefas concluídas`}
+                                  >
+                                    ☑ {cl.done}/{cl.total}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-xs space-y-1">
