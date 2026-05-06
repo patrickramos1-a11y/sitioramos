@@ -12,16 +12,14 @@ import {
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LayersPanel, LayersState, LayerItem } from "./LayersPanel";
-import { ArrowLeftRight } from "lucide-react";
-
 type ZoomLevel = "day" | "week" | "month" | "year";
 
-const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; label: string; shortLabel: string }> = {
-  day:   { columns: 14, label: "Dia",    shortLabel: "D" },
-  week:  { columns: 14, label: "Semana", shortLabel: "S" },
-  month: { columns: 14, label: "Mês",    shortLabel: "M" },
-  year:  { columns: 5,  label: "Ano",    shortLabel: "A" },
+// Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
+const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
+  day:   { columns: 60,  minColWidth: 56, label: "Dia",    shortLabel: "D" },
+  week:  { columns: 36,  minColWidth: 70, label: "Semana", shortLabel: "S" },
+  month: { columns: 24,  minColWidth: 90, label: "Mês",    shortLabel: "M" },
+  year:  { columns: 10,  minColWidth: 140, label: "Ano",    shortLabel: "A" },
 };
 
 interface GanttItem {
@@ -65,9 +63,13 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [onlyDeps, setOnlyDeps] = useState(false);
   // Data âncora = início da janela visível
-  const [anchorDate, setAnchorDate] = useState<Date>(() => startOfDay(addDays(new Date(), -3)));
+  const [anchorDate, setAnchorDate] = useState<Date>(() => {
+    const now = startOfDay(new Date());
+    return startOfMonth(addMonths(now, -6));
+  });
   // Largura disponível para a faixa do timeline (medida)
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(800);
 
   useEffect(() => {
@@ -79,9 +81,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    setExpandedIds(new Set(operations.map(o => o.id)));
-  }, [operations.length]);
+  // Projetos colapsados por padrão (não auto-expande)
+  // Estado de expansão preservado entre renders
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -152,15 +153,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     };
   };
 
-  // Estado de Camadas (Layers)
-  const [layers, setLayers] = useState<LayersState>({
-    hiddenAreas: new Set(),
-    hiddenProjects: new Set(),
-    hiddenCycles: new Set(),
-    hiddenResponsaveis: new Set(),
-  });
-
-  // Lista plana visível com filtros + camadas + swimlanes para simultaneidade
+  // Lista plana visível com filtros + swimlanes para simultaneidade
   const items = useMemo(() => {
     const result: GanttItem[] = [];
 
@@ -170,33 +163,23 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
       if (filterCategoria !== "all" && it.categoria !== filterCategoria) return false;
       if (onlyOverdue && it.derivedStatus !== "atrasada") return false;
       if (onlyDeps && !it.dependsOnId) return false;
-      // Camadas
-      if (it.areaId && layers.hiddenAreas.has(it.areaId)) return false;
-      if (layers.hiddenProjects.has(it.rootProjectId)) return false;
-      if (it.cycleId && layers.hiddenCycles.has(it.cycleId)) return false;
-      if (it.responsavel && layers.hiddenResponsaveis.has(it.responsavel)) return false;
       return true;
     };
 
     for (const op of operations) {
       const opItem = buildItem(op, 0, op.id, undefined, "operation");
 
-      // Construir sub-items
       const childItems: GanttItem[] = [];
       for (const sub of (op.children || [])) {
         childItems.push(buildItem(sub, 1, op.id, op.id, "sub-operation"));
       }
-
-      // Categoria do projeto herdada para etapas sem categoria
       childItems.forEach(c => { if (!c.categoria) c.categoria = opItem.categoria; });
 
-      // Filtragem: mostrar projeto se ele OU algum filho passa
       const filteredChildren = childItems.filter(passesFilter);
       const opPasses = passesFilter(opItem);
       if (!opPasses && filteredChildren.length === 0) continue;
 
-      // Swimlanes: detectar sobreposição temporal entre filhos da mesma área
-      // (etapas que se sobrepõem no tempo no mesmo grupo recebem swimlanes diferentes)
+      // Swimlanes apenas se expandido
       const byArea = new Map<string, GanttItem[]>();
       filteredChildren.forEach(c => {
         const key = c.areaId || "__noarea__";
@@ -204,9 +187,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         byArea.get(key)!.push(c);
       });
       byArea.forEach(groupChildren => {
-        // Para cada grupo, atribuir swimlane evitando overlap
-        const lanes: Array<Date | null> = []; // último fim por lane
-        // ordenar por start
+        const lanes: Array<Date | null> = [];
         groupChildren.sort((a, b) => {
           const sa = (a.startReal || a.startPrev)?.getTime() ?? 0;
           const sb = (b.startReal || b.startPrev)?.getTime() ?? 0;
@@ -238,49 +219,13 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     }
 
     return result;
-  }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap, layers]);
-
-  // Itens para o painel de camadas
-  const layerItems = useMemo(() => {
-    const areaCount = new Map<string, number>();
-    const projectCount = new Map<string, { name: string; count: number; cat: string | null }>();
-    const cycleCount = new Map<string, number>();
-    const respCount = new Map<string, number>();
-
-    operations.forEach(op => {
-      const all = [op, ...(op.children || [])];
-      projectCount.set(op.id, { name: op.nome, count: all.length, cat: op.categoria });
-      all.forEach(s => {
-        if (s.area_id) areaCount.set(s.area_id, (areaCount.get(s.area_id) || 0) + 1);
-        if (s.cycle_id) cycleCount.set(s.cycle_id, (cycleCount.get(s.cycle_id) || 0) + 1);
-        if (s.responsavel) respCount.set(s.responsavel, (respCount.get(s.responsavel) || 0) + 1);
-      });
-    });
-
-    const areaItems: LayerItem[] = Array.from(areaCount.entries()).map(([id, count]) => ({
-      id,
-      label: areas.find(a => a.id === id)?.nome || "Área",
-      count,
-      color: "hsl(142 55% 45%)",
-    }));
-    const projectItems: LayerItem[] = Array.from(projectCount.entries()).map(([id, v]) => ({
-      id, label: v.name, count: v.count, color: "hsl(35 60% 50%)",
-    }));
-    const cycleItems: LayerItem[] = Array.from(cycleCount.entries()).map(([id, count]) => {
-      const c = cycles.find(x => x.id === id);
-      return { id, label: c?.cultura || "Ciclo", count, color: "hsl(85 50% 45%)" };
-    });
-    const respItems: LayerItem[] = Array.from(respCount.entries()).map(([name, count]) => ({
-      id: name, label: name, count, color: getResponsavelColor(name),
-    }));
-    return { areaItems, projectItems, cycleItems, respItems };
-  }, [operations, areas, cycles]);
+  }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
 
 
-  // Janela: grid fixo de N colunas que preenche a largura disponível.
+  // Janela: largura fixa por coluna; total cresce com nº de colunas e gera scroll horizontal
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
     const cfg = ZOOM_CONFIG[zoom];
-    const cw = Math.max(40, Math.floor(availableWidth / cfg.columns));
+    const cw = cfg.minColWidth;
     let start: Date;
     let cols: { label: string; date: Date }[] = [];
     let end: Date;
@@ -317,7 +262,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     }
 
     return { timelineStart: start, timelineEnd: end, columns: cols, colWidth: cw };
-  }, [anchorDate, zoom, availableWidth]);
+  }, [anchorDate, zoom]);
 
   const totalWidth = columns.length * colWidth;
   const totalDays = Math.max(1, differenceInDays(timelineEnd, timelineStart));
@@ -329,41 +274,38 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     const actualEnd = end || addDays(start, 1);
     const left = dayToPx(start);
     const width = dayToPx(actualEnd) - left;
-    // Permitir sair da janela visível (clipped pelo overflow do container)
     return { left, width: Math.max(8, width) };
   };
 
-  // Navegação por janela inteira
+  // Navegação por 1 unidade (dia, semana, mês ou ano)
   const shiftWindow = (direction: 1 | -1) => {
-    setAnchorDate(d => {
-      const cfg = ZOOM_CONFIG[zoom];
-      switch (zoom) {
-        case "day":   return addDays(d, cfg.columns * direction);
-        case "week":  return addWeeks(d, cfg.columns * direction);
-        case "month": return addMonths(d, cfg.columns * direction);
-        case "year":  return addYears(d, cfg.columns * direction);
-      }
-    });
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: colWidth * direction, behavior: "smooth" });
   };
 
-  const goToday = () => {
-    const now = startOfDay(new Date());
-    switch (zoom) {
-      case "day":   setAnchorDate(addDays(now, -3)); break;
-      case "week":  setAnchorDate(startOfWeek(addWeeks(now, -3), { weekStartsOn: 1 })); break;
-      case "month": setAnchorDate(startOfMonth(addMonths(now, -3))); break;
-      case "year":  setAnchorDate(startOfYear(addYears(now, -1))); break;
-    }
+  // Centralizar hoje no viewport
+  const centerOnToday = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const todayPx = dayToPx(startOfDay(new Date()));
+    const target = Math.max(0, todayPx - el.clientWidth / 2);
+    el.scrollTo({ left: target, behavior: "smooth" });
   };
+
+  // Centraliza no Hoje quando muda zoom ou monta
+  useEffect(() => {
+    const id = requestAnimationFrame(() => centerOnToday());
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom, totalWidth]);
+
+  const goToday = () => centerOnToday();
 
   const anchorLabel = useMemo(() => {
-    switch (zoom) {
-      case "day":   return `${format(timelineStart, "dd/MM/yy", { locale: ptBR })} → ${format(addDays(timelineEnd, -1), "dd/MM/yy", { locale: ptBR })}`;
-      case "week":  return `${format(timelineStart, "dd MMM", { locale: ptBR })} → ${format(addDays(timelineEnd, -1), "dd MMM yy", { locale: ptBR })}`;
-      case "month": return `${format(timelineStart, "MMM yy", { locale: ptBR })} → ${format(addMonths(timelineStart, ZOOM_CONFIG.month.columns - 1), "MMM yy", { locale: ptBR })}`;
-      case "year":  return `${format(timelineStart, "yyyy")} → ${format(addYears(timelineStart, ZOOM_CONFIG.year.columns - 1), "yyyy")}`;
-    }
-  }, [timelineStart, timelineEnd, zoom]);
+    const today = new Date();
+    return format(today, "dd MMM yyyy", { locale: ptBR });
+  }, []);
 
   const ROW_HEIGHT = 40;
   const LABEL_WIDTH = 240;
@@ -472,63 +414,75 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         {/* Gantt */}
         <div className="border rounded-lg overflow-hidden bg-background">
           <div className="flex">
-            {/* Painel de Camadas */}
-            <LayersPanel
-              areas={layerItems.areaItems}
-              projects={layerItems.projectItems}
-              cycles={layerItems.cycleItems}
-              responsaveis={layerItems.respItems}
-              state={layers}
-              onChange={setLayers}
-            />
-            {/* Labels */}
-            <div className="shrink-0 border-r bg-muted/30 sticky left-0 z-20" style={{ width: LABEL_WIDTH }}>
-              <div className="h-9 border-b flex items-center px-3 bg-muted/50">
-                <span className="text-xs font-semibold text-muted-foreground">Projeto / Etapa</span>
+            {/* Labels (sticky à esquerda) */}
+            <div className="shrink-0 border-r bg-muted/20 sticky left-0 z-30" style={{ width: LABEL_WIDTH }}>
+              <div className="h-10 border-b flex items-center px-3 bg-muted/40">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Projetos</span>
               </div>
-              {items.map(item => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-1 border-b hover:bg-muted/50 cursor-pointer transition-colors"
-                  style={{ height: ROW_HEIGHT, paddingLeft: 6 + item.level * 14 }}
-                  onClick={() => onItemClick?.(item.id, item.type)}
-                >
-                  {item.hasChildren && item.level === 0 ? (
-                    <button className="p-0.5" onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}>
-                      {expandedIds.has(item.id)
-                        ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </button>
-                  ) : (
-                    <span className="w-4" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-xs truncate ${item.level === 0 ? "font-semibold" : ""}`}>
-                      {item.level === 0 && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
-                      {item.name}
-                    </div>
-                    {item.responsavel && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
-                        <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel) }} />
-                        {item.responsavel}
-                      </div>
+              {items.map(item => {
+                const isProject = item.level === 0;
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-1.5 border-b cursor-pointer transition-colors ${
+                      isProject ? "bg-muted/10 hover:bg-muted/30" : "hover:bg-muted/20"
+                    }`}
+                    style={{ height: ROW_HEIGHT, paddingLeft: 6 + item.level * 16 }}
+                    onClick={() => onItemClick?.(item.id, item.type)}
+                  >
+                    {item.hasChildren && isProject ? (
+                      <button
+                        className="p-0.5 rounded hover:bg-muted transition-transform"
+                        onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
+                        aria-label={expandedIds.has(item.id) ? "Recolher" : "Expandir"}
+                      >
+                        <ChevronRight
+                          className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                            expandedIds.has(item.id) ? "rotate-90" : ""
+                          }`}
+                        />
+                      </button>
+                    ) : (
+                      <span className="w-4 inline-flex justify-center">
+                        {!isProject && <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />}
+                      </span>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className={`truncate ${
+                        isProject
+                          ? "text-sm font-semibold text-foreground"
+                          : "text-xs text-muted-foreground"
+                      }`}>
+                        {isProject && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
+                        {item.name}
+                      </div>
+                      {item.responsavel && isProject && (
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel) }} />
+                          {item.responsavel}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Timeline — grid fixo, sem scroll horizontal */}
-            <div ref={timelineRef} className="overflow-hidden flex-1">
+            {/* Timeline — scroll horizontal fluido */}
+            <div
+              ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
+              className="overflow-x-auto overflow-y-hidden flex-1 scroll-smooth"
+            >
               <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
-                <div className="h-9 border-b flex bg-muted/20 sticky top-0 z-10">
+                <div className="h-10 border-b flex bg-muted/20 sticky top-0 z-10">
                   {columns.map((col, i) => (
-                    <div key={i} className="border-r flex items-center justify-center text-[10px] text-muted-foreground shrink-0" style={{ width: colWidth }}>
+                    <div key={i} className="border-r flex items-center justify-center text-[11px] font-medium text-muted-foreground shrink-0" style={{ width: colWidth }}>
                       {col.label}
                     </div>
                   ))}
                 </div>
+
 
                 {/* Linhas */}
                 {items.map((item, rowIdx) => {
@@ -573,8 +527,14 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                     barStyle = { backgroundColor: "hsl(142 40% 95%)", border: `1.5px dashed hsl(142 40% 65%)`, color: "hsl(142 50% 35%)" };
                   }
 
+                  const isProject = item.level === 0;
+                  const baseTop = isProject ? 5 : 9 + item.swimlane * 4;
+                  const baseHeight = isProject
+                    ? ROW_HEIGHT - 10
+                    : Math.max(12, ROW_HEIGHT - 18 - item.swimlane * 6);
+
                   return (
-                    <div key={item.id} className="relative border-b" style={{ height: ROW_HEIGHT }}>
+                    <div key={item.id} className={`relative border-b ${isProject ? "bg-muted/5" : ""}`} style={{ height: ROW_HEIGHT }}>
                       {/* Grid */}
                       {columns.map((_, i) => (
                         <div key={i} className="absolute top-0 bottom-0 border-r border-dashed border-muted/30" style={{ left: i * colWidth, width: colWidth }} />
@@ -603,10 +563,10 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                         <div
                           className="absolute rounded-r"
                           style={{
-                            top: 6 + item.swimlane * 4,
+                            top: baseTop,
                             left: overdueExt.left,
                             width: overdueExt.width,
-                            height: Math.max(14, ROW_HEIGHT - 12 - item.swimlane * 6),
+                            height: baseHeight,
                             background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 5px, hsl(142 60% 32%) 5px, hsl(142 60% 32%) 10px)",
                           }}
                         />
@@ -617,8 +577,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div
-                              className={barClasses}
-                              style={{ ...barStyle, top: 6 + item.swimlane * 4, left: pos.left, width: pos.width, height: Math.max(14, ROW_HEIGHT - 12 - item.swimlane * 6) }}
+                              className={barClasses + (isProject ? " shadow-sm font-semibold text-[11px]" : "")}
+                              style={{ ...barStyle, top: baseTop, left: pos.left, width: pos.width, height: baseHeight }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
                               {/* Progresso interno — preenchimento com cor do responsável */}
