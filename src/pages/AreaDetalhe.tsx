@@ -74,6 +74,7 @@ export default function AreaDetalhe() {
   const [editingOp, setEditingOp] = useState<Operation | null>(null);
   const [parentIdForNewOp, setParentIdForNewOp] = useState<string | null>(null);
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
 
   const area = areas.find(a => a.id === id);
   const areaCycles = cycles.filter((c: any) => c.area_id === id);
