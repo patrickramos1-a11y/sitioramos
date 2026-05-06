@@ -55,8 +55,20 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
   const [filterCategoria, setFilterCategoria] = useState<string>("all");
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [onlyDeps, setOnlyDeps] = useState(false);
-  // Data âncora da janela visível (centro/início aproximado)
-  const [anchorDate, setAnchorDate] = useState<Date>(() => startOfDay(new Date()));
+  // Data âncora = início da janela visível
+  const [anchorDate, setAnchorDate] = useState<Date>(() => startOfDay(addDays(new Date(), -3)));
+  // Largura disponível para a faixa do timeline (medida)
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const [availableWidth, setAvailableWidth] = useState<number>(800);
+
+  useEffect(() => {
+    if (!timelineRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) setAvailableWidth(e.contentRect.width);
+    });
+    ro.observe(timelineRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     setExpandedIds(new Set(operations.map(o => o.id)));
@@ -165,32 +177,47 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
     return result;
   }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
 
-  // Janela de tempo navegável: 1 mês para trás + horizonte conforme zoom
+  // Janela: grid fixo de N colunas que preenche a largura disponível.
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
-    // Janela: 1 mês antes do anchor até 11 meses depois (12 meses totais = visão anual)
-    const start = startOfDay(addMonths(startOfMonth(anchorDate), -1));
-    const end = startOfDay(addMonths(start, 13));
-
+    const cfg = ZOOM_CONFIG[zoom];
+    const cw = Math.max(40, Math.floor(availableWidth / cfg.columns));
+    let start: Date;
     let cols: { label: string; date: Date }[] = [];
-    let cw = 80;
+    let end: Date;
 
     switch (zoom) {
-      case "week":
-        cols = eachDayOfInterval({ start, end }).map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
-        cw = 36;
+      case "day": {
+        start = startOfDay(anchorDate);
+        cols = eachDayOfInterval({ start, end: addDays(start, cfg.columns - 1) })
+          .map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
+        end = addDays(start, cfg.columns);
         break;
-      case "month":
-        cols = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }).map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
-        cw = 70;
+      }
+      case "week": {
+        start = startOfWeek(anchorDate, { weekStartsOn: 1 });
+        cols = Array.from({ length: cfg.columns }, (_, i) => addWeeks(start, i))
+          .map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
+        end = addWeeks(start, cfg.columns);
         break;
-      case "geral":
-        cols = eachMonthOfInterval({ start, end }).map(d => ({ label: format(d, "MMM/yy", { locale: ptBR }), date: d }));
-        cw = 90;
+      }
+      case "month": {
+        start = startOfMonth(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addMonths(start, i))
+          .map(d => ({ label: format(d, "MMM/yy", { locale: ptBR }), date: d }));
+        end = addMonths(start, cfg.columns);
         break;
+      }
+      case "year": {
+        start = startOfYear(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addYears(start, i))
+          .map(d => ({ label: format(d, "yyyy", { locale: ptBR }), date: d }));
+        end = addYears(start, cfg.columns);
+        break;
+      }
     }
 
     return { timelineStart: start, timelineEnd: end, columns: cols, colWidth: cw };
-  }, [anchorDate, zoom]);
+  }, [anchorDate, zoom, availableWidth]);
 
   const totalWidth = columns.length * colWidth;
   const totalDays = Math.max(1, differenceInDays(timelineEnd, timelineStart));
@@ -202,8 +229,41 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
     const actualEnd = end || addDays(start, 1);
     const left = dayToPx(start);
     const width = dayToPx(actualEnd) - left;
-    return { left: Math.max(0, left), width: Math.max(8, width) };
+    // Permitir sair da janela visível (clipped pelo overflow do container)
+    return { left, width: Math.max(8, width) };
   };
+
+  // Navegação por janela inteira
+  const shiftWindow = (direction: 1 | -1) => {
+    setAnchorDate(d => {
+      const cfg = ZOOM_CONFIG[zoom];
+      switch (zoom) {
+        case "day":   return addDays(d, cfg.columns * direction);
+        case "week":  return addWeeks(d, cfg.columns * direction);
+        case "month": return addMonths(d, cfg.columns * direction);
+        case "year":  return addYears(d, cfg.columns * direction);
+      }
+    });
+  };
+
+  const goToday = () => {
+    const now = startOfDay(new Date());
+    switch (zoom) {
+      case "day":   setAnchorDate(addDays(now, -3)); break;
+      case "week":  setAnchorDate(startOfWeek(addWeeks(now, -3), { weekStartsOn: 1 })); break;
+      case "month": setAnchorDate(startOfMonth(addMonths(now, -3))); break;
+      case "year":  setAnchorDate(startOfYear(addYears(now, -1))); break;
+    }
+  };
+
+  const anchorLabel = useMemo(() => {
+    switch (zoom) {
+      case "day":   return `${format(timelineStart, "dd/MM/yy", { locale: ptBR })} → ${format(addDays(timelineEnd, -1), "dd/MM/yy", { locale: ptBR })}`;
+      case "week":  return `${format(timelineStart, "dd MMM", { locale: ptBR })} → ${format(addDays(timelineEnd, -1), "dd MMM yy", { locale: ptBR })}`;
+      case "month": return `${format(timelineStart, "MMM yy", { locale: ptBR })} → ${format(addMonths(timelineStart, ZOOM_CONFIG.month.columns - 1), "MMM yy", { locale: ptBR })}`;
+      case "year":  return `${format(timelineStart, "yyyy")} → ${format(addYears(timelineStart, ZOOM_CONFIG.year.columns - 1), "yyyy")}`;
+    }
+  }, [timelineStart, timelineEnd, zoom]);
 
   const ROW_HEIGHT = 40;
   const LABEL_WIDTH = 240;
