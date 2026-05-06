@@ -456,8 +456,8 @@ export default function AreaDetalhe() {
                     </div>
                     <div className="flex gap-2">
                       {activeCycleId && stages.length === 0 && (
-                        <Button variant="outline" size="sm" onClick={handleGenerateTemplateStages} disabled={createFromTemplate.isPending}>
-                          <Wand2 className="h-4 w-4 mr-1" />Gerar Padrão
+                        <Button variant="outline" size="sm" onClick={() => setTemplatePickerOpen(true)}>
+                          <SproutIcon className="h-4 w-4 mr-1" />Aplicar Padrão de Cultura
                         </Button>
                       )}
                       {activeCycleId && (
