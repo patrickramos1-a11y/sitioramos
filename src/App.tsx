@@ -13,6 +13,7 @@ import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
 import Propriedade from "./pages/Propriedade";
 import Operacao from "./pages/Operacao";
+import Lancamentos from "./pages/Lancamentos";
 import Contatos from "./pages/Contatos";
 import NotFound from "./pages/NotFound";
 
