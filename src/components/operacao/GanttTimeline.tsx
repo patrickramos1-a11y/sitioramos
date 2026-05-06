@@ -14,12 +14,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
+// Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
+const PROJECT_PALETTE = [
+  "hsl(142 60% 35%)", // verde folha
+  "hsl(43 90% 45%)",  // amarelo sol
+  "hsl(20 65% 45%)",  // terra
+  "hsl(180 45% 35%)", // verde água
+  "hsl(280 35% 45%)", // ameixa
+  "hsl(95 45% 38%)",  // oliva
+  "hsl(15 70% 50%)",  // tijolo
+  "hsl(210 50% 40%)", // azul sereno
+];
+const getProjectColor = (projectId: string) => {
+  let h = 0;
+  for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
+  return PROJECT_PALETTE[h % PROJECT_PALETTE.length];
+};
+
 // Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
 const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
   day:   { columns: 60,  minColWidth: 56, label: "Dia",    shortLabel: "D" },
   week:  { columns: 36,  minColWidth: 70, label: "Semana", shortLabel: "S" },
   month: { columns: 24,  minColWidth: 90, label: "Mês",    shortLabel: "M" },
-  year:  { columns: 10,  minColWidth: 140, label: "Ano",    shortLabel: "A" },
+  year:  { columns: 20,  minColWidth: 90, label: "Ano",    shortLabel: "A" },
 };
 
 interface GanttItem {
@@ -189,12 +206,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
       });
       byArea.forEach(groupChildren => {
         const lanes: Array<Date | null> = [];
-        // ⚠️ Cópia para não mutar a ordem original (preserva ordem do banco mesmo após conclusão)
-        const ordered = [...groupChildren].sort((a, b) => {
-          const sa = (a.startReal || a.startPrev)?.getTime() ?? 0;
-          const sb = (b.startReal || b.startPrev)?.getTime() ?? 0;
-          return sa - sb;
-        });
+        // ⚠️ Preserva ordem original do banco — mesmo concluídas mantêm sua linha
+        const ordered = groupChildren;
         for (const child of ordered) {
           const start = child.startReal || child.startPrev;
           const end = child.endReal || child.endPrev;
@@ -227,8 +240,9 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   // Janela: colunas se ajustam à largura disponível (sem scroll horizontal)
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
     const cfg = ZOOM_CONFIG[zoom];
-    // Distribui colunas igualmente na largura disponível; mantém piso mínimo p/ legibilidade
-    const cw = Math.max(cfg.minColWidth * 0.5, availableWidth / cfg.columns);
+    // Largura por coluna: distribui pela área disponível, mas respeita o mínimo legível.
+    // Quando a soma > área disponível, o container interno faz scroll horizontal.
+    const cw = Math.max(cfg.minColWidth, availableWidth / cfg.columns);
     let start: Date;
     let cols: { label: string; date: Date }[] = [];
     let end: Date;
@@ -477,7 +491,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                     className={`flex items-center gap-1.5 border-b cursor-pointer transition-colors ${
                       isProject ? "bg-muted/10 hover:bg-muted/30" : "hover:bg-muted/20"
                     }`}
-                    style={{ height: ROW_HEIGHT, paddingLeft: 6 + item.level * 16 }}
+                    style={{
+                      height: ROW_HEIGHT,
+                      paddingLeft: 6 + item.level * 16,
+                      borderLeft: `3px solid ${getProjectColor(item.rootProjectId)}`,
+                    }}
                     onClick={() => onItemClick?.(item.id, item.type)}
                   >
                     {item.hasChildren && isProject ? (
@@ -518,10 +536,10 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
               })}
             </div>
 
-            {/* Timeline — colunas se ajustam à largura disponível (sem scroll horizontal) */}
+            {/* Timeline — scroll horizontal interno apenas nesta área */}
             <div
               ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
-              className="overflow-hidden flex-1 min-w-0"
+              className="overflow-x-auto overflow-y-hidden flex-1 min-w-0"
             >
               <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
@@ -628,7 +646,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                           <TooltipTrigger asChild>
                             <div
                               className={barClasses + (isProject ? " shadow-sm font-semibold text-[11px]" : "")}
-                              style={{ ...barStyle, top: baseTop, left: pos.left, width: pos.width, height: baseHeight }}
+                              style={{
+                                ...barStyle,
+                                top: baseTop, left: pos.left, width: pos.width, height: baseHeight,
+                                borderLeft: `3px solid ${getProjectColor(item.rootProjectId)}`,
+                              }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
                               {/* Progresso interno — preenchimento com cor do responsável */}
