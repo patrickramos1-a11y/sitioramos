@@ -221,6 +221,13 @@ export function OperationCard({
               );
             })()}
 
+            {/* Custos vinculados */}
+            <OperationCostBlock
+              operationId={operation.id}
+              subOperationIds={subIds}
+              relatedTasks={allRelatedTasks}
+            />
+
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => onAddSubOperation(operation.id)}>
