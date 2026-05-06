@@ -389,13 +389,12 @@ export default function Operacao() {
           />
         );
       })()}
-      {/* Task Form */}
-      <TaskForm
+      {/* Task Form (simples: descrição + responsável) */}
+      <SimpleTaskForm
         open={taskFormOpen}
         onOpenChange={(v) => { setTaskFormOpen(v); if (!v) setEditingTask(null); }}
         task={editingTask}
-        stages={stages}
-        defaultValues={{ stage_id: taskDefaultStageId || undefined, area_id: defaultAreaId || undefined, cycle_id: defaultCycleId || undefined }}
+        defaultStageId={taskDefaultStageId}
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
