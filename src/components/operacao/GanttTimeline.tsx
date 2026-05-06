@@ -768,6 +768,24 @@ export function GanttTimeline({
                     ? ROW_HEIGHT - 10
                     : Math.max(12, ROW_HEIGHT - 18 - item.swimlane * 6);
 
+                  // Tarefas: linha simples sem barra (somente grid + linha de hoje)
+                  if (item.type === "task") {
+                    return (
+                      <div key={item.id} className="relative border-b bg-muted/5" style={{ height: ROW_HEIGHT }}>
+                        {columns.map((_, i) => (
+                          <div key={i} className="absolute top-0 bottom-0 border-r border-dashed border-muted/30" style={{ left: i * colWidth, width: colWidth }} />
+                        ))}
+                        {(() => {
+                          const todayPx = dayToPx(today);
+                          if (todayPx > 0 && todayPx < totalWidth) {
+                            return <div className="absolute top-0 bottom-0 w-[2px] bg-destructive/80 z-10 pointer-events-none" style={{ left: todayPx }} />;
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={item.id} className={`relative border-b ${isProject ? "bg-muted/5" : ""}`} style={{ height: ROW_HEIGHT }}>
                       {/* Grid */}
