@@ -217,6 +217,8 @@ export function GanttTimeline({
       }
 
       const opItem = buildItem(op, 0, op.id, undefined, "operation");
+      const opDirectTasks = tasks.filter(t => t.stage_id === op.id);
+      opItem.hasChildren = opItem.hasChildren || opDirectTasks.length > 0;
 
       // Walk recursivo: respeita expandedIds. Quando recolhido, descendentes
       // viram barras inline na mesma linha do pai.
