@@ -788,6 +788,71 @@ export function GanttTimeline({
                           <span className="text-[10px] text-muted-foreground/50">sem datas</span>
                         </div>
                       )}
+
+                      {/* Cadeia inline: barras dos descendentes na mesma linha (recolhido) */}
+                      {(item.inlineChain || []).map(inl => {
+                        const inlStart = inl.startReal || inl.startPrev;
+                        const inlEnd = inl.endReal ||
+                          (inl.derivedStatus === "atrasada" && inl.endPrev ? today : inl.endPrev);
+                        const inlPos = getBarPosition(inlStart, inlEnd);
+                        if (!inlPos) return null;
+                        const inlCat = getCategoryColor(inl.categoria, { sat: 60, light: 45 });
+                        const inlGlow = getCategoryColor(inl.categoria, { sat: 70, light: 50, alpha: 0.35 });
+                        let inlStyle: React.CSSProperties = {};
+                        if (inl.derivedStatus === "concluida") {
+                          inlStyle = { backgroundColor: inlCat, color: "white", boxShadow: `0 0 0 1px ${inlCat}, 0 0 6px ${inlGlow}` };
+                        } else if (inl.derivedStatus === "em_andamento" || inl.derivedStatus === "atrasada") {
+                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${inlCat}`, color: getCategoryColor(inl.categoria, { light: 25 }) };
+                        } else {
+                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(inl.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(inl.categoria, { light: 35 }) };
+                        }
+                        // Conector pontilhado entre o pai e este filho (ou entre filhos)
+                        const prevEndPx = pos ? pos.left + pos.width : inlPos.left;
+                        const connectorLeft = Math.min(prevEndPx, inlPos.left);
+                        const connectorWidth = Math.max(0, inlPos.left - prevEndPx);
+                        return (
+                          <div key={inl.id}>
+                            {connectorWidth > 2 && (
+                              <div
+                                className="absolute pointer-events-none"
+                                style={{
+                                  top: baseTop + baseHeight / 2 - 1,
+                                  left: connectorLeft,
+                                  width: connectorWidth,
+                                  height: 2,
+                                  borderTop: `1.5px dotted ${getProjectColor(item.rootProjectId)}`,
+                                  opacity: 0.6,
+                                }}
+                              />
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden"
+                                  style={{
+                                    ...inlStyle,
+                                    top: baseTop, left: inlPos.left, width: inlPos.width, height: baseHeight,
+                                    borderLeft: `2px solid ${getProjectColor(item.rootProjectId)}`,
+                                  }}
+                                  onClick={e => { e.stopPropagation(); onItemClick?.(inl.id, inl.type); }}
+                                >
+                                  <div className="relative z-10 flex items-center gap-1 truncate">
+                                    {inl.derivedStatus === "concluida" && <CheckCircle2 className="h-3 w-3 shrink-0" />}
+                                    {inlPos.width > 40 && <span className="truncate">{inl.name}</span>}
+                                  </div>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs space-y-1">
+                                <div className="font-semibold">{inl.name}</div>
+                                <div className="text-muted-foreground">Cadeia de {item.name}</div>
+                                <div>Status: <strong>{inl.derivedStatus}</strong></div>
+                                {inl.startPrev && <div>Início: {format(inl.startPrev, "dd/MM/yy")}</div>}
+                                {inl.endPrev && <div>Fim: {format(inl.endPrev, "dd/MM/yy")}</div>}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
