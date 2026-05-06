@@ -37,7 +37,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-safe md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-safe md:hidden shadow-[0_-4px_20px_-8px_hsl(145_60%_12%/0.18)]"
       role="navigation"
       aria-label="Navegação principal"
     >
@@ -50,12 +50,15 @@ export function MobileBottomNav() {
               key={item.to}
               to={item.to}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+                "relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-all",
                 active
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
+              {active && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-b-full bg-gradient-sun" />
+              )}
               <Icon
                 className={cn(
                   "h-5 w-5 transition-transform",
