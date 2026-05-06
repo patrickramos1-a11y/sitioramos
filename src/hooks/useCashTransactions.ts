@@ -90,6 +90,9 @@ export function useCashTransactions(filters?: CashFilters) {
       if (filters?.cycleId) {
         query = query.eq("cycle_id", filters.cycleId);
       }
+      if (filters?.operationId) {
+        query = query.eq("operation_id", filters.operationId);
+      }
       if (filters?.tipo) {
         query = query.eq("tipo", filters.tipo);
       }
