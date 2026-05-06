@@ -491,7 +491,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                     className={`flex items-center gap-1.5 border-b cursor-pointer transition-colors ${
                       isProject ? "bg-muted/10 hover:bg-muted/30" : "hover:bg-muted/20"
                     }`}
-                    style={{ height: ROW_HEIGHT, paddingLeft: 6 + item.level * 16 }}
+                    style={{
+                      height: ROW_HEIGHT,
+                      paddingLeft: 6 + item.level * 16,
+                      borderLeft: `3px solid ${getProjectColor(item.rootProjectId)}`,
+                    }}
                     onClick={() => onItemClick?.(item.id, item.type)}
                   >
                     {item.hasChildren && isProject ? (
