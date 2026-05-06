@@ -24,6 +24,7 @@ export interface Operation {
   depends_on_id: string | null;
   cor_responsavel: string | null;
   responsavel: string | null;
+  responsavel_id?: string | null;
   progresso_percentual: number | null;
   custo_total: number | null;
   ordem: number;
@@ -57,6 +58,7 @@ export interface OperationInsert {
   depends_on_id?: string | null;
   cor_responsavel?: string | null;
   responsavel?: string | null;
+  responsavel_id?: string | null;
   progresso_percentual?: number | null;
   ordem?: number;
   observacoes?: string | null;
