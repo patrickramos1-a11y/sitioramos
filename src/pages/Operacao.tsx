@@ -309,6 +309,11 @@ export default function Operacao() {
                   onDuplicateOperation={(id) => duplicateOperation.mutate(id)}
                   onCompleteOperation={handleCompleteOperation}
                   onReopenOperation={handleReopenOperation}
+                  onToggleTaskComplete={(id, status) => {
+                    const t = allTasks.find(x => x.id === id);
+                    if (t) handleTaskStatusChange(t, status === "concluida" ? "pendente" : "concluida");
+                  }}
+                  onDeleteTask={(id) => { setDeleteTarget({ type: "task", id }); setDeleteDialogOpen(true); }}
                 />
               </CardContent>
             </Card>
