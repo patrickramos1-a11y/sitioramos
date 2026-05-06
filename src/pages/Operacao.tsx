@@ -308,6 +308,8 @@ export default function Operacao() {
                   onAddSubtask={openNewTask}
                   onDeleteOperation={(id) => { setDeleteTarget({ type: "operation", id }); setDeleteDialogOpen(true); }}
                   onDuplicateOperation={(id) => duplicateOperation.mutate(id)}
+                  onCompleteOperation={handleCompleteOperation}
+                  onReopenOperation={handleReopenOperation}
                 />
               </CardContent>
             </Card>
