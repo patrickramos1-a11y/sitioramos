@@ -1,34 +1,75 @@
-## Padronizar tamanho das barras na timeline
+## Objetivo
 
-Hoje as barras encolhem conforme o nível e o swimlane (linha de empilhamento), o que dificulta a leitura do texto dentro delas — exatamente o que aparece na imagem (a barra "Projeto da Casa de Farinha" no topo está alta, e os subprojetos abaixo vão ficando cada vez mais finos).
+Reformular o visual dos balões do Gantt em `Operação` para que cada projeto tenha sua própria cor (derivada da paleta da marca Sítio Ramos), os subprojetos herdem essa cor com tratamento visual diferenciado, e cada barra mostre o tempo de duração e o quanto já se passou.
 
-A causa é uma fórmula em `GanttTimeline.tsx` que reduz a altura de cada subprojeto com base no nível e no swimlane:
+## Diagnóstico (por que está tudo "vermelho")
 
-```
-baseTop  = isProject ? 5 : 9 + swimlane * 4
-baseHeight = isProject ? ROW_HEIGHT - 10
-                       : max(12, ROW_HEIGHT - 18 - swimlane * 6)
-```
+Hoje o `GanttTimeline.tsx` colore as barras pela **categoria** da operação (`getCategoryColor`). Como a maioria dos projetos cai em categorias com hue próximo (`casa_farinha` 20, `infraestrutura` 25, `manejo_limpeza` 95) — e o fallback é verde — visualmente quase todos viram tons de terracota/laranja. Não há diferenciação por **projeto raiz** nem hierarquia visual entre projeto e subprojeto além de uma fina borda lateral.
 
-### Mudança
+## Mudanças propostas
 
-Usar **a mesma altura de barra para todos os itens** (projeto, subprojeto, qualquer nível, qualquer swimlane), mantendo a aparência visual atual de cores/borda e o sistema de cadeia inline:
+### 1. Cor por projeto (raiz) — paleta Sítio Ramos
 
-- `baseTop = 5`
-- `baseHeight = ROW_HEIGHT - 10`
+- Substituir a paleta `PROJECT_PALETTE` atual (8 cores genéricas) por uma paleta alinhada à marca:
+  - Verde Floresta `145 60% 18%`
+  - Verde Folha `138 60% 30%`
+  - Amarelo Sol `43 90% 42%`
+  - Terra `20 55% 38%`
+  - Oliva `95 45% 32%`
+  - Tijolo `15 65% 42%`
+  - Azul sereno `200 50% 32%`
+  - Ameixa `280 35% 38%`
+- Função `getProjectColor(rootProjectId)` continua determinística (hash → índice), garantindo cor estável por projeto.
+- Toda a árvore de um projeto (raiz + subprojetos + cadeia inline) usa a **mesma matiz**, variando só luminosidade/preenchimento conforme o nível.
 
-Com isso, todas as barras ficam do mesmo tamanho do "Projeto da Casa de Farinha".
+### 2. Hierarquia visual: projeto vs subprojeto
 
-### Trade-off (e como mitigamos)
+Tratamento por nível, sempre na cor do projeto raiz:
 
-Quando dois subprojetos do mesmo pai se sobrepõem no tempo, hoje eles ficam lado a lado verticalmente dentro da mesma linha (swimlane reduzindo a altura). Com altura fixa, a sobreposição deixaria de ter o "degrau" visual.
+| Nível | Estilo da barra |
+|---|---|
+| Projeto (level 0) | Preenchido sólido, cor forte, texto claro, sombra |
+| Subprojeto (level 1) | Preenchimento claro (mesma matiz, light alta) + borda sólida 2px na cor forte |
+| Sub-subprojeto (level ≥ 2) | Fundo translúcido + **borda tracejada** 2px na cor forte |
+| Concluído | Sólido na cor forte + ícone ✓ |
+| Em andamento | Borda sólida + barra interna de progresso na cor do responsável (mantido) |
+| Atrasada | Hachurado já existente (mantido) |
+| Travada | Cinza tracejado (mantido) |
 
-Solução: continuar **calculando o swimlane** (já existe), mas em vez de diminuir a altura, manter a altura padrão. Como cada item ocupa sua própria linha na lista (uma `row` por subprojeto), na prática só há sobreposição visual quando há cadeia inline (subprojetos vinculados encadeados na mesma linha do pai recolhido) — e nesse caso o conector pontilhado entre as barras já indica a sequência. Não há perda de informação relevante.
+Isso substitui o uso de `getCategoryColor` na coloração da barra. A categoria continua aparecendo via emoji + label no tooltip e ao lado do nome, preservando a leitura semântica.
 
-### Arquivos
+### 3. Métrica de tempo na ponta da barra
 
-- `src/components/operacao/GanttTimeline.tsx` — substituir o bloco de cálculo de `baseTop`/`baseHeight` (linhas ~765–769) pela versão fixa.
+Renderizar um pequeno chip à direita dentro da barra (quando `pos.width > ~80px`) com:
 
-### Resultado esperado
+- **Projeto/subprojeto com datas previstas**: `Xd · Y/Zd` onde `Z = duracaoPrevista`, `Y = dias decorridos desde startPrev até hoje (limitado a Z)`.
+- **Concluído**: `Z d ✓` (duração real ou prevista).
+- **Sem datas**: chip omitido.
 
-Todas as barras (projeto raiz, subprojetos de qualquer nível, cadeias inline) ficam com o mesmo tamanho confortável, com texto sempre legível.
+Usa `item.metrics` que já existe (`duracaoPrevista`, `duracaoReal`, `percentConsumido`). A lógica de "dias decorridos" é derivada de `startPrev`/`startReal` vs hoje.
+
+Em telas estreitas (barra < 80px), o chip é suprimido e a info aparece apenas no tooltip (que já mostra duração e dias restantes).
+
+### 4. Cadeia inline (subprojetos recolhidos)
+
+Mantém o mesmo critério de cor (matiz do projeto raiz, tratamento por nível) — assim, quando um subprojeto está recolhido com filhos inline, todas as bolhas inline ficam visualmente irmãs e claramente pertencentes ao mesmo projeto.
+
+### 5. Coluna esquerda (lista PROJETOS)
+
+A borda lateral colorida de cada linha continua usando `getProjectColor`, agora com a nova paleta — reforça o vínculo visual coluna ↔ barra.
+
+## Arquivos afetados
+
+- `src/components/operacao/GanttTimeline.tsx`
+  - Atualizar `PROJECT_PALETTE`.
+  - Substituir o bloco de `barStyle` (atual baseado em `getCategoryColor`) por uma função `getBarStyle(item, status)` que recebe a cor do projeto raiz e o nível.
+  - Aplicar o mesmo na cadeia inline.
+  - Adicionar o chip de duração/decorrido dentro da barra.
+
+Sem mudanças em banco, hooks, ou outros componentes.
+
+## Fora do escopo
+
+- Editor de cor por projeto (cor é derivada do id, automática).
+- Mudar a semântica de categorias (continuam como label/emoji/filtro).
+- Alterar zoom, navegação ou estrutura da timeline.

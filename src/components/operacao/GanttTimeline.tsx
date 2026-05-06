@@ -18,22 +18,33 @@ import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
-// Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
-const PROJECT_PALETTE = [
-  "hsl(142 60% 35%)", // verde folha
-  "hsl(43 90% 45%)",  // amarelo sol
-  "hsl(20 65% 45%)",  // terra
-  "hsl(180 45% 35%)", // verde água
-  "hsl(280 35% 45%)", // ameixa
-  "hsl(95 45% 38%)",  // oliva
-  "hsl(15 70% 50%)",  // tijolo
-  "hsl(210 50% 40%)", // azul sereno
+// Paleta de cores por projeto (Sítio Ramos — verde floresta, folha, sol, terra)
+// Cada entrada é { h, s, l } base; variações são derivadas alterando lightness.
+const PROJECT_PALETTE: Array<{ h: number; s: number; l: number }> = [
+  { h: 145, s: 60, l: 22 }, // verde floresta
+  { h: 138, s: 55, l: 32 }, // verde folha
+  { h: 43,  s: 88, l: 42 }, // amarelo sol
+  { h: 20,  s: 55, l: 38 }, // terra
+  { h: 95,  s: 45, l: 32 }, // oliva
+  { h: 15,  s: 65, l: 42 }, // tijolo
+  { h: 200, s: 50, l: 32 }, // azul sereno
+  { h: 280, s: 35, l: 38 }, // ameixa
 ];
-const getProjectColor = (projectId: string) => {
+const getProjectHsl = (projectId: string) => {
   let h = 0;
   for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
   return PROJECT_PALETTE[h % PROJECT_PALETTE.length];
 };
+const projectColor = (projectId: string, opts?: { l?: number; s?: number; a?: number }) => {
+  const c = getProjectHsl(projectId);
+  const s = opts?.s ?? c.s;
+  const l = opts?.l ?? c.l;
+  return opts?.a !== undefined
+    ? `hsl(${c.h} ${s}% ${l}% / ${opts.a})`
+    : `hsl(${c.h} ${s}% ${l}%)`;
+};
+// Compat: cor "forte" do projeto (usada na borda lateral da lista)
+const getProjectColor = (projectId: string) => projectColor(projectId);
 
 // Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
 const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
