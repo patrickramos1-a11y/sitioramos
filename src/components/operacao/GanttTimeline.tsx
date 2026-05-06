@@ -224,10 +224,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
 
 
-  // Janela: largura fixa por coluna; total cresce com nº de colunas e gera scroll horizontal
+  // Janela: colunas se ajustam à largura disponível (sem scroll horizontal)
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
     const cfg = ZOOM_CONFIG[zoom];
-    const cw = cfg.minColWidth;
+    // Distribui colunas igualmente na largura disponível; mantém piso mínimo p/ legibilidade
+    const cw = Math.max(cfg.minColWidth * 0.5, availableWidth / cfg.columns);
     let start: Date;
     let cols: { label: string; date: Date }[] = [];
     let end: Date;
