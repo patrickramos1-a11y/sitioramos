@@ -12,16 +12,14 @@ import {
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LayersPanel, LayersState, LayerItem } from "./LayersPanel";
-import { ArrowLeftRight } from "lucide-react";
-
 type ZoomLevel = "day" | "week" | "month" | "year";
 
-const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; label: string; shortLabel: string }> = {
-  day:   { columns: 14, label: "Dia",    shortLabel: "D" },
-  week:  { columns: 14, label: "Semana", shortLabel: "S" },
-  month: { columns: 14, label: "Mês",    shortLabel: "M" },
-  year:  { columns: 5,  label: "Ano",    shortLabel: "A" },
+// Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
+const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
+  day:   { columns: 60,  minColWidth: 56, label: "Dia",    shortLabel: "D" },
+  week:  { columns: 36,  minColWidth: 70, label: "Semana", shortLabel: "S" },
+  month: { columns: 24,  minColWidth: 90, label: "Mês",    shortLabel: "M" },
+  year:  { columns: 10,  minColWidth: 140, label: "Ano",    shortLabel: "A" },
 };
 
 interface GanttItem {
