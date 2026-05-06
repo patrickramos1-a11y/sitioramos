@@ -18,22 +18,33 @@ import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
-// Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
-const PROJECT_PALETTE = [
-  "hsl(142 60% 35%)", // verde folha
-  "hsl(43 90% 45%)",  // amarelo sol
-  "hsl(20 65% 45%)",  // terra
-  "hsl(180 45% 35%)", // verde água
-  "hsl(280 35% 45%)", // ameixa
-  "hsl(95 45% 38%)",  // oliva
-  "hsl(15 70% 50%)",  // tijolo
-  "hsl(210 50% 40%)", // azul sereno
+// Paleta de cores por projeto (Sítio Ramos — verde floresta, folha, sol, terra)
+// Cada entrada é { h, s, l } base; variações são derivadas alterando lightness.
+const PROJECT_PALETTE: Array<{ h: number; s: number; l: number }> = [
+  { h: 145, s: 60, l: 22 }, // verde floresta
+  { h: 138, s: 55, l: 32 }, // verde folha
+  { h: 43,  s: 88, l: 42 }, // amarelo sol
+  { h: 20,  s: 55, l: 38 }, // terra
+  { h: 95,  s: 45, l: 32 }, // oliva
+  { h: 15,  s: 65, l: 42 }, // tijolo
+  { h: 200, s: 50, l: 32 }, // azul sereno
+  { h: 280, s: 35, l: 38 }, // ameixa
 ];
-const getProjectColor = (projectId: string) => {
+const getProjectHsl = (projectId: string) => {
   let h = 0;
   for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
   return PROJECT_PALETTE[h % PROJECT_PALETTE.length];
 };
+const projectColor = (projectId: string, opts?: { l?: number; s?: number; a?: number }) => {
+  const c = getProjectHsl(projectId);
+  const s = opts?.s ?? c.s;
+  const l = opts?.l ?? c.l;
+  return opts?.a !== undefined
+    ? `hsl(${c.h} ${s}% ${l}% / ${opts.a})`
+    : `hsl(${c.h} ${s}% ${l}%)`;
+};
+// Compat: cor "forte" do projeto (usada na borda lateral da lista)
+const getProjectColor = (projectId: string) => projectColor(projectId);
 
 // Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
 const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
@@ -740,30 +751,39 @@ export function GanttTimeline({
                   // % consumido visual
                   const progressPct = status === "concluida" ? 100 : item.metrics.percentConsumido;
 
-                  // Estilo conforme status — paleta verde Sítio Ramos
-                  // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
-                  // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
+                  // Estilo conforme status + cor do PROJETO RAIZ + nível hierárquico
+                  // Projeto (level 0): preenchido sólido, cor forte
+                  // Subprojeto (level 1): fundo claro + borda sólida na cor forte
+                  // Sub-sub (level ≥ 2): fundo bem claro + borda tracejada
                   let barStyle: React.CSSProperties = {};
                   let barClasses = "absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
 
-                  // Cor da categoria (identidade visual)
-                  const catColor = getCategoryColor(item.categoria, { sat: 60, light: 45 });
-                  const catGlow = getCategoryColor(item.categoria, { sat: 70, light: 50, alpha: 0.35 });
+                  const strong = projectColor(item.rootProjectId);
+                  const soft = projectColor(item.rootProjectId, { l: 92, s: 45 });
+                  const softer = projectColor(item.rootProjectId, { l: 96, s: 40 });
+                  const dark = projectColor(item.rootProjectId, { l: 18 });
+                  const glow = projectColor(item.rootProjectId, { a: 0.3, l: 35 });
+                  const isProject = item.level === 0;
+                  const isSub = item.level === 1;
 
                   if (status === "concluida") {
-                    barStyle = { backgroundColor: catColor, color: "white", boxShadow: `0 0 0 1.5px ${catColor}, 0 0 8px ${catGlow}` };
-                  } else if (status === "em_andamento" || status === "atrasada") {
-                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${catColor}`, color: getCategoryColor(item.categoria, { light: 25 }), boxShadow: `0 0 6px ${catGlow}` };
+                    barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1.5px ${strong}, 0 0 8px ${glow}` };
                   } else if (status === "travada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", border: "2px dashed hsl(var(--muted-foreground))", color: "hsl(var(--muted-foreground))" };
                   } else if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
+                  } else if (isProject) {
+                    // Projeto raiz: sólido na cor forte
+                    barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1px ${strong}, 0 2px 6px ${glow}` };
+                  } else if (isSub) {
+                    // Subprojeto: claro com borda sólida
+                    barStyle = { backgroundColor: soft, border: `2px solid ${strong}`, color: dark };
                   } else {
-                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(item.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(item.categoria, { light: 35 }) };
+                    // Sub-sub: borda tracejada
+                    barStyle = { backgroundColor: softer, border: `2px dashed ${strong}`, color: dark };
                   }
 
-                  const isProject = item.level === 0;
-                  // Tamanho uniforme para todas as barras (independente de nível/swimlane)
+                  // Tamanho uniforme para todas as barras
                   const baseTop = 5;
                   const baseHeight = ROW_HEIGHT - 10;
 
@@ -844,12 +864,40 @@ export function GanttTimeline({
                                   style={{ width: `${Math.min(100, progressPct)}%`, backgroundColor: respColor, opacity: 0.85 }}
                                 />
                               )}
-                              <div className="relative z-10 flex items-center gap-1 truncate">
+                              <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0">
                                 {status === "travada" && <Lock className="h-3 w-3 shrink-0" />}
                                 {status === "atrasada" && <AlertTriangle className="h-3 w-3 shrink-0" />}
                                 {status === "concluida" && <CheckCircle2 className="h-3 w-3 shrink-0" />}
                                 {pos.width > 50 && <span className="truncate">{item.name}</span>}
                               </div>
+                              {/* Chip de duração / decorrido na ponta direita da barra */}
+                              {pos.width > 80 && (() => {
+                                const dPrev = item.metrics.duracaoPrevista;
+                                const dReal = item.metrics.duracaoReal;
+                                const startD = item.startReal || item.startPrev;
+                                let label: string | null = null;
+                                if (status === "concluida" && (dReal ?? dPrev) !== null) {
+                                  label = `${dReal ?? dPrev}d ✓`;
+                                } else if (dPrev !== null && startD) {
+                                  const elapsed = Math.max(0, Math.min(dPrev, differenceInDays(today, startD)));
+                                  label = `${elapsed}/${dPrev}d`;
+                                } else if (dPrev !== null) {
+                                  label = `${dPrev}d`;
+                                }
+                                if (!label) return null;
+                                const chipBg = isProject || status === "concluida"
+                                  ? "rgba(255,255,255,0.22)"
+                                  : projectColor(item.rootProjectId, { a: 0.15, l: 35 });
+                                const chipColor = isProject || status === "concluida" ? "white" : dark;
+                                return (
+                                  <span
+                                    className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
+                                    style={{ backgroundColor: chipBg, color: chipColor }}
+                                  >
+                                    {label}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-xs space-y-1">
@@ -884,15 +932,17 @@ export function GanttTimeline({
                           (inl.derivedStatus === "atrasada" && inl.endPrev ? today : inl.endPrev);
                         const inlPos = getBarPosition(inlStart, inlEnd);
                         if (!inlPos) return null;
-                        const inlCat = getCategoryColor(inl.categoria, { sat: 60, light: 45 });
-                        const inlGlow = getCategoryColor(inl.categoria, { sat: 70, light: 50, alpha: 0.35 });
+                        const inlStrong = projectColor(item.rootProjectId);
+                        const inlSoft = projectColor(item.rootProjectId, { l: 92, s: 45 });
+                        const inlSofter = projectColor(item.rootProjectId, { l: 96, s: 40 });
+                        const inlDark = projectColor(item.rootProjectId, { l: 18 });
                         let inlStyle: React.CSSProperties = {};
                         if (inl.derivedStatus === "concluida") {
-                          inlStyle = { backgroundColor: inlCat, color: "white", boxShadow: `0 0 0 1px ${inlCat}, 0 0 6px ${inlGlow}` };
-                        } else if (inl.derivedStatus === "em_andamento" || inl.derivedStatus === "atrasada") {
-                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${inlCat}`, color: getCategoryColor(inl.categoria, { light: 25 }) };
+                          inlStyle = { backgroundColor: inlStrong, color: "white" };
+                        } else if (inl.level === 1) {
+                          inlStyle = { backgroundColor: inlSoft, border: `2px solid ${inlStrong}`, color: inlDark };
                         } else {
-                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(inl.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(inl.categoria, { light: 35 }) };
+                          inlStyle = { backgroundColor: inlSofter, border: `2px dashed ${inlStrong}`, color: inlDark };
                         }
                         // Conector pontilhado entre o pai e este filho (ou entre filhos)
                         const prevEndPx = pos ? pos.left + pos.width : inlPos.left;
