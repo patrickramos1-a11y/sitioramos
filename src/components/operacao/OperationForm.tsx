@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Operation, OperationInsert } from "@/hooks/useOperations";
 import { OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, addDaysISO, getCategoryColor } from "@/lib/operacaoConfig";
 import { CalendarDays, Link2, RotateCcw } from "lucide-react";
+import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
 
 const NONE = "__none__";
 const todayISO = () => new Date().toISOString().split("T")[0];
@@ -85,6 +86,7 @@ export function OperationForm({
     depends_on_id: "" as string,
     linked_project_id: "" as string,
     responsavel: "",
+    responsavel_id: "" as string,
     ordem: 0,
     observacoes: "",
     area_id: areaId || "",
@@ -110,6 +112,7 @@ export function OperationForm({
         depends_on_id: operation.depends_on_id || "",
         linked_project_id: (operation as any).linked_project_id || "",
         responsavel: operation.responsavel || "",
+        responsavel_id: (operation as any).responsavel_id || "",
         ordem: operation.ordem,
         observacoes: operation.observacoes || "",
         area_id: operation.area_id || "",
@@ -121,7 +124,7 @@ export function OperationForm({
         tipo: "outro", categoria: "", descricao: "", status: "planejada",
         prioridade: "media", data_inicio_prevista: todayISO(), data_inicio_real: "",
         data_fim_prevista: "", data_fim_real: "", duracao_prevista_dias: "",
-        depends_on_id: "", linked_project_id: "", responsavel: "", ordem: 0,
+        depends_on_id: "", linked_project_id: "", responsavel: "", responsavel_id: "", ordem: 0,
         observacoes: "", area_id: areaId || "", cycle_id: cycleId || "",
       });
     }
@@ -201,6 +204,7 @@ export function OperationForm({
       ordem: formData.ordem,
       observacoes: formData.observacoes || null,
       responsavel: formData.responsavel || null,
+      responsavel_id: formData.responsavel_id || null,
       parent_id: parentId || operation?.parent_id || null,
       talhao_id: talhaoId || null,
       area_id: formData.area_id || null,
@@ -340,8 +344,11 @@ export function OperationForm({
             </div>
 
             <div className="col-span-2">
-              <Label>Responsável</Label>
-              <Input value={formData.responsavel} onChange={e => setFormData(p => ({ ...p, responsavel: e.target.value }))} placeholder="Ex: Patrick" />
+              <ResponsavelSelect
+                label="Responsável"
+                value={formData.responsavel_id}
+                onChange={(id) => setFormData(p => ({ ...p, responsavel_id: id || "" }))}
+              />
             </div>
 
             {/* Vínculo com outro projeto */}
