@@ -751,30 +751,39 @@ export function GanttTimeline({
                   // % consumido visual
                   const progressPct = status === "concluida" ? 100 : item.metrics.percentConsumido;
 
-                  // Estilo conforme status — paleta verde Sítio Ramos
-                  // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
-                  // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
+                  // Estilo conforme status + cor do PROJETO RAIZ + nível hierárquico
+                  // Projeto (level 0): preenchido sólido, cor forte
+                  // Subprojeto (level 1): fundo claro + borda sólida na cor forte
+                  // Sub-sub (level ≥ 2): fundo bem claro + borda tracejada
                   let barStyle: React.CSSProperties = {};
                   let barClasses = "absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
 
-                  // Cor da categoria (identidade visual)
-                  const catColor = getCategoryColor(item.categoria, { sat: 60, light: 45 });
-                  const catGlow = getCategoryColor(item.categoria, { sat: 70, light: 50, alpha: 0.35 });
+                  const strong = projectColor(item.rootProjectId);
+                  const soft = projectColor(item.rootProjectId, { l: 92, s: 45 });
+                  const softer = projectColor(item.rootProjectId, { l: 96, s: 40 });
+                  const dark = projectColor(item.rootProjectId, { l: 18 });
+                  const glow = projectColor(item.rootProjectId, { a: 0.3, l: 35 });
+                  const isProject = item.level === 0;
+                  const isSub = item.level === 1;
 
                   if (status === "concluida") {
-                    barStyle = { backgroundColor: catColor, color: "white", boxShadow: `0 0 0 1.5px ${catColor}, 0 0 8px ${catGlow}` };
-                  } else if (status === "em_andamento" || status === "atrasada") {
-                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${catColor}`, color: getCategoryColor(item.categoria, { light: 25 }), boxShadow: `0 0 6px ${catGlow}` };
+                    barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1.5px ${strong}, 0 0 8px ${glow}` };
                   } else if (status === "travada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", border: "2px dashed hsl(var(--muted-foreground))", color: "hsl(var(--muted-foreground))" };
                   } else if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
+                  } else if (isProject) {
+                    // Projeto raiz: sólido na cor forte
+                    barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1px ${strong}, 0 2px 6px ${glow}` };
+                  } else if (isSub) {
+                    // Subprojeto: claro com borda sólida
+                    barStyle = { backgroundColor: soft, border: `2px solid ${strong}`, color: dark };
                   } else {
-                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(item.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(item.categoria, { light: 35 }) };
+                    // Sub-sub: borda tracejada
+                    barStyle = { backgroundColor: softer, border: `2px dashed ${strong}`, color: dark };
                   }
 
-                  const isProject = item.level === 0;
-                  // Tamanho uniforme para todas as barras (independente de nível/swimlane)
+                  // Tamanho uniforme para todas as barras
                   const baseTop = 5;
                   const baseHeight = ROW_HEIGHT - 10;
 
