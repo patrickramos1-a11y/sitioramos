@@ -540,6 +540,17 @@ export default function AreaDetalhe() {
 
       <CycleForm open={cycleFormOpen} onOpenChange={setCycleFormOpen} cycle={editingCycle} areas={areas.filter(a => a.id === id)} onSubmit={handleCycleSubmit} isSubmitting={createCycle.isPending || updateCycle.isPending} />
 
+      {activeCycleId && activeCycle && (
+        <CultureTemplatePicker
+          open={templatePickerOpen}
+          onOpenChange={setTemplatePickerOpen}
+          cycleId={activeCycleId}
+          areaId={id!}
+          talhaoId={talhaoId}
+          dataInicio={(activeCycle as any).data_inicio_plantio || new Date().toISOString().slice(0, 10)}
+          culturaSugerida={(activeCycle as any).cultura}
+        />
+      )}
       {activeCycleId && (
         <StageForm
           open={stageFormOpen}
