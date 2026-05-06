@@ -29,6 +29,8 @@ import { OperationCard } from "@/components/operacao/OperationCard";
 import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { CycleTimeline } from "@/components/operacao/CycleTimeline";
 import { TaskList } from "@/components/operacao/TaskList";
+import { CultureTemplatePicker } from "@/components/operacao/CultureTemplatePicker";
+import { Sprout as SproutIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
