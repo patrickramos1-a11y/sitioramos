@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Task, TaskInsert } from "@/hooks/useTasks";
 import { Stage } from "@/hooks/useStages";
 import { TaskChecklist } from "./TaskChecklist";
+import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
 
 const taskTypes = [
   { value: "operacional", label: "Operacional" },
@@ -61,6 +62,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
     data_prazo: "",
     data_conclusao: "",
     responsavel: "",
+    responsavel_id: "" as string,
     custo_estimado: "",
     custo_real: "",
     observacoes: "",
@@ -80,6 +82,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
         data_prazo: task.data_prazo || "",
         data_conclusao: task.data_conclusao || "",
         responsavel: task.responsavel || "",
+        responsavel_id: (task as any).responsavel_id || "",
         custo_estimado: task.custo_estimado?.toString() || "",
         custo_real: task.custo_real?.toString() || "",
         observacoes: task.observacoes || "",
@@ -89,7 +92,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
         titulo: "", descricao: "", tipo: "operacional", status: "pendente",
         prioridade: "media", stage_id: defaultValues?.stage_id || NO_STAGE_VALUE,
         data_inicio_prevista: "", data_inicio_real: "", data_prazo: "",
-        data_conclusao: "", responsavel: "", custo_estimado: "", custo_real: "", observacoes: "",
+        data_conclusao: "", responsavel: "", responsavel_id: "", custo_estimado: "", custo_real: "", observacoes: "",
       });
     }
   }, [task, open, defaultValues]);
@@ -109,6 +112,7 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
       data_prazo: formData.data_prazo || null,
       data_conclusao: formData.data_conclusao || null,
       responsavel: formData.responsavel || null,
+      responsavel_id: formData.responsavel_id || null,
       custo_estimado: formData.custo_estimado ? Number(formData.custo_estimado) : null,
       custo_real: formData.custo_real ? Number(formData.custo_real) : null,
       observacoes: formData.observacoes || null,
@@ -186,8 +190,11 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
               <Input type="date" value={formData.data_conclusao} onChange={e => setFormData(p => ({ ...p, data_conclusao: e.target.value }))} />
             </div>
             <div className="col-span-2">
-              <Label>Responsável</Label>
-              <Input value={formData.responsavel} onChange={e => setFormData(p => ({ ...p, responsavel: e.target.value }))} />
+              <ResponsavelSelect
+                label="Responsável"
+                value={formData.responsavel_id}
+                onChange={(id) => setFormData(p => ({ ...p, responsavel_id: id || "" }))}
+              />
             </div>
             <div>
               <Label>Custo Estimado (R$)</Label>

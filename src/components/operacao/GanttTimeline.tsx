@@ -14,6 +14,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ProjectActionsMenu } from "./ProjectActionsMenu";
+import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
+import { useResponsaveis } from "@/hooks/useResponsaveis";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
 // Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
@@ -48,6 +50,7 @@ interface GanttItem {
   derivedStatus: string;
   rawStatus: string;
   responsavel: string | null;
+  responsavelId: string | null;
   categoria: string | null;
   dependsOnId: string | null;
   startPrev: Date | null;
@@ -130,6 +133,7 @@ export function GanttTimeline({
   }, [operations]);
 
   // Lista de responsáveis únicos
+  const { data: responsaveisList = [] } = useResponsaveis();
   const responsaveis = useMemo(() => {
     const set = new Set<string>();
     operations.forEach(op => {
@@ -156,6 +160,7 @@ export function GanttTimeline({
       derivedStatus: derived,
       rawStatus: s.status,
       responsavel: s.responsavel,
+      responsavelId: (s as any).responsavel_id || null,
       categoria: s.categoria,
       dependsOnId: s.depends_on_id,
       startPrev: s.data_inicio_prevista ? new Date(s.data_inicio_prevista) : null,
@@ -185,7 +190,7 @@ export function GanttTimeline({
     const result: GanttItem[] = [];
 
     const passesFilter = (it: GanttItem) => {
-      if (filterResponsavel !== "all" && it.responsavel !== filterResponsavel) return false;
+      if (filterResponsavel !== "all" && it.responsavelId !== filterResponsavel && it.responsavel !== filterResponsavel) return false;
       if (filterStatus !== "all" && it.derivedStatus !== filterStatus) return false;
       if (filterCategoria !== "all" && it.categoria !== filterCategoria) return false;
       if (onlyOverdue && it.derivedStatus !== "atrasada") return false;
@@ -376,6 +381,14 @@ export function GanttTimeline({
             <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="Responsável" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos responsáveis</SelectItem>
+              {responsaveisList.map(r => (
+                <SelectItem key={r.id} value={r.id}>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.cor }} />
+                    {r.nome}
+                  </span>
+                </SelectItem>
+              ))}
               {responsaveis.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -537,10 +550,16 @@ export function GanttTimeline({
                         {isProject && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
                         {item.name}
                       </div>
-                      {item.responsavel && isProject && (
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
-                          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel) }} />
-                          {item.responsavel}
+                      {(item.responsavelId || item.responsavel) && isProject && (
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {item.responsavelId ? (
+                            <ResponsavelBadge responsavelId={item.responsavelId} size="xs" />
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: getResponsavelColor(item.responsavel!) }} />
+                              {item.responsavel}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>

@@ -20,6 +20,7 @@ export interface Task {
   data_prazo: string | null;
   data_conclusao: string | null;
   responsavel: string | null;
+  responsavel_id?: string | null;
   custo_estimado: number | null;
   custo_real: number | null;
   cash_transaction_id: string | null;
@@ -55,6 +56,7 @@ export interface TaskInsert {
   data_prazo?: string | null;
   data_conclusao?: string | null;
   responsavel?: string | null;
+  responsavel_id?: string | null;
   custo_estimado?: number | null;
   custo_real?: number | null;
   cash_transaction_id?: string | null;
@@ -66,7 +68,7 @@ async function resolveTaskContext(task: TaskInsert) {
 
   const { data: stage, error } = await supabase
     .from("operational_stages")
-    .select("id, parent_id, propriedade_id, talhao_id, area_id, cycle_id")
+    .select("id, parent_id, propriedade_id, talhao_id, area_id, cycle_id, responsavel_id")
     .eq("id", task.stage_id)
     .maybeSingle();
 
@@ -79,6 +81,7 @@ async function resolveTaskContext(task: TaskInsert) {
     talhao_id: stage.talhao_id,
     area_id: stage.area_id,
     cycle_id: stage.cycle_id,
+    responsavel_id: (task as any).responsavel_id ?? (stage as any).responsavel_id,
   };
 }
 

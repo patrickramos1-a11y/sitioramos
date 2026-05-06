@@ -24,6 +24,7 @@ export interface Operation {
   depends_on_id: string | null;
   cor_responsavel: string | null;
   responsavel: string | null;
+  responsavel_id?: string | null;
   progresso_percentual: number | null;
   custo_total: number | null;
   ordem: number;
@@ -57,6 +58,7 @@ export interface OperationInsert {
   depends_on_id?: string | null;
   cor_responsavel?: string | null;
   responsavel?: string | null;
+  responsavel_id?: string | null;
   progresso_percentual?: number | null;
   ordem?: number;
   observacoes?: string | null;
@@ -76,7 +78,7 @@ async function resolveOperationContext(op: OperationInsert) {
 
   const { data: parent, error } = await supabase
     .from("operational_stages")
-    .select("propriedade_id, talhao_id, area_id, cycle_id")
+    .select("propriedade_id, talhao_id, area_id, cycle_id, responsavel_id")
     .eq("id", op.parent_id)
     .maybeSingle();
 
@@ -89,6 +91,8 @@ async function resolveOperationContext(op: OperationInsert) {
     talhao_id: parent.talhao_id,
     area_id: parent.area_id,
     cycle_id: parent.cycle_id,
+    // Herda responsável do pai se não foi especificado
+    responsavel_id: (op as any).responsavel_id ?? (parent as any).responsavel_id,
   };
 }
 
