@@ -12,6 +12,8 @@ import {
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { LayersPanel, LayersState, LayerItem } from "./LayersPanel";
+import { ArrowLeftRight } from "lucide-react";
 
 type ZoomLevel = "day" | "week" | "month" | "year";
 
