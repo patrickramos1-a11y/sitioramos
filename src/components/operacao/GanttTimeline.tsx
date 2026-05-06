@@ -265,7 +265,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     }
 
     return { timelineStart: start, timelineEnd: end, columns: cols, colWidth: cw };
-  }, [anchorDate, zoom]);
+  }, [anchorDate, zoom, availableWidth]);
 
   const totalWidth = columns.length * colWidth;
   const totalDays = Math.max(1, differenceInDays(timelineEnd, timelineStart));
