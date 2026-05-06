@@ -397,14 +397,7 @@ export function OperationForm({
               </p>
             </div>
 
-            <div>
-              <Label>Início Real</Label>
-              <Input type="date" value={formData.data_inicio_real} onChange={e => setFormData(p => ({ ...p, data_inicio_real: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Fim Real</Label>
-              <Input type="date" value={formData.data_fim_real} onChange={e => setFormData(p => ({ ...p, data_fim_real: e.target.value }))} />
-            </div>
+            {/* Início Real e Fim Real ocultos — preenchidos via ações no Gantt */}
 
             <div className="col-span-2">
               <Label>Descrição</Label>
