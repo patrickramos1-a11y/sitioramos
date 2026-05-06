@@ -412,8 +412,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         </div>
 
         {/* Gantt */}
-        <div className="border rounded-lg overflow-hidden bg-background">
-          <div className="flex">
+        <div className="border rounded-lg overflow-hidden bg-background w-full max-w-full">
+          <div className="flex w-full min-w-0">
             {/* Labels (sticky à esquerda) */}
             <div className="shrink-0 border-r bg-muted/20 sticky left-0 z-30" style={{ width: LABEL_WIDTH }}>
               <div className="h-10 border-b flex items-center px-3 bg-muted/40">
