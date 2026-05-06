@@ -26,6 +26,7 @@ const moreItems = [
   { to: "/propriedade", label: "Propriedade", icon: Home },
   { to: "/emprestimos", label: "Empréstimos", icon: Landmark },
   { to: "/contatos", label: "Contatos", icon: Users },
+  { to: "/responsaveis", label: "Responsáveis", icon: Users },
 ];
 
 export function MobileBottomNav() {

@@ -18,6 +18,7 @@ const routeTitles: Record<string, string> = {
   "/propriedade": "Propriedade",
   "/emprestimos": "Empréstimos",
   "/contatos": "Contatos",
+  "/responsaveis": "Responsáveis",
 };
 
 export function AppLayout({ children }: AppLayoutProps) {
