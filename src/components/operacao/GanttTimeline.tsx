@@ -417,7 +417,16 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                       {(() => {
                         const todayPx = dayToPx(today);
                         if (todayPx > 0 && todayPx < totalWidth) {
-                          return <div className="absolute top-0 bottom-0 w-0.5 bg-primary/70 z-10" style={{ left: todayPx }} />;
+                          return (
+                            <>
+                              <div className="absolute top-0 bottom-0 w-[2px] bg-destructive/80 z-10 pointer-events-none" style={{ left: todayPx }} />
+                              {rowIdx === 0 && (
+                                <div className="absolute -top-3 z-20 px-1 py-0.5 rounded-sm bg-destructive text-destructive-foreground text-[9px] font-bold shadow-sm pointer-events-none" style={{ left: todayPx - 14 }}>
+                                  HOJE
+                                </div>
+                              )}
+                            </>
+                          );
                         }
                         return null;
                       })()}
