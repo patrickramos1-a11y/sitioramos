@@ -577,8 +577,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div
-                              className={barClasses}
-                              style={{ ...barStyle, top: 6 + item.swimlane * 4, left: pos.left, width: pos.width, height: Math.max(14, ROW_HEIGHT - 12 - item.swimlane * 6) }}
+                              className={barClasses + (isProject ? " shadow-sm font-semibold text-[11px]" : "")}
+                              style={{ ...barStyle, top: baseTop, left: pos.left, width: pos.width, height: baseHeight }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
                               {/* Progresso interno — preenchimento com cor do responsável */}
