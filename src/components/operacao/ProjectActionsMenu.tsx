@@ -60,6 +60,17 @@ export function ProjectActionsMenu({
 
         <DropdownMenuSeparator />
 
+        {!isCompleted && onComplete && (
+          <DropdownMenuItem onClick={onComplete} className="text-success">
+            <CheckCircle2 className="h-4 w-4 mr-2" /> Marcar como concluído
+          </DropdownMenuItem>
+        )}
+        {isCompleted && onReopen && (
+          <DropdownMenuItem onClick={onReopen}>
+            <RotateCcw className="h-4 w-4 mr-2" /> Reabrir
+          </DropdownMenuItem>
+        )}
+
         {onEdit && (
           <DropdownMenuItem onClick={onEdit}>
             <Pencil className="h-4 w-4 mr-2" /> Editar
