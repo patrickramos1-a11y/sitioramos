@@ -223,8 +223,9 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   // Janela: colunas se ajustam à largura disponível (sem scroll horizontal)
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
     const cfg = ZOOM_CONFIG[zoom];
-    // Distribui colunas igualmente na largura disponível; mantém piso mínimo p/ legibilidade
-    const cw = Math.max(cfg.minColWidth * 0.5, availableWidth / cfg.columns);
+    // Largura por coluna: distribui pela área disponível, mas respeita o mínimo legível.
+    // Quando a soma > área disponível, o container interno faz scroll horizontal.
+    const cw = Math.max(cfg.minColWidth, availableWidth / cfg.columns);
     let start: Date;
     let cols: { label: string; date: Date }[] = [];
     let end: Date;
