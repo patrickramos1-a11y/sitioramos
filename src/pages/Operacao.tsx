@@ -6,8 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, Activity, AlertTriangle, Clock, CheckCircle2,
-  BarChart3, ListTodo, DollarSign
+  BarChart3, ListTodo, DollarSign, Zap
 } from "lucide-react";
+import { QuickOperationSheet } from "@/components/operacao/QuickOperationSheet";
 import { useOperations, Operation, OperationInsert } from "@/hooks/useOperations";
 import { useTasks, Task, TaskInsert } from "@/hooks/useTasks";
 import { useAreas } from "@/hooks/useAreas";
@@ -57,6 +58,16 @@ export default function Operacao() {
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "operation" | "task"; id: string } | null>(null);
+  const [quickOpen, setQuickOpen] = useState(false);
+
+  const knownResponsaveis = useMemo(() => {
+    const set = new Set<string>();
+    rawOperations.forEach(o => {
+      if (o.responsavel) set.add(o.responsavel);
+      (o.children || []).forEach(s => s.responsavel && set.add(s.responsavel));
+    });
+    return Array.from(set);
+  }, [rawOperations]);
 
   // Default area/cycle for new operations
   const defaultAreaId = filterArea !== "all" ? filterArea : areas[0]?.id || "";
@@ -163,9 +174,14 @@ export default function Operacao() {
             <h1 className="text-2xl font-bold tracking-tight">Operação</h1>
             <p className="text-muted-foreground">Projetos com etapas, dependências e linha do tempo</p>
           </div>
-          <Button onClick={openNewOperation} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-1" />Novo Projeto
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button onClick={() => setQuickOpen(true)} variant="default" className="flex-1 sm:flex-initial bg-primary/90 hover:bg-primary">
+              <Zap className="h-4 w-4 mr-1" />Criação rápida
+            </Button>
+            <Button onClick={openNewOperation} variant="outline" className="flex-1 sm:flex-initial">
+              <Plus className="h-4 w-4 mr-1" />Novo Projeto
+            </Button>
+          </div>
         </div>
 
         {/* KPI Cards */}
