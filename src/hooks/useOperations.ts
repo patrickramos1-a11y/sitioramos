@@ -160,7 +160,8 @@ export function useOperations(filters?: OperationFilters) {
       let query = supabase
         .from("operational_stages")
         .select("*")
-        .order("ordem", { ascending: true });
+        .order("ordem", { ascending: true })
+        .order("created_at", { ascending: true });
 
       if (filters?.cycleId) query = query.eq("cycle_id", filters.cycleId);
       if (filters?.areaId) query = query.eq("area_id", filters.areaId);
@@ -180,7 +181,9 @@ export function useOperations(filters?: OperationFilters) {
   // Build hierarchy
   const operationsWithChildren: Operation[] = mainOperations.map(op => ({
     ...op,
-    children: subOperations.filter(s => s.parent_id === op.id).sort((a, b) => a.ordem - b.ordem),
+    children: subOperations
+      .filter(s => s.parent_id === op.id)
+      .sort((a, b) => (a.ordem - b.ordem) || (a.created_at < b.created_at ? -1 : 1)),
   }));
 
   const createOperation = useMutation({
