@@ -91,14 +91,30 @@ export default function Operacao() {
 
   // Handlers
   const handleOpSubmit = (data: OperationInsert) => {
+    const payload: any = { ...data };
+    // "Vincular a outro projeto" => move o item para dentro do projeto escolhido
+    if (payload.linked_project_id) {
+      payload.parent_id = payload.linked_project_id;
+      payload.linked_project_id = null;
+    }
     if (editingOp) {
-      updateOperation.mutate({ ...data, id: editingOp.id } as any);
+      updateOperation.mutate({ ...payload, id: editingOp.id } as any);
     } else {
-      createOperation.mutate(data);
+      createOperation.mutate(payload);
     }
     setOpFormOpen(false);
     setEditingOp(null);
     setParentIdForNew(null);
+  };
+
+  const handleCompleteOperation = (id: string) => {
+    updateOperation.mutate({
+      id, status: "concluida",
+      data_fim_real: new Date().toISOString().split("T")[0],
+    } as any);
+  };
+  const handleReopenOperation = (id: string) => {
+    updateOperation.mutate({ id, status: "em_andamento", data_fim_real: null } as any);
   };
 
   const handleTaskSubmit = (data: TaskInsert) => {
@@ -292,6 +308,8 @@ export default function Operacao() {
                   onAddSubtask={openNewTask}
                   onDeleteOperation={(id) => { setDeleteTarget({ type: "operation", id }); setDeleteDialogOpen(true); }}
                   onDuplicateOperation={(id) => duplicateOperation.mutate(id)}
+                  onCompleteOperation={handleCompleteOperation}
+                  onReopenOperation={handleReopenOperation}
                 />
               </CardContent>
             </Card>
