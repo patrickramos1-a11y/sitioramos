@@ -17,6 +17,7 @@ export interface CashTransaction {
   investment_id: string | null;
   area_id: string | null;
   cycle_id: string | null;
+  operation_id: string | null;
   observacoes: string | null;
   created_at: string;
   updated_at: string;
@@ -41,6 +42,8 @@ export interface CashTransactionInsert {
   investment_id?: string | null;
   area_id?: string | null;
   cycle_id?: string | null;
+  operation_id?: string | null;
+  contato_id?: string | null;
   observacoes?: string | null;
 }
 
@@ -54,6 +57,7 @@ export interface CashFilters {
   categoria?: CashCategory;
   areaId?: string;
   cycleId?: string;
+  operationId?: string;
   tipo?: "entrada" | "saida";
   startDate?: string;
   endDate?: string;
