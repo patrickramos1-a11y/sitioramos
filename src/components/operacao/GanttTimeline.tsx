@@ -63,9 +63,13 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [onlyDeps, setOnlyDeps] = useState(false);
   // Data âncora = início da janela visível
-  const [anchorDate, setAnchorDate] = useState<Date>(() => startOfDay(addDays(new Date(), -3)));
+  const [anchorDate, setAnchorDate] = useState<Date>(() => {
+    const now = startOfDay(new Date());
+    return startOfMonth(addMonths(now, -6));
+  });
   // Largura disponível para a faixa do timeline (medida)
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [availableWidth, setAvailableWidth] = useState<number>(800);
 
   useEffect(() => {
@@ -77,9 +81,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    setExpandedIds(new Set(operations.map(o => o.id)));
-  }, [operations.length]);
+  // Projetos colapsados por padrão (não auto-expande)
+  // Estado de expansão preservado entre renders
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
