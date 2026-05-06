@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Operation } from "@/hooks/useOperations";
 import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays } from "lucide-react";
-import { addDays, addMonths, differenceInDays, format, startOfDay, startOfMonth, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from "date-fns";
+import { addDays, addMonths, addWeeks, addYears, differenceInDays, format, startOfDay, startOfMonth, startOfWeek, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
@@ -13,7 +13,14 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-type ZoomLevel = "week" | "month" | "geral";
+type ZoomLevel = "day" | "week" | "month" | "year";
+
+const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; label: string; shortLabel: string }> = {
+  day:   { columns: 14, label: "Dia",    shortLabel: "D" },
+  week:  { columns: 14, label: "Semana", shortLabel: "S" },
+  month: { columns: 14, label: "Mês",    shortLabel: "M" },
+  year:  { columns: 5,  label: "Ano",    shortLabel: "A" },
+};
 
 interface GanttItem {
   id: string;
