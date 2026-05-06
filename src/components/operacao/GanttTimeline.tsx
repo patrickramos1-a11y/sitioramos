@@ -307,9 +307,8 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   // Reposiciona em "hoje" quando muda o zoom
   useEffect(() => {
     centerOnToday();
-    return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom, totalWidth]);
+  }, [zoom]);
 
   const goToday = () => centerOnToday();
 
