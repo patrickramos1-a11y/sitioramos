@@ -386,24 +386,24 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                   // % consumido visual
                   const progressPct = status === "concluida" ? 100 : item.metrics.percentConsumido;
 
-                  // Estilo conforme status
+                  // Estilo conforme status — paleta verde Sítio Ramos
+                  // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
+                  // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
                   let barStyle: React.CSSProperties = {};
                   let barClasses = "absolute top-1.5 rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
 
                   if (status === "concluida") {
-                    barStyle = { backgroundColor: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" };
-                    barClasses += " text-muted-foreground";
-                  } else if (status === "em_andamento") {
-                    barStyle = { backgroundColor: respColor, color: "white" };
-                  } else if (status === "atrasada") {
-                    barStyle = { backgroundColor: respColor, color: "white", border: "2px solid hsl(var(--destructive))" };
+                    barStyle = { backgroundColor: "hsl(142 60% 38%)", color: "white" };
+                  } else if (status === "em_andamento" || status === "atrasada") {
+                    // base: verde claro outline + barra de progresso interna preenchida com cor do responsável
+                    barStyle = { backgroundColor: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)", color: "hsl(142 60% 25%)" };
                   } else if (status === "travada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", border: "2px dashed hsl(var(--muted-foreground))", color: "hsl(var(--muted-foreground))" };
                   } else if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
                   } else {
-                    // planejada
-                    barStyle = { backgroundColor: "transparent", border: `2px dashed ${respColor}`, color: respColor };
+                    // planejada / futura
+                    barStyle = { backgroundColor: "hsl(142 40% 95%)", border: `1.5px dashed hsl(142 40% 65%)`, color: "hsl(142 50% 35%)" };
                   }
 
                   return (
