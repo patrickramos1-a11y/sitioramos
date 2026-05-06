@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Task, TaskInsert } from "@/hooks/useTasks";
 import { Stage } from "@/hooks/useStages";
+import { TaskChecklist } from "./TaskChecklist";
 
 const taskTypes = [
   { value: "operacional", label: "Operacional" },
@@ -203,6 +204,9 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
             <div className="col-span-2">
               <Label>Observações</Label>
               <Textarea value={formData.observacoes} onChange={e => setFormData(p => ({ ...p, observacoes: e.target.value }))} />
+            </div>
+            <div className="col-span-2">
+              <TaskChecklist taskId={task?.id || null} />
             </div>
           </div>
           <div className="flex justify-end gap-2">
