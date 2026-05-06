@@ -386,24 +386,24 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                   // % consumido visual
                   const progressPct = status === "concluida" ? 100 : item.metrics.percentConsumido;
 
-                  // Estilo conforme status
+                  // Estilo conforme status — paleta verde Sítio Ramos
+                  // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
+                  // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
                   let barStyle: React.CSSProperties = {};
                   let barClasses = "absolute top-1.5 rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
 
                   if (status === "concluida") {
-                    barStyle = { backgroundColor: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" };
-                    barClasses += " text-muted-foreground";
-                  } else if (status === "em_andamento") {
-                    barStyle = { backgroundColor: respColor, color: "white" };
-                  } else if (status === "atrasada") {
-                    barStyle = { backgroundColor: respColor, color: "white", border: "2px solid hsl(var(--destructive))" };
+                    barStyle = { backgroundColor: "hsl(142 60% 38%)", color: "white" };
+                  } else if (status === "em_andamento" || status === "atrasada") {
+                    // base: verde claro outline + barra de progresso interna preenchida com cor do responsável
+                    barStyle = { backgroundColor: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)", color: "hsl(142 60% 25%)" };
                   } else if (status === "travada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", border: "2px dashed hsl(var(--muted-foreground))", color: "hsl(var(--muted-foreground))" };
                   } else if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
                   } else {
-                    // planejada
-                    barStyle = { backgroundColor: "transparent", border: `2px dashed ${respColor}`, color: respColor };
+                    // planejada / futura
+                    barStyle = { backgroundColor: "hsl(142 40% 95%)", border: `1.5px dashed hsl(142 40% 65%)`, color: "hsl(142 50% 35%)" };
                   }
 
                   return (
@@ -417,12 +417,21 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                       {(() => {
                         const todayPx = dayToPx(today);
                         if (todayPx > 0 && todayPx < totalWidth) {
-                          return <div className="absolute top-0 bottom-0 w-0.5 bg-primary/70 z-10" style={{ left: todayPx }} />;
+                          return (
+                            <>
+                              <div className="absolute top-0 bottom-0 w-[2px] bg-destructive/80 z-10 pointer-events-none" style={{ left: todayPx }} />
+                              {rowIdx === 0 && (
+                                <div className="absolute -top-3 z-20 px-1 py-0.5 rounded-sm bg-destructive text-destructive-foreground text-[9px] font-bold shadow-sm pointer-events-none" style={{ left: todayPx - 14 }}>
+                                  HOJE
+                                </div>
+                              )}
+                            </>
+                          );
                         }
                         return null;
                       })()}
 
-                      {/* Extensão de atraso (hachura vermelha) */}
+                      {/* Extensão de tempo excedido (verde escuro hachurado) */}
                       {overdueExt && (
                         <div
                           className="absolute top-1.5 rounded-r"
@@ -430,7 +439,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                             left: overdueExt.left,
                             width: overdueExt.width,
                             height: ROW_HEIGHT - 12,
-                            background: "repeating-linear-gradient(45deg, hsl(var(--destructive) / 0.7), hsl(var(--destructive) / 0.7) 4px, hsl(var(--destructive) / 0.4) 4px, hsl(var(--destructive) / 0.4) 8px)",
+                            background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 5px, hsl(142 60% 32%) 5px, hsl(142 60% 32%) 10px)",
                           }}
                         />
                       )}
@@ -444,9 +453,12 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                               style={{ ...barStyle, left: pos.left, width: pos.width, height: ROW_HEIGHT - 12 }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
-                              {/* Progresso interno */}
-                              {status === "em_andamento" && progressPct > 0 && progressPct < 100 && (
-                                <div className="absolute inset-y-0 left-0 bg-white/25 rounded-l" style={{ width: `${progressPct}%` }} />
+                              {/* Progresso interno — preenchimento com cor do responsável */}
+                              {(status === "em_andamento" || status === "atrasada") && progressPct > 0 && (
+                                <div
+                                  className="absolute inset-y-0 left-0 rounded-l"
+                                  style={{ width: `${Math.min(100, progressPct)}%`, backgroundColor: respColor, opacity: 0.85 }}
+                                />
                               )}
                               <div className="relative z-10 flex items-center gap-1 truncate">
                                 {status === "travada" && <Lock className="h-3 w-3 shrink-0" />}
@@ -525,22 +537,25 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
         {/* Legenda */}
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded bg-primary" />Em andamento
+            <span className="inline-block w-4 h-2.5 rounded border-2 border-dashed" style={{ borderColor: "hsl(142 40% 65%)", background: "hsl(142 40% 95%)" }} />Planejado
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded border-2 border-dashed border-primary" />Planejada
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)" }} />Em execução
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded bg-muted border border-border" />Concluída
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 60% 38%)" }} />Concluído
           </span>
           <span className="flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3 text-destructive" />Atrasada
+            <span
+              className="inline-block w-4 h-2.5 rounded"
+              style={{ background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 3px, hsl(142 60% 32%) 3px, hsl(142 60% 32%) 6px)" }}
+            />Tempo excedido
           </span>
           <span className="flex items-center gap-1">
-            <Lock className="h-3 w-3" />Travada por dependência
+            <Lock className="h-3 w-3" />Travada
           </span>
           <span className="flex items-center gap-1 ml-auto">
-            <span className="inline-block w-0.5 h-3 bg-primary" />Hoje
+            <span className="inline-block w-0.5 h-3 bg-destructive" />Hoje
           </span>
         </div>
       </div>
