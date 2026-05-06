@@ -310,37 +310,7 @@ export function OperationForm({
               </div>
             )}
 
-            <div>
-              <Label>Tipo</Label>
-              <Select value={formData.tipo} onValueChange={v => setFormData(p => ({ ...p, tipo: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {operationTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={formData.status} onValueChange={v => setFormData(p => ({ ...p, status: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {STAGE_STATUS_OPTIONS_FORM.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Prioridade</Label>
-              <Select value={formData.prioridade} onValueChange={v => setFormData(p => ({ ...p, prioridade: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Ordem</Label>
-              <Input type="number" value={formData.ordem} onChange={e => setFormData(p => ({ ...p, ordem: Number(e.target.value) }))} />
-            </div>
+            {/* Tipo, Status, Prioridade e Ordem ocultos — usam valores padrão */}
 
             <div className="col-span-2">
               <ResponsavelSelect
