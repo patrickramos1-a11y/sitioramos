@@ -315,7 +315,7 @@ export function GanttTimeline({
     });
   };
 
-  // Centralizar hoje: ajusta âncora para que hoje fique no meio da janela
+  // Centralizar hoje: ajusta âncora e rola o ScrollArea para que hoje fique no centro visível
   const centerOnToday = () => {
     const today = startOfDay(new Date());
     const half = Math.floor(ZOOM_CONFIG[zoom].columns / 2);
@@ -325,13 +325,17 @@ export function GanttTimeline({
       case "month": setAnchorDate(startOfMonth(addMonths(today, -half))); break;
       case "year": setAnchorDate(startOfYear(addYears(today, -half))); break;
     }
+    // após re-render, rolar viewport
+    requestAnimationFrame(() => {
+      const root = timelineRef.current;
+      if (!root) return;
+      const viewport = root.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      if (!viewport) return;
+      viewport.scrollLeft = Math.max(0, (viewport.scrollWidth - viewport.clientWidth) / 2);
+    });
   };
 
-  // Reposiciona em "hoje" quando muda o zoom
-  useEffect(() => {
-    centerOnToday();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom]);
+  useEffect(() => { centerOnToday(); /* eslint-disable-next-line */ }, [zoom]);
 
   const goToday = () => centerOnToday();
 
