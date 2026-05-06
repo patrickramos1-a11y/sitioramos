@@ -46,10 +46,12 @@ interface GanttItem {
 interface GanttTimelineProps {
   operations: Operation[];
   tasks: Task[];
+  areas?: Array<{ id: string; nome: string }>;
+  cycles?: Array<{ id: string; cultura?: string | null; area_id?: string | null }>;
   onItemClick?: (id: string, type: "operation" | "sub-operation" | "task") => void;
 }
 
-export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineProps) {
+export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onItemClick }: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
