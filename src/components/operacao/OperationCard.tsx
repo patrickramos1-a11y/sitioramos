@@ -140,7 +140,7 @@ export function OperationCard({
             )}
             {operation.responsavel && <span>👤 {operation.responsavel}</span>}
             {totalCusto > 0 && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(totalCusto)}</span>}
-            {tasksTotal > 0 && <span>{tasksConcluidas}/{tasksTotal} tarefas</span>}
+            {tasksTotal > 0 && <span>☑ {tasksConcluidas}/{tasksTotal} subtarefas</span>}
           </div>
 
           {/* Progress bar */}
