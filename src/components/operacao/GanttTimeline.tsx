@@ -542,7 +542,7 @@ export function GanttTimeline({
                       onClick={() => onItemClick?.(item.id, item.type)}
                       title={item.name}
                     >
-                      {item.hasChildren && isProject ? (
+                      {item.hasChildren ? (
                         <button
                           className="p-0.5 rounded hover:bg-muted"
                           onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
