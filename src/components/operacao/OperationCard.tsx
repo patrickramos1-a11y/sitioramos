@@ -110,8 +110,8 @@ export function OperationCard({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit(operation)}><Pencil className="mr-2 h-3 w-3" />Editar</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onDuplicate(operation.id)}><Copy className="mr-2 h-3 w-3" />Duplicar</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAddSubOperation(operation.id)}><Layers className="mr-2 h-3 w-3" />Suboperação</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAddTask(operation.id)}><ListTodo className="mr-2 h-3 w-3" />Nova Tarefa</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAddSubOperation(operation.id)}><Layers className="mr-2 h-3 w-3" />Novo Subprojeto</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAddTask(operation.id)}><ListTodo className="mr-2 h-3 w-3" />Nova Subtarefa</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {operation.status !== "em_andamento" && (
                   <DropdownMenuItem onClick={() => onStatusChange(operation, "em_andamento")}>
@@ -140,7 +140,7 @@ export function OperationCard({
             )}
             {operation.responsavel && <span>👤 {operation.responsavel}</span>}
             {totalCusto > 0 && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(totalCusto)}</span>}
-            {tasksTotal > 0 && <span>{tasksConcluidas}/{tasksTotal} tarefas</span>}
+            {tasksTotal > 0 && <span>☑ {tasksConcluidas}/{tasksTotal} subtarefas</span>}
           </div>
 
           {/* Progress bar */}
@@ -153,16 +153,18 @@ export function OperationCard({
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
-            {/* Sub-operations */}
+            {/* Subprojetos */}
             {(operation.children || []).length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                  <Layers className="h-3 w-3" />Suboperações
+                  <Layers className="h-3 w-3" />Subprojetos
                 </h4>
                 {(operation.children || []).map(sub => {
                   const subSc = statusConfig[sub.status] || statusConfig.nao_iniciada;
                   const SubIcon = subSc.icon;
                   const subTasks = tasks.filter(t => t.stage_id === sub.id);
+                  const subDone = subTasks.filter(t => t.status === "concluida").length;
+                  const subPct = subTasks.length > 0 ? Math.round((subDone / subTasks.length) * 100) : 0;
                   return (
                     <div key={sub.id} className="bg-muted/30 rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
@@ -170,10 +172,15 @@ export function OperationCard({
                           <SubIcon className={`h-3.5 w-3.5 ${subSc.color}`} />
                           <span className="text-sm font-medium truncate">{sub.nome}</span>
                           <Badge variant={subSc.badgeVariant} className="text-[10px]">{subSc.label}</Badge>
+                          {subTasks.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              ☑ {subDone}/{subTasks.length} ({subPct}%)
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onAddTask(sub.id)}>
-                            <Plus className="h-3 w-3" />
+                          <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" onClick={() => onAddTask(sub.id)}>
+                            <Plus className="h-3 w-3 mr-1" />Subtarefa
                           </Button>
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(sub)}>
                             <Pencil className="h-3 w-3" />
@@ -183,10 +190,11 @@ export function OperationCard({
                       {subTasks.length > 0 && (
                         <div className="pl-4 space-y-1">
                           {subTasks.map(task => (
-                            <TaskMiniCard
+                            <ChecklistRow
                               key={task.id}
                               task={task}
                               onEdit={() => onEditTask(task)}
+                              onDelete={() => onDeleteTask(task)}
                               onStatusChange={onTaskStatusChange}
                             />
                           ))}
@@ -198,7 +206,7 @@ export function OperationCard({
               </div>
             )}
 
-            {/* Direct tasks */}
+            {/* Subtarefas diretas no projeto */}
             {(() => {
               const directTasks = tasks.filter(t =>
                 t.stage_id === operation.id
@@ -207,13 +215,14 @@ export function OperationCard({
               return (
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                    <ListTodo className="h-3 w-3" />Tarefas
+                    <ListTodo className="h-3 w-3" />Subtarefas
                   </h4>
                   {directTasks.map(task => (
-                    <TaskMiniCard
+                    <ChecklistRow
                       key={task.id}
                       task={task}
                       onEdit={() => onEditTask(task)}
+                      onDelete={() => onDeleteTask(task)}
                       onStatusChange={onTaskStatusChange}
                     />
                   ))}
@@ -231,10 +240,10 @@ export function OperationCard({
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => onAddSubOperation(operation.id)}>
-                <Layers className="h-3 w-3 mr-1" />Suboperação
+                <Layers className="h-3 w-3 mr-1" />Novo Subprojeto
               </Button>
               <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => onAddTask(operation.id)}>
-                <Plus className="h-3 w-3 mr-1" />Tarefa
+                <Plus className="h-3 w-3 mr-1" />Nova Subtarefa
               </Button>
             </div>
           </CardContent>
@@ -244,32 +253,55 @@ export function OperationCard({
   );
 }
 
-function TaskMiniCard({ task, onEdit, onStatusChange }: { task: Task; onEdit: () => void; onStatusChange: (task: Task, status: string) => void }) {
-  const isOverdue = task.data_prazo && new Date(task.data_prazo) < new Date() && task.status !== "concluida" && task.status !== "cancelada";
-
+function ChecklistRow({
+  task, onEdit, onDelete, onStatusChange,
+}: {
+  task: Task;
+  onEdit: () => void;
+  onDelete: () => void;
+  onStatusChange: (task: Task, status: string) => void;
+}) {
+  const isDone = task.status === "concluida";
+  const isOverdue = task.data_prazo && new Date(task.data_prazo) < new Date() && !isDone && task.status !== "cancelada";
   return (
-    <div className={`flex items-center justify-between gap-2 p-2 rounded bg-background border text-xs ${isOverdue ? "border-destructive/50" : ""}`}>
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <span className={`truncate ${task.status === "concluida" ? "line-through text-muted-foreground" : ""}`}>
-          {task.titulo}
+    <div className={`flex items-center gap-2 p-1.5 rounded bg-background border text-xs ${isOverdue ? "border-destructive/50" : ""}`}>
+      <button
+        type="button"
+        className="p-0.5 rounded hover:bg-muted shrink-0"
+        onClick={() => onStatusChange(task, isDone ? "pendente" : "concluida")}
+        aria-label={isDone ? "Reabrir subtarefa" : "Concluir subtarefa"}
+        title={isDone ? "Reabrir" : "Concluir"}
+      >
+        {isDone
+          ? <CheckCircle2 className="h-4 w-4 text-success" />
+          : <Circle className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      <button
+        type="button"
+        className={`flex-1 min-w-0 text-left truncate ${isDone ? "line-through text-muted-foreground" : ""}`}
+        onClick={onEdit}
+      >
+        {task.titulo}
+      </button>
+      {task.responsavel && (
+        <span
+          className="inline-block h-2 w-2 rounded-full shrink-0"
+          style={{ backgroundColor: getResponsavelColor(task.responsavel) }}
+          title={task.responsavel}
+        />
+      )}
+      {task.data_prazo && (
+        <span className={`text-[10px] tabular-nums shrink-0 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
+          {format(new Date(task.data_prazo), "dd/MM", { locale: ptBR })}
         </span>
-        {isOverdue && <Badge variant="destructive" className="text-[10px] px-1">Atrasada</Badge>}
-      </div>
-      <div className="flex items-center gap-0.5 shrink-0">
-        {task.status === "pendente" && (
-          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onStatusChange(task, "em_andamento")}>
-            <PlayCircle className="h-3 w-3 text-primary" />
-          </Button>
-        )}
-        {task.status === "em_andamento" && (
-          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onStatusChange(task, "concluida")}>
-            <CheckCircle2 className="h-3 w-3 text-success" />
-          </Button>
-        )}
-        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onEdit}>
-          <Pencil className="h-3 w-3" />
-        </Button>
-      </div>
+      )}
+      {isOverdue && <Badge variant="destructive" className="text-[9px] px-1 shrink-0">Atrasada</Badge>}
+      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={onEdit} title="Editar">
+        <Pencil className="h-3 w-3" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete} title="Excluir">
+        <Trash2 className="h-3 w-3" />
+      </Button>
     </div>
   );
 }

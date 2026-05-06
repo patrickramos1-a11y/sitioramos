@@ -345,15 +345,36 @@ export function GanttTimeline({
       result.push(opItem);
       if (expandedIds.has(op.id)) {
         result.push(...subAccum);
-        // tarefas diretamente vinculadas ao projeto raiz
-        for (const t of opDirectTasks) {
-          result.push(buildTaskItem(t, 1, op.id));
-        }
+        // Subtarefas NÃO aparecem na timeline — são checklist dentro do subprojeto.
       }
     }
 
     return result;
   }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
+
+  // Mapa de progresso de checklist (subtarefas) por stage_id (projeto ou subprojeto)
+  const checklistProgressByStage = useMemo(() => {
+    const map = new Map<string, { done: number; total: number }>();
+    for (const t of tasks) {
+      if (!t.stage_id) continue;
+      const cur = map.get(t.stage_id) || { done: 0, total: 0 };
+      cur.total += 1;
+      if (t.status === "concluida") cur.done += 1;
+      map.set(t.stage_id, cur);
+    }
+    // Agrega no projeto raiz: soma subtarefas dos subprojetos também
+    for (const op of operations) {
+      const rootAgg = { done: 0, total: 0 };
+      const direct = map.get(op.id);
+      if (direct) { rootAgg.done += direct.done; rootAgg.total += direct.total; }
+      for (const child of (op.children || [])) {
+        const c = map.get(child.id);
+        if (c) { rootAgg.done += c.done; rootAgg.total += c.total; }
+      }
+      if (rootAgg.total > 0) map.set(op.id, rootAgg);
+    }
+    return map;
+  }, [tasks, operations]);
 
 
   // Janela: colunas se ajustam à largura disponível (sem scroll horizontal)
@@ -895,6 +916,24 @@ export function GanttTimeline({
                                     style={{ backgroundColor: chipBg, color: chipColor }}
                                   >
                                     {label}
+                                  </span>
+                                );
+                              })()}
+                              {/* Chip de checklist (subtarefas) */}
+                              {pos.width > 110 && (() => {
+                                const cl = checklistProgressByStage.get(item.id);
+                                if (!cl || cl.total === 0) return null;
+                                const chipBg = isProject || status === "concluida"
+                                  ? "rgba(255,255,255,0.22)"
+                                  : projectColor(item.rootProjectId, { a: 0.15, l: 35 });
+                                const chipColor = isProject || status === "concluida" ? "white" : dark;
+                                return (
+                                  <span
+                                    className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
+                                    style={{ backgroundColor: chipBg, color: chipColor }}
+                                    title={`${cl.done} de ${cl.total} subtarefas concluídas`}
+                                  >
+                                    ☑ {cl.done}/{cl.total}
                                   </span>
                                 );
                               })()}
