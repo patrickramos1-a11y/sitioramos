@@ -25,6 +25,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           propriedade_id: string | null
+          responsavel_id: string | null
           status: Database["public"]["Enums"]["area_status"]
           talhao_id: string | null
           tamanho_hectares: number
@@ -42,6 +43,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           propriedade_id?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["area_status"]
           talhao_id?: string | null
           tamanho_hectares: number
@@ -59,6 +61,7 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           propriedade_id?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["area_status"]
           talhao_id?: string | null
           tamanho_hectares?: number
@@ -99,6 +102,7 @@ export type Database = {
           loan_id: string | null
           observacoes: string | null
           operation_id: string | null
+          responsavel_id: string | null
           revenue_id: string | null
           talhao_id: string | null
           tipo: string
@@ -120,6 +124,7 @@ export type Database = {
           loan_id?: string | null
           observacoes?: string | null
           operation_id?: string | null
+          responsavel_id?: string | null
           revenue_id?: string | null
           talhao_id?: string | null
           tipo: string
@@ -141,6 +146,7 @@ export type Database = {
           loan_id?: string | null
           observacoes?: string | null
           operation_id?: string | null
+          responsavel_id?: string | null
           revenue_id?: string | null
           talhao_id?: string | null
           tipo?: string
@@ -263,6 +269,7 @@ export type Database = {
           forma_pagamento: Database["public"]["Enums"]["payment_method"]
           id: string
           observacoes: string | null
+          responsavel_id: string | null
           talhao_id: string | null
           tipo: Database["public"]["Enums"]["cost_type"]
           updated_at: string
@@ -278,6 +285,7 @@ export type Database = {
           forma_pagamento?: Database["public"]["Enums"]["payment_method"]
           id?: string
           observacoes?: string | null
+          responsavel_id?: string | null
           talhao_id?: string | null
           tipo: Database["public"]["Enums"]["cost_type"]
           updated_at?: string
@@ -293,6 +301,7 @@ export type Database = {
           forma_pagamento?: Database["public"]["Enums"]["payment_method"]
           id?: string
           observacoes?: string | null
+          responsavel_id?: string | null
           talhao_id?: string | null
           tipo?: Database["public"]["Enums"]["cost_type"]
           updated_at?: string
@@ -369,6 +378,7 @@ export type Database = {
           data_real_colheita: string | null
           id: string
           observacoes: string | null
+          responsavel_id: string | null
           status: Database["public"]["Enums"]["cycle_status"]
           talhao_id: string | null
           updated_at: string
@@ -382,6 +392,7 @@ export type Database = {
           data_real_colheita?: string | null
           id?: string
           observacoes?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["cycle_status"]
           talhao_id?: string | null
           updated_at?: string
@@ -395,6 +406,7 @@ export type Database = {
           data_real_colheita?: string | null
           id?: string
           observacoes?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["cycle_status"]
           talhao_id?: string | null
           updated_at?: string
@@ -425,6 +437,7 @@ export type Database = {
           loan_id: string
           numero_parcela: number
           observacoes: string | null
+          responsavel_id: string | null
           status: Database["public"]["Enums"]["installment_status"]
           updated_at: string
           valor: number
@@ -439,6 +452,7 @@ export type Database = {
           loan_id: string
           numero_parcela: number
           observacoes?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["installment_status"]
           updated_at?: string
           valor: number
@@ -453,6 +467,7 @@ export type Database = {
           loan_id?: string
           numero_parcela?: number
           observacoes?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["installment_status"]
           updated_at?: string
           valor?: number
@@ -479,6 +494,7 @@ export type Database = {
           id: string
           observacoes: string | null
           rateado: boolean
+          responsavel_id: string | null
           talhao_id: string | null
           tipo: Database["public"]["Enums"]["investment_type"]
           updated_at: string
@@ -493,6 +509,7 @@ export type Database = {
           id?: string
           observacoes?: string | null
           rateado?: boolean
+          responsavel_id?: string | null
           talhao_id?: string | null
           tipo: Database["public"]["Enums"]["investment_type"]
           updated_at?: string
@@ -507,6 +524,7 @@ export type Database = {
           id?: string
           observacoes?: string | null
           rateado?: boolean
+          responsavel_id?: string | null
           talhao_id?: string | null
           tipo?: Database["public"]["Enums"]["investment_type"]
           updated_at?: string
@@ -551,6 +569,7 @@ export type Database = {
           numero_parcelas: number
           observacoes: string | null
           origem_credor: string
+          responsavel_id: string | null
           status: Database["public"]["Enums"]["loan_status"]
           updated_at: string
           valor_juros_total: number | null
@@ -573,6 +592,7 @@ export type Database = {
           numero_parcelas?: number
           observacoes?: string | null
           origem_credor: string
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["loan_status"]
           updated_at?: string
           valor_juros_total?: number | null
@@ -595,6 +615,7 @@ export type Database = {
           numero_parcelas?: number
           observacoes?: string | null
           origem_credor?: string
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["loan_status"]
           updated_at?: string
           valor_juros_total?: number | null
@@ -677,6 +698,7 @@ export type Database = {
           progresso_percentual: number | null
           propriedade_id: string | null
           responsavel: string | null
+          responsavel_id: string | null
           status: Database["public"]["Enums"]["stage_status"]
           talhao_id: string | null
           tipo: Database["public"]["Enums"]["stage_type"]
@@ -708,6 +730,7 @@ export type Database = {
           progresso_percentual?: number | null
           propriedade_id?: string | null
           responsavel?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["stage_status"]
           talhao_id?: string | null
           tipo?: Database["public"]["Enums"]["stage_type"]
@@ -739,6 +762,7 @@ export type Database = {
           progresso_percentual?: number | null
           propriedade_id?: string | null
           responsavel?: string | null
+          responsavel_id?: string | null
           status?: Database["public"]["Enums"]["stage_status"]
           talhao_id?: string | null
           tipo?: Database["public"]["Enums"]["stage_type"]
@@ -801,6 +825,7 @@ export type Database = {
           prioridade: Database["public"]["Enums"]["priority_level"] | null
           propriedade_id: string | null
           responsavel: string | null
+          responsavel_id: string | null
           stage_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           talhao_id: string | null
@@ -826,6 +851,7 @@ export type Database = {
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           propriedade_id?: string | null
           responsavel?: string | null
+          responsavel_id?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           talhao_id?: string | null
@@ -851,6 +877,7 @@ export type Database = {
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           propriedade_id?: string | null
           responsavel?: string | null
+          responsavel_id?: string | null
           stage_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           talhao_id?: string | null
@@ -942,6 +969,42 @@ export type Database = {
         }
         Relationships: []
       }
+      responsaveis: {
+        Row: {
+          apelido: string | null
+          cor: string
+          created_at: string
+          icone: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          apelido?: string | null
+          cor?: string
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          apelido?: string | null
+          cor?: string
+          created_at?: string
+          icone?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       revenues: {
         Row: {
           area_id: string
@@ -955,6 +1018,7 @@ export type Database = {
           preco_unitario: number
           produto: string
           quantidade: number
+          responsavel_id: string | null
           talhao_id: string | null
           unidade: Database["public"]["Enums"]["unit_type"]
           updated_at: string
@@ -972,6 +1036,7 @@ export type Database = {
           preco_unitario: number
           produto: string
           quantidade: number
+          responsavel_id?: string | null
           talhao_id?: string | null
           unidade?: Database["public"]["Enums"]["unit_type"]
           updated_at?: string
@@ -989,6 +1054,7 @@ export type Database = {
           preco_unitario?: number
           produto?: string
           quantidade?: number
+          responsavel_id?: string | null
           talhao_id?: string | null
           unidade?: Database["public"]["Enums"]["unit_type"]
           updated_at?: string
@@ -1070,6 +1136,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           propriedade_id: string | null
+          responsavel_id: string | null
           status: string
           updated_at: string
         }
@@ -1084,6 +1151,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           propriedade_id?: string | null
+          responsavel_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -1098,6 +1166,7 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           propriedade_id?: string | null
+          responsavel_id?: string | null
           status?: string
           updated_at?: string
         }
