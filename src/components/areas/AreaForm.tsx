@@ -69,6 +69,8 @@ export function AreaForm({ open, onOpenChange, area, talhaoId, onSubmit, isSubmi
 
   const possuiRio = form.watch("possui_rio");
   const metrosRio = form.watch("metros_rio");
+  const tamanhoHa = form.watch("tamanho_hectares");
+  const tipoSel = form.watch("tipo");
   const appCalculada = possuiRio ? calculateAppFromRiver(metrosRio || 0) : 0;
 
   useEffect(() => {
