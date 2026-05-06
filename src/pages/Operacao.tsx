@@ -279,6 +279,8 @@ export default function Operacao() {
                 <GanttTimeline
                   operations={operations}
                   tasks={allTasks}
+                  areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
+                  cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
                   onItemClick={handleGanttItemClick}
                 />
               </CardContent>

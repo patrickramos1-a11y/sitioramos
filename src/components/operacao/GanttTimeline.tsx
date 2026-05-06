@@ -12,6 +12,8 @@ import {
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { LayersPanel, LayersState, LayerItem } from "./LayersPanel";
+import { ArrowLeftRight } from "lucide-react";
 
 type ZoomLevel = "day" | "week" | "month" | "year";
 
@@ -39,15 +41,22 @@ interface GanttItem {
   type: "operation" | "sub-operation" | "task";
   hasChildren: boolean;
   metrics: ReturnType<typeof computeStageMetrics>;
+  areaId: string | null;
+  cycleId: string | null;
+  rootProjectId: string;
+  permiteSimultaneidade: boolean;
+  swimlane: number;
 }
 
 interface GanttTimelineProps {
   operations: Operation[];
   tasks: Task[];
+  areas?: Array<{ id: string; nome: string }>;
+  cycles?: Array<{ id: string; cultura?: string | null; area_id?: string | null }>;
   onItemClick?: (id: string, type: "operation" | "sub-operation" | "task") => void;
 }
 
-export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineProps) {
+export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onItemClick }: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
@@ -102,7 +111,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
     return Array.from(set);
   }, [operations]);
 
-  const buildItem = (s: Operation, level: number, parentId?: string, type: GanttItem["type"] = "sub-operation"): GanttItem => {
+  const buildItem = (s: Operation, level: number, rootProjectId: string, parentId?: string, type: GanttItem["type"] = "sub-operation"): GanttItem => {
     const dependencyConcluded = s.depends_on_id ? (concludedMap.get(s.depends_on_id) || false) : true;
     const derived = deriveStageStatus({
       status: s.status,
@@ -135,10 +144,23 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
         data_fim_real: s.data_fim_real,
         duracao_prevista_dias: s.duracao_prevista_dias,
       }),
+      areaId: s.area_id ?? null,
+      cycleId: s.cycle_id ?? null,
+      rootProjectId,
+      permiteSimultaneidade: !!(s as any).permite_simultaneidade,
+      swimlane: 0,
     };
   };
 
-  // Lista plana visível com filtros
+  // Estado de Camadas (Layers)
+  const [layers, setLayers] = useState<LayersState>({
+    hiddenAreas: new Set(),
+    hiddenProjects: new Set(),
+    hiddenCycles: new Set(),
+    hiddenResponsaveis: new Set(),
+  });
+
+  // Lista plana visível com filtros + camadas + swimlanes para simultaneidade
   const items = useMemo(() => {
     const result: GanttItem[] = [];
 
@@ -148,16 +170,21 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
       if (filterCategoria !== "all" && it.categoria !== filterCategoria) return false;
       if (onlyOverdue && it.derivedStatus !== "atrasada") return false;
       if (onlyDeps && !it.dependsOnId) return false;
+      // Camadas
+      if (it.areaId && layers.hiddenAreas.has(it.areaId)) return false;
+      if (layers.hiddenProjects.has(it.rootProjectId)) return false;
+      if (it.cycleId && layers.hiddenCycles.has(it.cycleId)) return false;
+      if (it.responsavel && layers.hiddenResponsaveis.has(it.responsavel)) return false;
       return true;
     };
 
     for (const op of operations) {
-      const opItem = buildItem(op, 0, undefined, "operation");
+      const opItem = buildItem(op, 0, op.id, undefined, "operation");
 
       // Construir sub-items
       const childItems: GanttItem[] = [];
       for (const sub of (op.children || [])) {
-        childItems.push(buildItem(sub, 1, op.id, "sub-operation"));
+        childItems.push(buildItem(sub, 1, op.id, op.id, "sub-operation"));
       }
 
       // Categoria do projeto herdada para etapas sem categoria
@@ -168,6 +195,42 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
       const opPasses = passesFilter(opItem);
       if (!opPasses && filteredChildren.length === 0) continue;
 
+      // Swimlanes: detectar sobreposição temporal entre filhos da mesma área
+      // (etapas que se sobrepõem no tempo no mesmo grupo recebem swimlanes diferentes)
+      const byArea = new Map<string, GanttItem[]>();
+      filteredChildren.forEach(c => {
+        const key = c.areaId || "__noarea__";
+        if (!byArea.has(key)) byArea.set(key, []);
+        byArea.get(key)!.push(c);
+      });
+      byArea.forEach(groupChildren => {
+        // Para cada grupo, atribuir swimlane evitando overlap
+        const lanes: Array<Date | null> = []; // último fim por lane
+        // ordenar por start
+        groupChildren.sort((a, b) => {
+          const sa = (a.startReal || a.startPrev)?.getTime() ?? 0;
+          const sb = (b.startReal || b.startPrev)?.getTime() ?? 0;
+          return sa - sb;
+        });
+        for (const child of groupChildren) {
+          const start = child.startReal || child.startPrev;
+          const end = child.endReal || child.endPrev;
+          if (!start || !end) { child.swimlane = 0; continue; }
+          let assigned = -1;
+          for (let i = 0; i < lanes.length; i++) {
+            const laneEnd = lanes[i];
+            if (!laneEnd || laneEnd <= start) { assigned = i; break; }
+          }
+          if (assigned === -1) {
+            lanes.push(end);
+            assigned = lanes.length - 1;
+          } else {
+            lanes[assigned] = end;
+          }
+          child.swimlane = assigned;
+        }
+      });
+
       result.push(opItem);
       if (expandedIds.has(op.id)) {
         result.push(...filteredChildren);
@@ -175,7 +238,44 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
     }
 
     return result;
-  }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
+  }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap, layers]);
+
+  // Itens para o painel de camadas
+  const layerItems = useMemo(() => {
+    const areaCount = new Map<string, number>();
+    const projectCount = new Map<string, { name: string; count: number; cat: string | null }>();
+    const cycleCount = new Map<string, number>();
+    const respCount = new Map<string, number>();
+
+    operations.forEach(op => {
+      const all = [op, ...(op.children || [])];
+      projectCount.set(op.id, { name: op.nome, count: all.length, cat: op.categoria });
+      all.forEach(s => {
+        if (s.area_id) areaCount.set(s.area_id, (areaCount.get(s.area_id) || 0) + 1);
+        if (s.cycle_id) cycleCount.set(s.cycle_id, (cycleCount.get(s.cycle_id) || 0) + 1);
+        if (s.responsavel) respCount.set(s.responsavel, (respCount.get(s.responsavel) || 0) + 1);
+      });
+    });
+
+    const areaItems: LayerItem[] = Array.from(areaCount.entries()).map(([id, count]) => ({
+      id,
+      label: areas.find(a => a.id === id)?.nome || "Área",
+      count,
+      color: "hsl(142 55% 45%)",
+    }));
+    const projectItems: LayerItem[] = Array.from(projectCount.entries()).map(([id, v]) => ({
+      id, label: v.name, count: v.count, color: "hsl(35 60% 50%)",
+    }));
+    const cycleItems: LayerItem[] = Array.from(cycleCount.entries()).map(([id, count]) => {
+      const c = cycles.find(x => x.id === id);
+      return { id, label: c?.cultura || "Ciclo", count, color: "hsl(85 50% 45%)" };
+    });
+    const respItems: LayerItem[] = Array.from(respCount.entries()).map(([name, count]) => ({
+      id: name, label: name, count, color: getResponsavelColor(name),
+    }));
+    return { areaItems, projectItems, cycleItems, respItems };
+  }, [operations, areas, cycles]);
+
 
   // Janela: grid fixo de N colunas que preenche a largura disponível.
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
@@ -372,6 +472,15 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
         {/* Gantt */}
         <div className="border rounded-lg overflow-hidden bg-background">
           <div className="flex">
+            {/* Painel de Camadas */}
+            <LayersPanel
+              areas={layerItems.areaItems}
+              projects={layerItems.projectItems}
+              cycles={layerItems.cycleItems}
+              responsaveis={layerItems.respItems}
+              state={layers}
+              onChange={setLayers}
+            />
             {/* Labels */}
             <div className="shrink-0 border-r bg-muted/30 sticky left-0 z-20" style={{ width: LABEL_WIDTH }}>
               <div className="h-9 border-b flex items-center px-3 bg-muted/50">
@@ -448,7 +557,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                   // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
                   // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
                   let barStyle: React.CSSProperties = {};
-                  let barClasses = "absolute top-1.5 rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
+                  let barClasses = "absolute rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
 
                   if (status === "concluida") {
                     barStyle = { backgroundColor: "hsl(142 60% 38%)", color: "white" };
@@ -492,11 +601,12 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                       {/* Extensão de tempo excedido (verde escuro hachurado) */}
                       {overdueExt && (
                         <div
-                          className="absolute top-1.5 rounded-r"
+                          className="absolute rounded-r"
                           style={{
+                            top: 6 + item.swimlane * 4,
                             left: overdueExt.left,
                             width: overdueExt.width,
-                            height: ROW_HEIGHT - 12,
+                            height: Math.max(14, ROW_HEIGHT - 12 - item.swimlane * 6),
                             background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 5px, hsl(142 60% 32%) 5px, hsl(142 60% 32%) 10px)",
                           }}
                         />
@@ -508,7 +618,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                           <TooltipTrigger asChild>
                             <div
                               className={barClasses}
-                              style={{ ...barStyle, left: pos.left, width: pos.width, height: ROW_HEIGHT - 12 }}
+                              style={{ ...barStyle, top: 6 + item.swimlane * 4, left: pos.left, width: pos.width, height: Math.max(14, ROW_HEIGHT - 12 - item.swimlane * 6) }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
                               {/* Progresso interno — preenchimento com cor do responsável */}
