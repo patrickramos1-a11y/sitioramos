@@ -642,7 +642,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                           <TooltipTrigger asChild>
                             <div
                               className={barClasses + (isProject ? " shadow-sm font-semibold text-[11px]" : "")}
-                              style={{ ...barStyle, top: baseTop, left: pos.left, width: pos.width, height: baseHeight }}
+                              style={{
+                                ...barStyle,
+                                top: baseTop, left: pos.left, width: pos.width, height: baseHeight,
+                                borderLeft: `3px solid ${getProjectColor(item.rootProjectId)}`,
+                              }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
                               {/* Progresso interno — preenchimento com cor do responsável */}
