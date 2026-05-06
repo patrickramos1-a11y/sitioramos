@@ -240,10 +240,10 @@ export function OperationCard({
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => onAddSubOperation(operation.id)}>
-                <Layers className="h-3 w-3 mr-1" />Suboperação
+                <Layers className="h-3 w-3 mr-1" />Novo Subprojeto
               </Button>
               <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => onAddTask(operation.id)}>
-                <Plus className="h-3 w-3 mr-1" />Tarefa
+                <Plus className="h-3 w-3 mr-1" />Nova Subtarefa
               </Button>
             </div>
           </CardContent>
@@ -253,32 +253,55 @@ export function OperationCard({
   );
 }
 
-function TaskMiniCard({ task, onEdit, onStatusChange }: { task: Task; onEdit: () => void; onStatusChange: (task: Task, status: string) => void }) {
-  const isOverdue = task.data_prazo && new Date(task.data_prazo) < new Date() && task.status !== "concluida" && task.status !== "cancelada";
-
+function ChecklistRow({
+  task, onEdit, onDelete, onStatusChange,
+}: {
+  task: Task;
+  onEdit: () => void;
+  onDelete: () => void;
+  onStatusChange: (task: Task, status: string) => void;
+}) {
+  const isDone = task.status === "concluida";
+  const isOverdue = task.data_prazo && new Date(task.data_prazo) < new Date() && !isDone && task.status !== "cancelada";
   return (
-    <div className={`flex items-center justify-between gap-2 p-2 rounded bg-background border text-xs ${isOverdue ? "border-destructive/50" : ""}`}>
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <span className={`truncate ${task.status === "concluida" ? "line-through text-muted-foreground" : ""}`}>
-          {task.titulo}
+    <div className={`flex items-center gap-2 p-1.5 rounded bg-background border text-xs ${isOverdue ? "border-destructive/50" : ""}`}>
+      <button
+        type="button"
+        className="p-0.5 rounded hover:bg-muted shrink-0"
+        onClick={() => onStatusChange(task, isDone ? "pendente" : "concluida")}
+        aria-label={isDone ? "Reabrir subtarefa" : "Concluir subtarefa"}
+        title={isDone ? "Reabrir" : "Concluir"}
+      >
+        {isDone
+          ? <CheckCircle2 className="h-4 w-4 text-success" />
+          : <Circle className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      <button
+        type="button"
+        className={`flex-1 min-w-0 text-left truncate ${isDone ? "line-through text-muted-foreground" : ""}`}
+        onClick={onEdit}
+      >
+        {task.titulo}
+      </button>
+      {task.responsavel && (
+        <span
+          className="inline-block h-2 w-2 rounded-full shrink-0"
+          style={{ backgroundColor: getResponsavelColor(task.responsavel) }}
+          title={task.responsavel}
+        />
+      )}
+      {task.data_prazo && (
+        <span className={`text-[10px] tabular-nums shrink-0 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
+          {format(new Date(task.data_prazo), "dd/MM", { locale: ptBR })}
         </span>
-        {isOverdue && <Badge variant="destructive" className="text-[10px] px-1">Atrasada</Badge>}
-      </div>
-      <div className="flex items-center gap-0.5 shrink-0">
-        {task.status === "pendente" && (
-          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onStatusChange(task, "em_andamento")}>
-            <PlayCircle className="h-3 w-3 text-primary" />
-          </Button>
-        )}
-        {task.status === "em_andamento" && (
-          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onStatusChange(task, "concluida")}>
-            <CheckCircle2 className="h-3 w-3 text-success" />
-          </Button>
-        )}
-        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={onEdit}>
-          <Pencil className="h-3 w-3" />
-        </Button>
-      </div>
+      )}
+      {isOverdue && <Badge variant="destructive" className="text-[9px] px-1 shrink-0">Atrasada</Badge>}
+      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={onEdit} title="Editar">
+        <Pencil className="h-3 w-3" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete} title="Excluir">
+        <Trash2 className="h-3 w-3" />
+      </Button>
     </div>
   );
 }
