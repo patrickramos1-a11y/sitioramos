@@ -186,12 +186,32 @@ export function useOperations(filters?: OperationFilters) {
   const mainOperations = allStages.filter(s => !s.parent_id);
   const subOperations = allStages.filter(s => !!s.parent_id);
 
-  // Build hierarchy
+  // Build recursive hierarchy: collects ALL descendants (sub, sub-sub, ...) flattened
+  // under each root project, in depth-first order. This guarantees that a subdemand
+  // whose parent is another subdemand still appears under the correct root project.
+  const childrenByParent = new Map<string, Operation[]>();
+  for (const sub of subOperations) {
+    if (!sub.parent_id) continue;
+    if (!childrenByParent.has(sub.parent_id)) childrenByParent.set(sub.parent_id, []);
+    childrenByParent.get(sub.parent_id)!.push(sub);
+  }
+  childrenByParent.forEach(arr =>
+    arr.sort((a, b) => (a.ordem - b.ordem) || (a.created_at < b.created_at ? -1 : 1))
+  );
+
+  const collectDescendants = (parentId: string): Operation[] => {
+    const direct = childrenByParent.get(parentId) || [];
+    const out: Operation[] = [];
+    for (const child of direct) {
+      out.push(child);
+      out.push(...collectDescendants(child.id));
+    }
+    return out;
+  };
+
   const operationsWithChildren: Operation[] = mainOperations.map(op => ({
     ...op,
-    children: subOperations
-      .filter(s => s.parent_id === op.id)
-      .sort((a, b) => (a.ordem - b.ordem) || (a.created_at < b.created_at ? -1 : 1)),
+    children: collectDescendants(op.id),
   }));
 
   const createOperation = useMutation({
