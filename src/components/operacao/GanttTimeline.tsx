@@ -153,15 +153,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     };
   };
 
-  // Estado de Camadas (Layers)
-  const [layers, setLayers] = useState<LayersState>({
-    hiddenAreas: new Set(),
-    hiddenProjects: new Set(),
-    hiddenCycles: new Set(),
-    hiddenResponsaveis: new Set(),
-  });
-
-  // Lista plana visível com filtros + camadas + swimlanes para simultaneidade
+  // Lista plana visível com filtros + swimlanes para simultaneidade
   const items = useMemo(() => {
     const result: GanttItem[] = [];
 
@@ -171,33 +163,23 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
       if (filterCategoria !== "all" && it.categoria !== filterCategoria) return false;
       if (onlyOverdue && it.derivedStatus !== "atrasada") return false;
       if (onlyDeps && !it.dependsOnId) return false;
-      // Camadas
-      if (it.areaId && layers.hiddenAreas.has(it.areaId)) return false;
-      if (layers.hiddenProjects.has(it.rootProjectId)) return false;
-      if (it.cycleId && layers.hiddenCycles.has(it.cycleId)) return false;
-      if (it.responsavel && layers.hiddenResponsaveis.has(it.responsavel)) return false;
       return true;
     };
 
     for (const op of operations) {
       const opItem = buildItem(op, 0, op.id, undefined, "operation");
 
-      // Construir sub-items
       const childItems: GanttItem[] = [];
       for (const sub of (op.children || [])) {
         childItems.push(buildItem(sub, 1, op.id, op.id, "sub-operation"));
       }
-
-      // Categoria do projeto herdada para etapas sem categoria
       childItems.forEach(c => { if (!c.categoria) c.categoria = opItem.categoria; });
 
-      // Filtragem: mostrar projeto se ele OU algum filho passa
       const filteredChildren = childItems.filter(passesFilter);
       const opPasses = passesFilter(opItem);
       if (!opPasses && filteredChildren.length === 0) continue;
 
-      // Swimlanes: detectar sobreposição temporal entre filhos da mesma área
-      // (etapas que se sobrepõem no tempo no mesmo grupo recebem swimlanes diferentes)
+      // Swimlanes apenas se expandido
       const byArea = new Map<string, GanttItem[]>();
       filteredChildren.forEach(c => {
         const key = c.areaId || "__noarea__";
@@ -205,9 +187,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         byArea.get(key)!.push(c);
       });
       byArea.forEach(groupChildren => {
-        // Para cada grupo, atribuir swimlane evitando overlap
-        const lanes: Array<Date | null> = []; // último fim por lane
-        // ordenar por start
+        const lanes: Array<Date | null> = [];
         groupChildren.sort((a, b) => {
           const sa = (a.startReal || a.startPrev)?.getTime() ?? 0;
           const sb = (b.startReal || b.startPrev)?.getTime() ?? 0;
@@ -239,43 +219,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     }
 
     return result;
-  }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap, layers]);
-
-  // Itens para o painel de camadas
-  const layerItems = useMemo(() => {
-    const areaCount = new Map<string, number>();
-    const projectCount = new Map<string, { name: string; count: number; cat: string | null }>();
-    const cycleCount = new Map<string, number>();
-    const respCount = new Map<string, number>();
-
-    operations.forEach(op => {
-      const all = [op, ...(op.children || [])];
-      projectCount.set(op.id, { name: op.nome, count: all.length, cat: op.categoria });
-      all.forEach(s => {
-        if (s.area_id) areaCount.set(s.area_id, (areaCount.get(s.area_id) || 0) + 1);
-        if (s.cycle_id) cycleCount.set(s.cycle_id, (cycleCount.get(s.cycle_id) || 0) + 1);
-        if (s.responsavel) respCount.set(s.responsavel, (respCount.get(s.responsavel) || 0) + 1);
-      });
-    });
-
-    const areaItems: LayerItem[] = Array.from(areaCount.entries()).map(([id, count]) => ({
-      id,
-      label: areas.find(a => a.id === id)?.nome || "Área",
-      count,
-      color: "hsl(142 55% 45%)",
-    }));
-    const projectItems: LayerItem[] = Array.from(projectCount.entries()).map(([id, v]) => ({
-      id, label: v.name, count: v.count, color: "hsl(35 60% 50%)",
-    }));
-    const cycleItems: LayerItem[] = Array.from(cycleCount.entries()).map(([id, count]) => {
-      const c = cycles.find(x => x.id === id);
-      return { id, label: c?.cultura || "Ciclo", count, color: "hsl(85 50% 45%)" };
-    });
-    const respItems: LayerItem[] = Array.from(respCount.entries()).map(([name, count]) => ({
-      id: name, label: name, count, color: getResponsavelColor(name),
-    }));
-    return { areaItems, projectItems, cycleItems, respItems };
-  }, [operations, areas, cycles]);
+  }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
 
 
   // Janela: grid fixo de N colunas que preenche a largura disponível.
