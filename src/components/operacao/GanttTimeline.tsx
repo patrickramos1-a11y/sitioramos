@@ -224,10 +224,11 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
 
 
-  // Janela: largura fixa por coluna; total cresce com nº de colunas e gera scroll horizontal
+  // Janela: colunas se ajustam à largura disponível (sem scroll horizontal)
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
     const cfg = ZOOM_CONFIG[zoom];
-    const cw = cfg.minColWidth;
+    // Distribui colunas igualmente na largura disponível; mantém piso mínimo p/ legibilidade
+    const cw = Math.max(cfg.minColWidth * 0.5, availableWidth / cfg.columns);
     let start: Date;
     let cols: { label: string; date: Date }[] = [];
     let end: Date;
@@ -264,7 +265,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     }
 
     return { timelineStart: start, timelineEnd: end, columns: cols, colWidth: cw };
-  }, [anchorDate, zoom]);
+  }, [anchorDate, zoom, availableWidth]);
 
   const totalWidth = columns.length * colWidth;
   const totalDays = Math.max(1, differenceInDays(timelineEnd, timelineStart));
@@ -279,28 +280,35 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     return { left, width: Math.max(8, width) };
   };
 
-  // Navegação por 1 unidade (dia, semana, mês ou ano)
+  // Navegação por 1 unidade (dia, semana, mês ou ano) — desloca a janela
   const shiftWindow = (direction: 1 | -1) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: colWidth * direction, behavior: "smooth" });
+    setAnchorDate(prev => {
+      switch (zoom) {
+        case "day": return addDays(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
+        case "week": return addWeeks(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
+        case "month": return addMonths(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
+        case "year": return addYears(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
+      }
+    });
   };
 
-  // Centralizar hoje no viewport
+  // Centralizar hoje: ajusta âncora para que hoje fique no meio da janela
   const centerOnToday = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const todayPx = dayToPx(startOfDay(new Date()));
-    const target = Math.max(0, todayPx - el.clientWidth / 2);
-    el.scrollTo({ left: target, behavior: "smooth" });
+    const today = startOfDay(new Date());
+    const half = Math.floor(ZOOM_CONFIG[zoom].columns / 2);
+    switch (zoom) {
+      case "day": setAnchorDate(addDays(today, -half)); break;
+      case "week": setAnchorDate(startOfWeek(addWeeks(today, -half), { weekStartsOn: 1 })); break;
+      case "month": setAnchorDate(startOfMonth(addMonths(today, -half))); break;
+      case "year": setAnchorDate(startOfYear(addYears(today, -half))); break;
+    }
   };
 
-  // Centraliza no Hoje quando muda zoom ou monta
+  // Reposiciona em "hoje" quando muda o zoom
   useEffect(() => {
-    const id = requestAnimationFrame(() => centerOnToday());
-    return () => cancelAnimationFrame(id);
+    centerOnToday();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom, totalWidth]);
+  }, [zoom]);
 
   const goToday = () => centerOnToday();
 
@@ -510,10 +518,10 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
               })}
             </div>
 
-            {/* Timeline — scroll horizontal fluido */}
+            {/* Timeline — colunas se ajustam à largura disponível (sem scroll horizontal) */}
             <div
               ref={(el) => { timelineRef.current = el; scrollRef.current = el; }}
-              className="overflow-x-auto overflow-y-hidden flex-1 min-w-0 scroll-smooth overscroll-x-contain"
+              className="overflow-hidden flex-1 min-w-0"
             >
               <div style={{ width: totalWidth }} className="relative">
                 {/* Headers */}
