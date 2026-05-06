@@ -932,15 +932,17 @@ export function GanttTimeline({
                           (inl.derivedStatus === "atrasada" && inl.endPrev ? today : inl.endPrev);
                         const inlPos = getBarPosition(inlStart, inlEnd);
                         if (!inlPos) return null;
-                        const inlCat = getCategoryColor(inl.categoria, { sat: 60, light: 45 });
-                        const inlGlow = getCategoryColor(inl.categoria, { sat: 70, light: 50, alpha: 0.35 });
+                        const inlStrong = projectColor(item.rootProjectId);
+                        const inlSoft = projectColor(item.rootProjectId, { l: 92, s: 45 });
+                        const inlSofter = projectColor(item.rootProjectId, { l: 96, s: 40 });
+                        const inlDark = projectColor(item.rootProjectId, { l: 18 });
                         let inlStyle: React.CSSProperties = {};
                         if (inl.derivedStatus === "concluida") {
-                          inlStyle = { backgroundColor: inlCat, color: "white", boxShadow: `0 0 0 1px ${inlCat}, 0 0 6px ${inlGlow}` };
-                        } else if (inl.derivedStatus === "em_andamento" || inl.derivedStatus === "atrasada") {
-                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${inlCat}`, color: getCategoryColor(inl.categoria, { light: 25 }) };
+                          inlStyle = { backgroundColor: inlStrong, color: "white" };
+                        } else if (inl.level === 1) {
+                          inlStyle = { backgroundColor: inlSoft, border: `2px solid ${inlStrong}`, color: inlDark };
                         } else {
-                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(inl.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(inl.categoria, { light: 35 }) };
+                          inlStyle = { backgroundColor: inlSofter, border: `2px dashed ${inlStrong}`, color: inlDark };
                         }
                         // Conector pontilhado entre o pai e este filho (ou entre filhos)
                         const prevEndPx = pos ? pos.left + pos.width : inlPos.left;
