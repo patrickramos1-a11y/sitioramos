@@ -566,13 +566,16 @@ export function GanttTimeline({
                         </div>
                       )}
                     </div>
-                    {(onAddSubproject || onAddSubdemand || onAddSubtask || onDeleteOperation) && (
+                    {(onAddSubproject || onAddSubdemand || onAddSubtask || onDeleteOperation || onCompleteOperation) && (
                       <ProjectActionsMenu
                         level={item.level}
+                        isCompleted={item.derivedStatus === "concluida"}
                         onAddSubproject={isProject && onAddSubproject ? () => onAddSubproject(item.id) : undefined}
                         onAddSubdemand={onAddSubdemand ? () => onAddSubdemand(item.id) : undefined}
                         onAddSubtask={onAddSubtask ? () => onAddSubtask(item.id) : undefined}
                         onEdit={() => onItemClick?.(item.id, item.type)}
+                        onComplete={onCompleteOperation ? () => onCompleteOperation(item.id) : undefined}
+                        onReopen={onReopenOperation ? () => onReopenOperation(item.id) : undefined}
                         onDuplicate={isProject && onDuplicateOperation ? () => onDuplicateOperation(item.id) : undefined}
                         onDelete={onDeleteOperation ? () => onDeleteOperation(item.id) : undefined}
                       />
