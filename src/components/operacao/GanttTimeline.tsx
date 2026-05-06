@@ -62,6 +62,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   const [filterCategoria, setFilterCategoria] = useState<string>("all");
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [onlyDeps, setOnlyDeps] = useState(false);
+  const [projectsCollapsed, setProjectsCollapsed] = useState(false);
   // Data âncora = início da janela visível
   const [anchorDate, setAnchorDate] = useState<Date>(() => {
     const now = startOfDay(new Date());
