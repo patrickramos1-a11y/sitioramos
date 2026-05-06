@@ -188,7 +188,7 @@ export function GanttTimeline({
     const result: GanttItem[] = [];
 
     const passesFilter = (it: GanttItem) => {
-      if (filterResponsavel !== "all" && it.responsavel !== filterResponsavel) return false;
+      if (filterResponsavel !== "all" && it.responsavelId !== filterResponsavel && it.responsavel !== filterResponsavel) return false;
       if (filterStatus !== "all" && it.derivedStatus !== filterStatus) return false;
       if (filterCategoria !== "all" && it.categoria !== filterCategoria) return false;
       if (onlyOverdue && it.derivedStatus !== "atrasada") return false;
@@ -379,6 +379,14 @@ export function GanttTimeline({
             <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="Responsável" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos responsáveis</SelectItem>
+              {responsaveisList.map(r => (
+                <SelectItem key={r.id} value={r.id}>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.cor }} />
+                    {r.nome}
+                  </span>
+                </SelectItem>
+              ))}
               {responsaveis.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
             </SelectContent>
           </Select>
