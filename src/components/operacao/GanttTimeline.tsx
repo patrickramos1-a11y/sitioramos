@@ -605,6 +605,8 @@ export function GanttTimeline({
                     </div>
                   );
                 }
+                const isTask = item.type === "task";
+                const isDoneTask = isTask && item.derivedStatus === "concluida";
                 return (
                   <div
                     key={item.id}
@@ -616,9 +618,20 @@ export function GanttTimeline({
                       paddingLeft: 6 + item.level * 16,
                       borderLeft: `3px solid ${getProjectColor(item.rootProjectId)}`,
                     }}
-                    onClick={() => onItemClick?.(item.id, item.type)}
+                    onClick={() => !isTask && onItemClick?.(item.id, item.type)}
                   >
-                    {item.hasChildren ? (
+                    {isTask ? (
+                      <button
+                        className="p-0.5 rounded hover:bg-muted"
+                        onClick={e => { e.stopPropagation(); onToggleTaskComplete?.(item.id, item.rawStatus); }}
+                        aria-label={isDoneTask ? "Reabrir tarefa" : "Concluir tarefa"}
+                        title={isDoneTask ? "Reabrir tarefa" : "Concluir tarefa"}
+                      >
+                        {isDoneTask
+                          ? <CheckCircle2 className="h-4 w-4 text-success" />
+                          : <Circle className="h-4 w-4 text-muted-foreground" />}
+                      </button>
+                    ) : item.hasChildren ? (
                       <button
                         className="p-0.5 rounded hover:bg-muted transition-transform"
                         onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
@@ -635,16 +648,18 @@ export function GanttTimeline({
                         {!isProject && <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />}
                       </span>
                     )}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0" onClick={(e) => { if (isTask) { e.stopPropagation(); onItemClick?.(item.id, item.type); } }}>
                       <div className={`truncate ${
                         isProject
                           ? "text-sm font-semibold text-foreground"
-                          : "text-xs text-muted-foreground"
+                          : isTask
+                            ? `text-xs ${isDoneTask ? "text-muted-foreground line-through" : "text-foreground"}`
+                            : "text-xs text-muted-foreground"
                       }`}>
                         {isProject && <span className="mr-1">{getCategoryEmoji(item.categoria)}</span>}
                         {item.name}
                       </div>
-                      {(item.responsavelId || item.responsavel) && isProject && (
+                      {(item.responsavelId || item.responsavel) && (isProject || isTask) && (
                         <div className="text-[10px] text-muted-foreground truncate">
                           {item.responsavelId ? (
                             <ResponsavelBadge responsavelId={item.responsavelId} size="xs" />
@@ -657,7 +672,18 @@ export function GanttTimeline({
                         </div>
                       )}
                     </div>
-                    {(onAddSubproject || onAddSubtask || onDeleteOperation || onCompleteOperation) && (
+                    {isTask ? (
+                      onDeleteTask && (
+                        <button
+                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={e => { e.stopPropagation(); onDeleteTask(item.id); }}
+                          title="Excluir tarefa"
+                          aria-label="Excluir tarefa"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )
+                    ) : (onAddSubproject || onAddSubtask || onDeleteOperation || onCompleteOperation) && (
                       <ProjectActionsMenu
                         level={item.level}
                         isCompleted={item.derivedStatus === "concluida"}
