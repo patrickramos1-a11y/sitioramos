@@ -31,7 +31,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const navigationItems = [
   {
@@ -71,14 +71,14 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border p-4">
+      <SidebarHeader className="border-b border-sidebar-border bg-gradient-forest p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden bg-white">
-            <img src={logo} alt="Sítio Ramos" className="h-9 w-9 object-contain" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl overflow-hidden bg-brand-paper shadow-sun shrink-0">
+            <BrandLogo variant="mono" className="h-8 w-8" />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-sidebar-foreground">Sítio Ramos</h1>
-            <p className="text-xs text-sidebar-foreground/70">Gestão Agrícola</p>
+          <div className="min-w-0">
+            <h1 className="font-display text-lg font-semibold text-sidebar-foreground leading-tight truncate">Sítio Ramos</h1>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-brand-sun/90 leading-tight">Onde a terra produz futuro</p>
           </div>
         </div>
       </SidebarHeader>
