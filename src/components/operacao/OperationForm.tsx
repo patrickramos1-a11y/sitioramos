@@ -30,7 +30,6 @@ const priorityOptions = [
 const NIVEL_TIPOS = [
   { value: "projeto", label: "Projeto", desc: "Iniciativa principal" },
   { value: "subprojeto", label: "Subprojeto", desc: "Bloco dentro do projeto" },
-  { value: "subdemanda", label: "Subdemanda", desc: "Demanda específica" },
 ];
 
 const DURATION_PRESETS = [
