@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Area, AreaInsert } from "@/hooks/useAreas";
 import { Loader2, TreePine } from "lucide-react";
 import { calculateAppFromRiver } from "@/lib/categoryConfig";
+import { EnvironmentalLimitGuard } from "@/components/operacao/EnvironmentalLimitGuard";
 
 const areaSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
