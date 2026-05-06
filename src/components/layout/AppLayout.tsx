@@ -55,9 +55,15 @@ export function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-16 lg:px-6">
+        <header className="flex h-14 items-center gap-4 border-b border-border/60 bg-card/95 backdrop-blur px-4 lg:h-16 lg:px-6 shadow-soft">
           <SidebarTrigger className="-ml-1" />
+          <div className="h-6 w-px bg-border" />
+          <h2 className="font-display text-base lg:text-lg font-semibold text-foreground/90 truncate">{title}</h2>
           <div className="flex-1" />
+          <div className="hidden md:flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-brand-leaf">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-sun" />
+            Onde a terra produz futuro
+          </div>
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-6 min-w-0 max-w-full">
           <div className="min-w-0 max-w-full">{children}</div>
