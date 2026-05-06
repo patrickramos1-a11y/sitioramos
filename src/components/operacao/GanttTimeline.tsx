@@ -222,10 +222,10 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   }, [operations, tasks, expandedIds, filterResponsavel, filterStatus, filterCategoria, onlyOverdue, onlyDeps, concludedMap]);
 
 
-  // Janela: grid fixo de N colunas que preenche a largura disponível.
+  // Janela: largura fixa por coluna; total cresce com nº de colunas e gera scroll horizontal
   const { timelineStart, timelineEnd, columns, colWidth } = useMemo(() => {
     const cfg = ZOOM_CONFIG[zoom];
-    const cw = Math.max(40, Math.floor(availableWidth / cfg.columns));
+    const cw = cfg.minColWidth;
     let start: Date;
     let cols: { label: string; date: Date }[] = [];
     let end: Date;
@@ -262,7 +262,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     }
 
     return { timelineStart: start, timelineEnd: end, columns: cols, colWidth: cw };
-  }, [anchorDate, zoom, availableWidth]);
+  }, [anchorDate, zoom]);
 
   const totalWidth = columns.length * colWidth;
   const totalDays = Math.max(1, differenceInDays(timelineEnd, timelineStart));
@@ -274,41 +274,38 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     const actualEnd = end || addDays(start, 1);
     const left = dayToPx(start);
     const width = dayToPx(actualEnd) - left;
-    // Permitir sair da janela visível (clipped pelo overflow do container)
     return { left, width: Math.max(8, width) };
   };
 
-  // Navegação por janela inteira
+  // Navegação por 1 unidade (dia, semana, mês ou ano)
   const shiftWindow = (direction: 1 | -1) => {
-    setAnchorDate(d => {
-      const cfg = ZOOM_CONFIG[zoom];
-      switch (zoom) {
-        case "day":   return addDays(d, cfg.columns * direction);
-        case "week":  return addWeeks(d, cfg.columns * direction);
-        case "month": return addMonths(d, cfg.columns * direction);
-        case "year":  return addYears(d, cfg.columns * direction);
-      }
-    });
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: colWidth * direction, behavior: "smooth" });
   };
 
-  const goToday = () => {
-    const now = startOfDay(new Date());
-    switch (zoom) {
-      case "day":   setAnchorDate(addDays(now, -3)); break;
-      case "week":  setAnchorDate(startOfWeek(addWeeks(now, -3), { weekStartsOn: 1 })); break;
-      case "month": setAnchorDate(startOfMonth(addMonths(now, -3))); break;
-      case "year":  setAnchorDate(startOfYear(addYears(now, -1))); break;
-    }
+  // Centralizar hoje no viewport
+  const centerOnToday = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const todayPx = dayToPx(startOfDay(new Date()));
+    const target = Math.max(0, todayPx - el.clientWidth / 2);
+    el.scrollTo({ left: target, behavior: "smooth" });
   };
+
+  // Centraliza no Hoje quando muda zoom ou monta
+  useEffect(() => {
+    const id = requestAnimationFrame(() => centerOnToday());
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom, totalWidth]);
+
+  const goToday = () => centerOnToday();
 
   const anchorLabel = useMemo(() => {
-    switch (zoom) {
-      case "day":   return `${format(timelineStart, "dd/MM/yy", { locale: ptBR })} → ${format(addDays(timelineEnd, -1), "dd/MM/yy", { locale: ptBR })}`;
-      case "week":  return `${format(timelineStart, "dd MMM", { locale: ptBR })} → ${format(addDays(timelineEnd, -1), "dd MMM yy", { locale: ptBR })}`;
-      case "month": return `${format(timelineStart, "MMM yy", { locale: ptBR })} → ${format(addMonths(timelineStart, ZOOM_CONFIG.month.columns - 1), "MMM yy", { locale: ptBR })}`;
-      case "year":  return `${format(timelineStart, "yyyy")} → ${format(addYears(timelineStart, ZOOM_CONFIG.year.columns - 1), "yyyy")}`;
-    }
-  }, [timelineStart, timelineEnd, zoom]);
+    const today = new Date();
+    return format(today, "dd MMM yyyy", { locale: ptBR });
+  }, []);
 
   const ROW_HEIGHT = 40;
   const LABEL_WIDTH = 240;
