@@ -864,12 +864,40 @@ export function GanttTimeline({
                                   style={{ width: `${Math.min(100, progressPct)}%`, backgroundColor: respColor, opacity: 0.85 }}
                                 />
                               )}
-                              <div className="relative z-10 flex items-center gap-1 truncate">
+                              <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0">
                                 {status === "travada" && <Lock className="h-3 w-3 shrink-0" />}
                                 {status === "atrasada" && <AlertTriangle className="h-3 w-3 shrink-0" />}
                                 {status === "concluida" && <CheckCircle2 className="h-3 w-3 shrink-0" />}
                                 {pos.width > 50 && <span className="truncate">{item.name}</span>}
                               </div>
+                              {/* Chip de duração / decorrido na ponta direita da barra */}
+                              {pos.width > 80 && (() => {
+                                const dPrev = item.metrics.duracaoPrevista;
+                                const dReal = item.metrics.duracaoReal;
+                                const startD = item.startReal || item.startPrev;
+                                let label: string | null = null;
+                                if (status === "concluida" && (dReal ?? dPrev) !== null) {
+                                  label = `${dReal ?? dPrev}d ✓`;
+                                } else if (dPrev !== null && startD) {
+                                  const elapsed = Math.max(0, Math.min(dPrev, differenceInDays(today, startD)));
+                                  label = `${elapsed}/${dPrev}d`;
+                                } else if (dPrev !== null) {
+                                  label = `${dPrev}d`;
+                                }
+                                if (!label) return null;
+                                const chipBg = isProject || status === "concluida"
+                                  ? "rgba(255,255,255,0.22)"
+                                  : projectColor(item.rootProjectId, { a: 0.15, l: 35 });
+                                const chipColor = isProject || status === "concluida" ? "white" : dark;
+                                return (
+                                  <span
+                                    className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
+                                    style={{ backgroundColor: chipBg, color: chipColor }}
+                                  >
+                                    {label}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-xs space-y-1">
