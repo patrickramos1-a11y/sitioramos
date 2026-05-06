@@ -66,7 +66,7 @@ const caixaSubmenu = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const isCaixaActive = location.pathname === "/caixa";
+  const isCaixaActive = location.pathname === "/caixa" || location.pathname === "/lancamentos";
   const [caixaOpen, setCaixaOpen] = useState(isCaixaActive);
 
   return (
