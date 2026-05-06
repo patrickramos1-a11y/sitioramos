@@ -220,8 +220,8 @@ export function OperationForm({
   };
 
   const formTitle = title || (operation
-    ? `Editar ${formData.nivel_tipo === "projeto" ? "Projeto" : formData.nivel_tipo === "subprojeto" ? "Subprojeto" : "Subdemanda"}`
-    : `Novo ${formData.nivel_tipo === "projeto" ? "Projeto" : formData.nivel_tipo === "subprojeto" ? "Subprojeto" : "Subdemanda"}`);
+    ? `Editar ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`
+    : `Novo ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`);
 
   const projectsForLink = (allProjects || []).filter(p => p.id !== operation?.id);
 
