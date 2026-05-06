@@ -1,75 +1,68 @@
-## Objetivo
+## Refatoração da Operação: Projeto › Subprojeto › Subtarefa (checklist)
 
-Reformular o visual dos balões do Gantt em `Operação` para que cada projeto tenha sua própria cor (derivada da paleta da marca Sítio Ramos), os subprojetos herdem essa cor com tratamento visual diferenciado, e cada barra mostre o tempo de duração e o quanto já se passou.
+Hoje a página mistura "subprojetos" e "tarefas" como se fossem coisas equivalentes (ambas viram barras grandes na timeline). Vou separar claramente em **3 níveis** com regras visuais e operacionais distintas.
 
-## Diagnóstico (por que está tudo "vermelho")
+### Conceito final
 
-Hoje o `GanttTimeline.tsx` colore as barras pela **categoria** da operação (`getCategoryColor`). Como a maioria dos projetos cai em categorias com hue próximo (`casa_farinha` 20, `infraestrutura` 25, `manejo_limpeza` 95) — e o fallback é verde — visualmente quase todos viram tons de terracota/laranja. Não há diferenciação por **projeto raiz** nem hierarquia visual entre projeto e subprojeto além de uma fina borda lateral.
+```
+▶ Projeto Principal           (barra forte na timeline)
+   ▶ Subprojeto               (barra na timeline, hue do projeto, traço sólido)
+      ☐ Subtarefa             (checklist, NUNCA aparece como barra)
+      ☑ Subtarefa
+```
 
-## Mudanças propostas
+- **Projeto** e **Subprojeto** = `operational_stages` (já existe, usa `nivel_tipo`).
+- **Subtarefa** = `operational_tasks` (já existe), tratada apenas como checklist.
 
-### 1. Cor por projeto (raiz) — paleta Sítio Ramos
+### Mudanças principais
 
-- Substituir a paleta `PROJECT_PALETTE` atual (8 cores genéricas) por uma paleta alinhada à marca:
-  - Verde Floresta `145 60% 18%`
-  - Verde Folha `138 60% 30%`
-  - Amarelo Sol `43 90% 42%`
-  - Terra `20 55% 38%`
-  - Oliva `95 45% 32%`
-  - Tijolo `15 65% 42%`
-  - Azul sereno `200 50% 32%`
-  - Ameixa `280 35% 38%`
-- Função `getProjectColor(rootProjectId)` continua determinística (hash → índice), garantindo cor estável por projeto.
-- Toda a árvore de um projeto (raiz + subprojetos + cadeia inline) usa a **mesma matiz**, variando só luminosidade/preenchimento conforme o nível.
+**1. Botões da página Operação**
+- `Novo Projeto` (cria stage nível projeto)
+- `Novo Subprojeto` (habilita-se ao haver projeto selecionado / também acessível pelo menu de cada projeto)
+- `Nova Subtarefa` (habilita-se a partir de um projeto/subprojeto)
+- "Criação rápida" mantida.
 
-### 2. Hierarquia visual: projeto vs subprojeto
+**2. Timeline (`GanttTimeline.tsx`)**
+- Renderizar **apenas** projetos e subprojetos como barras.
+- Remover qualquer renderização de `tasks` como barras.
+- Em cada barra, mostrar um indicador de checklist: `☑ 5/10 (50%)` quando houver subtarefas.
+- Manter paleta hierárquica já implementada (sólido / borda sólida / tracejado).
 
-Tratamento por nível, sempre na cor do projeto raiz:
+**3. Listagem (`OperationCard.tsx`)**
+- Estrutura recolhível em 3 níveis:
+  - Projeto → Subprojetos → Checklist de subtarefas (com checkbox inline).
+- Subtarefas exibidas como lista simples, com:
+  - checkbox de concluído
+  - texto/título
+  - data (opcional), responsável (opcional)
+  - menu para observações/anexos (anexos ficam como TODO visual; armazenamento de arquivo não está em escopo aqui — campo de URL/observação por enquanto)
+- Botão "+ Subtarefa" dentro de cada subprojeto e também dentro do projeto (se a tarefa for direto no projeto).
 
-| Nível | Estilo da barra |
-|---|---|
-| Projeto (level 0) | Preenchido sólido, cor forte, texto claro, sombra |
-| Subprojeto (level 1) | Preenchimento claro (mesma matiz, light alta) + borda sólida 2px na cor forte |
-| Sub-subprojeto (level ≥ 2) | Fundo translúcido + **borda tracejada** 2px na cor forte |
-| Concluído | Sólido na cor forte + ícone ✓ |
-| Em andamento | Borda sólida + barra interna de progresso na cor do responsável (mantido) |
-| Atrasada | Hachurado já existente (mantido) |
-| Travada | Cinza tracejado (mantido) |
+**4. Progresso automático**
+- `progresso_percentual` do **subprojeto** = % subtarefas concluídas (calculado em runtime, exibido na barra/lista).
+- `progresso_percentual` do **projeto** = média ponderada dos subprojetos (ou % de subtarefas totais — usar % subtarefas totais por simplicidade).
+- Cálculo só no front (não altera schema). O campo persistido continua disponível para override manual futuro.
 
-Isso substitui o uso de `getCategoryColor` na coloração da barra. A categoria continua aparecendo via emoji + label no tooltip e ao lado do nome, preservando a leitura semântica.
+**5. Formulário de subtarefa (`SimpleTaskForm.tsx`)**
+- Já é simples; ampliar levemente com: data (opcional), responsável (opcional), observações (textarea opcional).
+- Sem `data_inicio_prevista`/`data_prazo` obrigatórios — tudo opcional. Sem custo no formulário básico (custo continua editável se necessário, mas escondido por padrão).
 
-### 3. Métrica de tempo na ponta da barra
+**6. Vínculos preservados**
+- Projetos e subprojetos continuam vinculáveis a área, talhão, ciclo, responsável, custos, receitas, empréstimos (já suportado pelo schema `operational_stages` + `cash_transactions`). Nada muda no banco.
 
-Renderizar um pequeno chip à direita dentro da barra (quando `pos.width > ~80px`) com:
+### Detalhes técnicos
 
-- **Projeto/subprojeto com datas previstas**: `Xd · Y/Zd` onde `Z = duracaoPrevista`, `Y = dias decorridos desde startPrev até hoje (limitado a Z)`.
-- **Concluído**: `Z d ✓` (duração real ou prevista).
-- **Sem datas**: chip omitido.
+- **Sem migração de banco.** Schema atual (`operational_stages.nivel_tipo` + `operational_tasks` + `task_checklist_items`) já suporta tudo.
+- Arquivos editados:
+  - `src/pages/Operacao.tsx` — reorganizar botões; remover tasks da timeline.
+  - `src/components/operacao/GanttTimeline.tsx` — não desenhar tasks; adicionar chip de progresso de checklist nas barras de subprojeto/projeto.
+  - `src/components/operacao/OperationCard.tsx` — renderizar checklist de subtarefas dentro de cada subprojeto, com checkbox inline e botão "+ Subtarefa".
+  - `src/components/operacao/SimpleTaskForm.tsx` — adicionar data, responsável e observações opcionais.
+- Cálculo de progresso utilitário inline em `OperationCard` e `GanttTimeline` (sem novo hook).
 
-Usa `item.metrics` que já existe (`duracaoPrevista`, `duracaoReal`, `percentConsumido`). A lógica de "dias decorridos" é derivada de `startPrev`/`startReal` vs hoje.
+### O que **não** será feito agora
+- Upload real de anexos (storage). Fica como observação/URL livre.
+- Dependências entre subprojetos (já existe `depends_on_id` no schema, mas UI fica para outra rodada).
+- Mudanças em DRE / Caixa.
 
-Em telas estreitas (barra < 80px), o chip é suprimido e a info aparece apenas no tooltip (que já mostra duração e dias restantes).
-
-### 4. Cadeia inline (subprojetos recolhidos)
-
-Mantém o mesmo critério de cor (matiz do projeto raiz, tratamento por nível) — assim, quando um subprojeto está recolhido com filhos inline, todas as bolhas inline ficam visualmente irmãs e claramente pertencentes ao mesmo projeto.
-
-### 5. Coluna esquerda (lista PROJETOS)
-
-A borda lateral colorida de cada linha continua usando `getProjectColor`, agora com a nova paleta — reforça o vínculo visual coluna ↔ barra.
-
-## Arquivos afetados
-
-- `src/components/operacao/GanttTimeline.tsx`
-  - Atualizar `PROJECT_PALETTE`.
-  - Substituir o bloco de `barStyle` (atual baseado em `getCategoryColor`) por uma função `getBarStyle(item, status)` que recebe a cor do projeto raiz e o nível.
-  - Aplicar o mesmo na cadeia inline.
-  - Adicionar o chip de duração/decorrido dentro da barra.
-
-Sem mudanças em banco, hooks, ou outros componentes.
-
-## Fora do escopo
-
-- Editor de cor por projeto (cor é derivada do id, automática).
-- Mudar a semântica de categorias (continuam como label/emoji/filtro).
-- Alterar zoom, navegação ou estrutura da timeline.
+Confirma que posso seguir nessa linha?
