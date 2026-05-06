@@ -472,6 +472,15 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
         {/* Gantt */}
         <div className="border rounded-lg overflow-hidden bg-background">
           <div className="flex">
+            {/* Painel de Camadas */}
+            <LayersPanel
+              areas={layerItems.areaItems}
+              projects={layerItems.projectItems}
+              cycles={layerItems.cycleItems}
+              responsaveis={layerItems.respItems}
+              state={layers}
+              onChange={setLayers}
+            />
             {/* Labels */}
             <div className="shrink-0 border-r bg-muted/30 sticky left-0 z-20" style={{ width: LABEL_WIDTH }}>
               <div className="h-9 border-b flex items-center px-3 bg-muted/50">
