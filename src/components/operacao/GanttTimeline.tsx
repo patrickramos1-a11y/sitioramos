@@ -4,15 +4,16 @@ import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen, Link2 } from "lucide-react";
 import { addDays, addMonths, addWeeks, addYears, differenceInDays, format, startOfDay, startOfMonth, startOfWeek, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
-  computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM,
+  computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, getCategoryColor,
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ProjectActionsMenu } from "./ProjectActionsMenu";
 type ZoomLevel = "day" | "week" | "month" | "year";
 
 // Paleta de cores por projeto (Sítio Ramos — verdes, terra, sol)
@@ -70,9 +71,17 @@ interface GanttTimelineProps {
   areas?: Array<{ id: string; nome: string }>;
   cycles?: Array<{ id: string; cultura?: string | null; area_id?: string | null }>;
   onItemClick?: (id: string, type: "operation" | "sub-operation" | "task") => void;
+  onAddSubproject?: (parentId: string) => void;
+  onAddSubdemand?: (parentId: string) => void;
+  onAddSubtask?: (parentId: string) => void;
+  onDeleteOperation?: (id: string) => void;
+  onDuplicateOperation?: (id: string) => void;
 }
 
-export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onItemClick }: GanttTimelineProps) {
+export function GanttTimeline({
+  operations, tasks, areas = [], cycles = [], onItemClick,
+  onAddSubproject, onAddSubdemand, onAddSubtask, onDeleteOperation, onDuplicateOperation,
+}: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [filterResponsavel, setFilterResponsavel] = useState<string>("all");
@@ -306,7 +315,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
     });
   };
 
-  // Centralizar hoje: ajusta âncora para que hoje fique no meio da janela
+  // Centralizar hoje: ajusta âncora e rola o ScrollArea para que hoje fique no centro visível
   const centerOnToday = () => {
     const today = startOfDay(new Date());
     const half = Math.floor(ZOOM_CONFIG[zoom].columns / 2);
@@ -316,13 +325,17 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
       case "month": setAnchorDate(startOfMonth(addMonths(today, -half))); break;
       case "year": setAnchorDate(startOfYear(addYears(today, -half))); break;
     }
+    // após re-render, rolar viewport
+    requestAnimationFrame(() => {
+      const root = timelineRef.current;
+      if (!root) return;
+      const viewport = root.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      if (!viewport) return;
+      viewport.scrollLeft = Math.max(0, (viewport.scrollWidth - viewport.clientWidth) / 2);
+    });
   };
 
-  // Reposiciona em "hoje" quando muda o zoom
-  useEffect(() => {
-    centerOnToday();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom]);
+  useEffect(() => { centerOnToday(); /* eslint-disable-next-line */ }, [zoom]);
 
   const goToday = () => centerOnToday();
 
@@ -531,6 +544,17 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                         </div>
                       )}
                     </div>
+                    {(onAddSubproject || onAddSubdemand || onAddSubtask || onDeleteOperation) && (
+                      <ProjectActionsMenu
+                        level={item.level}
+                        onAddSubproject={isProject && onAddSubproject ? () => onAddSubproject(item.id) : undefined}
+                        onAddSubdemand={onAddSubdemand ? () => onAddSubdemand(item.id) : undefined}
+                        onAddSubtask={onAddSubtask ? () => onAddSubtask(item.id) : undefined}
+                        onEdit={() => onItemClick?.(item.id, item.type)}
+                        onDuplicate={isProject && onDuplicateOperation ? () => onDuplicateOperation(item.id) : undefined}
+                        onDelete={onDeleteOperation ? () => onDeleteOperation(item.id) : undefined}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -579,20 +603,22 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
                   // Planejado: outline verde claro · Em execução: preenchimento progressivo (cor responsável) · Concluído: verde sólido
                   // Atrasado: barra normal + extensão verde-escura hachurada · Travada: cinza tracejado
                   let barStyle: React.CSSProperties = {};
-                  let barClasses = "absolute rounded cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
+                  let barClasses = "absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
+
+                  // Cor da categoria (identidade visual)
+                  const catColor = getCategoryColor(item.categoria, { sat: 60, light: 45 });
+                  const catGlow = getCategoryColor(item.categoria, { sat: 70, light: 50, alpha: 0.35 });
 
                   if (status === "concluida") {
-                    barStyle = { backgroundColor: "hsl(142 60% 38%)", color: "white" };
+                    barStyle = { backgroundColor: catColor, color: "white", boxShadow: `0 0 0 1.5px ${catColor}, 0 0 8px ${catGlow}` };
                   } else if (status === "em_andamento" || status === "atrasada") {
-                    // base: verde claro outline + barra de progresso interna preenchida com cor do responsável
-                    barStyle = { backgroundColor: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)", color: "hsl(142 60% 25%)" };
+                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${catColor}`, color: getCategoryColor(item.categoria, { light: 25 }), boxShadow: `0 0 6px ${catGlow}` };
                   } else if (status === "travada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", border: "2px dashed hsl(var(--muted-foreground))", color: "hsl(var(--muted-foreground))" };
                   } else if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
                   } else {
-                    // planejada / futura
-                    barStyle = { backgroundColor: "hsl(142 40% 95%)", border: `1.5px dashed hsl(142 40% 65%)`, color: "hsl(142 50% 35%)" };
+                    barStyle = { backgroundColor: getCategoryColor(item.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(item.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(item.categoria, { light: 35 }) };
                   }
 
                   const isProject = item.level === 0;

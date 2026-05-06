@@ -53,6 +53,7 @@ export default function Operacao() {
   const [opFormOpen, setOpFormOpen] = useState(false);
   const [editingOp, setEditingOp] = useState<Operation | null>(null);
   const [parentIdForNew, setParentIdForNew] = useState<string | null>(null);
+  const [defaultNivelTipo, setDefaultNivelTipo] = useState<string>("projeto");
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
@@ -135,19 +136,23 @@ export default function Operacao() {
   const openNewOperation = () => {
     setEditingOp(null);
     setParentIdForNew(null);
+    setDefaultNivelTipo("projeto");
     setFormContext({ areaId: defaultAreaId, cycleId: defaultCycleId, talhaoId: null });
     setOpFormOpen(true);
   };
 
-  const openNewSubOperation = (parentId: string) => {
+  const openNewChild = (parentId: string, nivel: "subprojeto" | "subdemanda") => {
     const parentOperation = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === parentId);
     setEditingOp(null);
     setParentIdForNew(parentId);
+    setDefaultNivelTipo(nivel);
     if (parentOperation) {
       setFormContext({ areaId: parentOperation.area_id, cycleId: parentOperation.cycle_id, talhaoId: parentOperation.talhao_id });
     }
     setOpFormOpen(true);
   };
+
+  const openNewSubOperation = (parentId: string) => openNewChild(parentId, "subprojeto");
 
   const openNewTask = (stageId: string) => {
     setEditingTask(null);
@@ -282,6 +287,11 @@ export default function Operacao() {
                   areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
                   cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
                   onItemClick={handleGanttItemClick}
+                  onAddSubproject={(id) => openNewChild(id, "subprojeto")}
+                  onAddSubdemand={(id) => openNewChild(id, "subdemanda")}
+                  onAddSubtask={openNewTask}
+                  onDeleteOperation={(id) => { setDeleteTarget({ type: "operation", id }); setDeleteDialogOpen(true); }}
+                  onDuplicateOperation={(id) => duplicateOperation.mutate(id)}
                 />
               </CardContent>
             </Card>
@@ -337,12 +347,14 @@ export default function Operacao() {
             onOpenChange={(v) => { setOpFormOpen(v); if (!v) { setEditingOp(null); setParentIdForNew(null); } }}
             operation={editingOp}
             parentId={parentIdForNew}
+            defaultNivelTipo={defaultNivelTipo}
             areaId={editingOp?.area_id || formContext.areaId || defaultAreaId}
             cycleId={editingOp?.cycle_id || formContext.cycleId || defaultCycleId}
             talhaoId={editingOp?.talhao_id || formContext.talhaoId}
             areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
             cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
             siblingStages={siblings}
+            allProjects={rawOperations.flatMap(o => [{ id: o.id, nome: o.nome }, ...(o.children || []).map(c => ({ id: c.id, nome: `${o.nome} › ${c.nome}` }))])}
             onSubmit={handleOpSubmit}
             isSubmitting={createOperation.isPending || updateOperation.isPending}
           />

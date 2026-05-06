@@ -1,14 +1,14 @@
-// Categorias de operação (projeto)
+// Categorias de operação (projeto) — com identidade visual (cor + ícone)
 export const OPERATION_CATEGORIES = [
-  { value: "producao_agricola", label: "Produção agrícola", emoji: "🌱" },
-  { value: "manejo_limpeza", label: "Manejo e limpeza", emoji: "🌿" },
-  { value: "infraestrutura", label: "Infraestrutura", emoji: "🏗️" },
-  { value: "casa_farinha", label: "Casa de farinha", emoji: "🏠" },
-  { value: "financeiro", label: "Financeiro", emoji: "💰" },
-  { value: "documentacao", label: "Documentação", emoji: "📄" },
-  { value: "licenciamento", label: "Licenciamento", emoji: "🪪" },
-  { value: "comercial", label: "Comercial", emoji: "🛒" },
-  { value: "logistica", label: "Logística", emoji: "🚚" },
+  { value: "producao_agricola", label: "Produção agrícola", emoji: "🌱", hue: 142 },
+  { value: "manejo_limpeza",    label: "Manejo e limpeza",  emoji: "🌿", hue: 95 },
+  { value: "infraestrutura",    label: "Infraestrutura",    emoji: "🏗️", hue: 25 },
+  { value: "casa_farinha",      label: "Casa de farinha",   emoji: "🏠", hue: 20 },
+  { value: "financeiro",        label: "Financeiro",        emoji: "💰", hue: 43 },
+  { value: "documentacao",      label: "Documentação",      emoji: "📄", hue: 210 },
+  { value: "licenciamento",     label: "Licenciamento",     emoji: "🪪", hue: 200 },
+  { value: "comercial",         label: "Comercial",         emoji: "🛒", hue: 280 },
+  { value: "logistica",         label: "Logística",         emoji: "🚚", hue: 260 },
 ] as const;
 
 export type OperationCategory = typeof OPERATION_CATEGORIES[number]["value"];
@@ -22,6 +22,17 @@ export function getCategoryEmoji(value?: string | null) {
   if (!value) return "📋";
   return OPERATION_CATEGORIES.find(c => c.value === value)?.emoji || "📋";
 }
+
+/** Cor HSL da categoria (paleta de identidade do projeto). Fallback verde-folha. */
+export function getCategoryColor(value?: string | null, opts?: { light?: number; sat?: number; alpha?: number }) {
+  const cat = OPERATION_CATEGORIES.find(c => c.value === value);
+  const hue = cat?.hue ?? 142;
+  const sat = opts?.sat ?? 60;
+  const light = opts?.light ?? 42;
+  const a = opts?.alpha;
+  return a !== undefined ? `hsl(${hue} ${sat}% ${light}% / ${a})` : `hsl(${hue} ${sat}% ${light}%)`;
+}
+
 
 // Status (UI labels), incluindo derivados/expandidos
 export const STAGE_STATUS = [

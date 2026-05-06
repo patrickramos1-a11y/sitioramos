@@ -666,6 +666,8 @@ export type Database = {
           descricao: string | null
           duracao_prevista_dias: number | null
           id: string
+          linked_project_id: string | null
+          nivel_tipo: string
           nome: string
           observacoes: string | null
           ordem: number
@@ -695,6 +697,8 @@ export type Database = {
           descricao?: string | null
           duracao_prevista_dias?: number | null
           id?: string
+          linked_project_id?: string | null
+          nivel_tipo?: string
           nome: string
           observacoes?: string | null
           ordem?: number
@@ -724,6 +728,8 @@ export type Database = {
           descricao?: string | null
           duracao_prevista_dias?: number | null
           id?: string
+          linked_project_id?: string | null
+          nivel_tipo?: string
           nome?: string
           observacoes?: string | null
           ordem?: number
@@ -1111,6 +1117,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      task_checklist_items: {
+        Row: {
+          concluido: boolean
+          created_at: string
+          id: string
+          ordem: number
+          task_id: string
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          concluido?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          task_id: string
+          texto: string
+          updated_at?: string
+        }
+        Update: {
+          concluido?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          task_id?: string
+          texto?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       task_logs: {
         Row: {
