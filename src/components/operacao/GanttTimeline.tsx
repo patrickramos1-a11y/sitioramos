@@ -66,6 +66,10 @@ interface GanttItem {
   rootProjectId: string;
   permiteSimultaneidade: boolean;
   swimlane: number;
+  /** Sub-itens que devem ser renderizados como barras INLINE na mesma linha
+   *  (cadeia recolhida — quando o item está colapsado, seus descendentes não
+   *  ganham linha própria, suas barras aparecem na timeline desta mesma linha). */
+  inlineChain?: GanttItem[];
 }
 
 interface GanttTimelineProps {
@@ -75,7 +79,6 @@ interface GanttTimelineProps {
   cycles?: Array<{ id: string; cultura?: string | null; area_id?: string | null }>;
   onItemClick?: (id: string, type: "operation" | "sub-operation" | "task") => void;
   onAddSubproject?: (parentId: string) => void;
-  onAddSubdemand?: (parentId: string) => void;
   onAddSubtask?: (parentId: string) => void;
   onDeleteOperation?: (id: string) => void;
   onDuplicateOperation?: (id: string) => void;
@@ -85,7 +88,7 @@ interface GanttTimelineProps {
 
 export function GanttTimeline({
   operations, tasks, areas = [], cycles = [], onItemClick,
-  onAddSubproject, onAddSubdemand, onAddSubtask, onDeleteOperation, onDuplicateOperation,
+  onAddSubproject, onAddSubtask, onDeleteOperation, onDuplicateOperation,
   onCompleteOperation, onReopenOperation,
 }: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
