@@ -422,7 +422,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                         return null;
                       })()}
 
-                      {/* Extensão de atraso (hachura vermelha) */}
+                      {/* Extensão de tempo excedido (verde escuro hachurado) */}
                       {overdueExt && (
                         <div
                           className="absolute top-1.5 rounded-r"
@@ -430,7 +430,7 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                             left: overdueExt.left,
                             width: overdueExt.width,
                             height: ROW_HEIGHT - 12,
-                            background: "repeating-linear-gradient(45deg, hsl(var(--destructive) / 0.7), hsl(var(--destructive) / 0.7) 4px, hsl(var(--destructive) / 0.4) 4px, hsl(var(--destructive) / 0.4) 8px)",
+                            background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 5px, hsl(142 60% 32%) 5px, hsl(142 60% 32%) 10px)",
                           }}
                         />
                       )}
@@ -444,9 +444,12 @@ export function GanttTimeline({ operations, tasks, onItemClick }: GanttTimelineP
                               style={{ ...barStyle, left: pos.left, width: pos.width, height: ROW_HEIGHT - 12 }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
-                              {/* Progresso interno */}
-                              {status === "em_andamento" && progressPct > 0 && progressPct < 100 && (
-                                <div className="absolute inset-y-0 left-0 bg-white/25 rounded-l" style={{ width: `${progressPct}%` }} />
+                              {/* Progresso interno — preenchimento com cor do responsável */}
+                              {(status === "em_andamento" || status === "atrasada") && progressPct > 0 && (
+                                <div
+                                  className="absolute inset-y-0 left-0 rounded-l"
+                                  style={{ width: `${Math.min(100, progressPct)}%`, backgroundColor: respColor, opacity: 0.85 }}
+                                />
                               )}
                               <div className="relative z-10 flex items-center gap-1 truncate">
                                 {status === "travada" && <Lock className="h-3 w-3 shrink-0" />}
