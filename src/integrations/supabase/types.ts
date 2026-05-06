@@ -29,6 +29,7 @@ export type Database = {
           talhao_id: string | null
           tamanho_hectares: number
           tipo: string
+          tipo_protecao: string
           updated_at: string
         }
         Insert: {
@@ -45,6 +46,7 @@ export type Database = {
           talhao_id?: string | null
           tamanho_hectares: number
           tipo?: string
+          tipo_protecao?: string
           updated_at?: string
         }
         Update: {
@@ -61,6 +63,7 @@ export type Database = {
           talhao_id?: string | null
           tamanho_hectares?: number
           tipo?: string
+          tipo_protecao?: string
           updated_at?: string
         }
         Relationships: [
@@ -95,6 +98,7 @@ export type Database = {
           investment_id: string | null
           loan_id: string | null
           observacoes: string | null
+          operation_id: string | null
           revenue_id: string | null
           talhao_id: string | null
           tipo: string
@@ -115,6 +119,7 @@ export type Database = {
           investment_id?: string | null
           loan_id?: string | null
           observacoes?: string | null
+          operation_id?: string | null
           revenue_id?: string | null
           talhao_id?: string | null
           tipo: string
@@ -135,6 +140,7 @@ export type Database = {
           investment_id?: string | null
           loan_id?: string | null
           observacoes?: string | null
+          operation_id?: string | null
           revenue_id?: string | null
           talhao_id?: string | null
           tipo?: string
@@ -584,6 +590,36 @@ export type Database = {
           },
         ]
       }
+      operation_change_logs: {
+        Row: {
+          alterado_em: string
+          alterado_por: string | null
+          campo: string
+          id: string
+          stage_id: string
+          valor_antigo: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          alterado_em?: string
+          alterado_por?: string | null
+          campo: string
+          id?: string
+          stage_id: string
+          valor_antigo?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          alterado_em?: string
+          alterado_por?: string | null
+          campo?: string
+          id?: string
+          stage_id?: string
+          valor_antigo?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: []
+      }
       operational_stages: {
         Row: {
           area_id: string | null
@@ -604,6 +640,7 @@ export type Database = {
           observacoes: string | null
           ordem: number
           parent_id: string | null
+          permite_simultaneidade: boolean
           prioridade: Database["public"]["Enums"]["priority_level"] | null
           progresso_percentual: number | null
           propriedade_id: string | null
@@ -632,6 +669,7 @@ export type Database = {
           observacoes?: string | null
           ordem?: number
           parent_id?: string | null
+          permite_simultaneidade?: boolean
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           progresso_percentual?: number | null
           propriedade_id?: string | null
@@ -660,6 +698,7 @@ export type Database = {
           observacoes?: string | null
           ordem?: number
           parent_id?: string | null
+          permite_simultaneidade?: boolean
           prioridade?: Database["public"]["Enums"]["priority_level"] | null
           progresso_percentual?: number | null
           propriedade_id?: string | null
@@ -831,9 +870,11 @@ export type Database = {
       propriedade: {
         Row: {
           area_app_hectares: number
+          area_max_manejo_ha: number
           area_total_hectares: number
           created_at: string
           id: string
+          manejo_escalonado_anos: number
           metros_rio_total: number
           nome: string
           observacoes: string | null
@@ -841,9 +882,11 @@ export type Database = {
         }
         Insert: {
           area_app_hectares?: number
+          area_max_manejo_ha?: number
           area_total_hectares: number
           created_at?: string
           id?: string
+          manejo_escalonado_anos?: number
           metros_rio_total?: number
           nome: string
           observacoes?: string | null
@@ -851,9 +894,11 @@ export type Database = {
         }
         Update: {
           area_app_hectares?: number
+          area_max_manejo_ha?: number
           area_total_hectares?: number
           created_at?: string
           id?: string
+          manejo_escalonado_anos?: number
           metros_rio_total?: number
           nome?: string
           observacoes?: string | null
