@@ -3,7 +3,7 @@ import { Operation } from "@/hooks/useOperations";
 import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays } from "lucide-react";
+import { ChevronRight, ChevronDown, AlertTriangle, Lock, CheckCircle2, Filter, X, ChevronLeft, CalendarDays, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { addDays, addMonths, addWeeks, addYears, differenceInDays, format, startOfDay, startOfMonth, startOfWeek, startOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -62,6 +62,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   const [filterCategoria, setFilterCategoria] = useState<string>("all");
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [onlyDeps, setOnlyDeps] = useState(false);
+  const [projectsCollapsed, setProjectsCollapsed] = useState(false);
   // Data âncora = início da janela visível
   const [anchorDate, setAnchorDate] = useState<Date>(() => {
     const now = startOfDay(new Date());
@@ -188,12 +189,13 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
       });
       byArea.forEach(groupChildren => {
         const lanes: Array<Date | null> = [];
-        groupChildren.sort((a, b) => {
+        // ⚠️ Cópia para não mutar a ordem original (preserva ordem do banco mesmo após conclusão)
+        const ordered = [...groupChildren].sort((a, b) => {
           const sa = (a.startReal || a.startPrev)?.getTime() ?? 0;
           const sb = (b.startReal || b.startPrev)?.getTime() ?? 0;
           return sa - sb;
         });
-        for (const child of groupChildren) {
+        for (const child of ordered) {
           const start = child.startReal || child.startPrev;
           const end = child.endReal || child.endPrev;
           if (!start || !end) { child.swimlane = 0; continue; }
@@ -308,7 +310,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
   }, []);
 
   const ROW_HEIGHT = 40;
-  const LABEL_WIDTH = 240;
+  const LABEL_WIDTH = projectsCollapsed ? 40 : 240;
 
   if (operations.length === 0) {
     return (
@@ -416,11 +418,51 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
           <div className="flex w-full min-w-0">
             {/* Labels (sticky à esquerda) */}
             <div className="shrink-0 border-r bg-muted/20 sticky left-0 z-30" style={{ width: LABEL_WIDTH }}>
-              <div className="h-10 border-b flex items-center px-3 bg-muted/40">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Projetos</span>
+              <div className="h-10 border-b flex items-center justify-between px-2 bg-muted/40 gap-1">
+                {!projectsCollapsed && (
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">Projetos</span>
+                )}
+                <button
+                  onClick={() => setProjectsCollapsed(v => !v)}
+                  className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground shrink-0 ml-auto"
+                  title={projectsCollapsed ? "Expandir lista de projetos" : "Recolher lista de projetos"}
+                  aria-label={projectsCollapsed ? "Expandir lista" : "Recolher lista"}
+                >
+                  {projectsCollapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+                </button>
               </div>
               {items.map(item => {
                 const isProject = item.level === 0;
+                if (projectsCollapsed) {
+                  // Modo recolhido: apenas ícone/expand toggle por linha
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-center border-b cursor-pointer transition-colors ${
+                        isProject ? "bg-muted/10 hover:bg-muted/30" : "hover:bg-muted/20"
+                      }`}
+                      style={{ height: ROW_HEIGHT }}
+                      onClick={() => onItemClick?.(item.id, item.type)}
+                      title={item.name}
+                    >
+                      {item.hasChildren && isProject ? (
+                        <button
+                          className="p-0.5 rounded hover:bg-muted"
+                          onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
+                          aria-label={expandedIds.has(item.id) ? "Recolher" : "Expandir"}
+                        >
+                          <ChevronRight
+                            className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                              expandedIds.has(item.id) ? "rotate-90" : ""
+                            }`}
+                          />
+                        </button>
+                      ) : (
+                        <span className="text-[11px]">{isProject ? getCategoryEmoji(item.categoria) : "·"}</span>
+                      )}
+                    </div>
+                  );
+                }
                 return (
                   <div
                     key={item.id}
