@@ -2,7 +2,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "./AppSidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
-import logo from "@/assets/logo.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useLocation } from "react-router-dom";
 
 interface AppLayoutProps {
