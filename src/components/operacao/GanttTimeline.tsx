@@ -330,7 +330,7 @@ export function GanttTimeline({ operations, tasks, areas = [], cycles = [], onIt
 
   return (
     <TooltipProvider>
-      <div className="space-y-3">
+      <div className="space-y-3 w-full min-w-0 max-w-full">
         {/* Filtros */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground flex items-center gap-1"><Filter className="h-3 w-3" />Filtros:</span>
