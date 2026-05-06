@@ -30,7 +30,6 @@ const priorityOptions = [
 const NIVEL_TIPOS = [
   { value: "projeto", label: "Projeto", desc: "Iniciativa principal" },
   { value: "subprojeto", label: "Subprojeto", desc: "Bloco dentro do projeto" },
-  { value: "subdemanda", label: "Subdemanda", desc: "Demanda específica" },
 ];
 
 const DURATION_PRESETS = [
@@ -221,8 +220,8 @@ export function OperationForm({
   };
 
   const formTitle = title || (operation
-    ? `Editar ${formData.nivel_tipo === "projeto" ? "Projeto" : formData.nivel_tipo === "subprojeto" ? "Subprojeto" : "Subdemanda"}`
-    : `Novo ${formData.nivel_tipo === "projeto" ? "Projeto" : formData.nivel_tipo === "subprojeto" ? "Subprojeto" : "Subdemanda"}`);
+    ? `Editar ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`
+    : `Novo ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`);
 
   const projectsForLink = (allProjects || []).filter(p => p.id !== operation?.id);
 

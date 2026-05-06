@@ -157,7 +157,7 @@ export default function Operacao() {
     setOpFormOpen(true);
   };
 
-  const openNewChild = (parentId: string, nivel: "subprojeto" | "subdemanda") => {
+  const openNewChild = (parentId: string, nivel: "subprojeto") => {
     const parentOperation = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === parentId);
     setEditingOp(null);
     setParentIdForNew(parentId);
@@ -304,7 +304,6 @@ export default function Operacao() {
                   cycles={cycles.map(c => ({ id: c.id, cultura: (c as any).cultura, area_id: (c as any).area_id }))}
                   onItemClick={handleGanttItemClick}
                   onAddSubproject={(id) => openNewChild(id, "subprojeto")}
-                  onAddSubdemand={(id) => openNewChild(id, "subdemanda")}
                   onAddSubtask={openNewTask}
                   onDeleteOperation={(id) => { setDeleteTarget({ type: "operation", id }); setDeleteDialogOpen(true); }}
                   onDuplicateOperation={(id) => duplicateOperation.mutate(id)}

@@ -66,6 +66,10 @@ interface GanttItem {
   rootProjectId: string;
   permiteSimultaneidade: boolean;
   swimlane: number;
+  /** Sub-itens que devem ser renderizados como barras INLINE na mesma linha
+   *  (cadeia recolhida — quando o item está colapsado, seus descendentes não
+   *  ganham linha própria, suas barras aparecem na timeline desta mesma linha). */
+  inlineChain?: GanttItem[];
 }
 
 interface GanttTimelineProps {
@@ -75,7 +79,6 @@ interface GanttTimelineProps {
   cycles?: Array<{ id: string; cultura?: string | null; area_id?: string | null }>;
   onItemClick?: (id: string, type: "operation" | "sub-operation" | "task") => void;
   onAddSubproject?: (parentId: string) => void;
-  onAddSubdemand?: (parentId: string) => void;
   onAddSubtask?: (parentId: string) => void;
   onDeleteOperation?: (id: string) => void;
   onDuplicateOperation?: (id: string) => void;
@@ -85,7 +88,7 @@ interface GanttTimelineProps {
 
 export function GanttTimeline({
   operations, tasks, areas = [], cycles = [], onItemClick,
-  onAddSubproject, onAddSubdemand, onAddSubtask, onDeleteOperation, onDuplicateOperation,
+  onAddSubproject, onAddSubtask, onDeleteOperation, onDuplicateOperation,
   onCompleteOperation, onReopenOperation,
 }: GanttTimelineProps) {
   const [zoom, setZoom] = useState<ZoomLevel>("month");
@@ -188,7 +191,7 @@ export function GanttTimeline({
     };
   };
 
-  // Lista plana visível com filtros + swimlanes para simultaneidade
+  // Lista plana visível com filtros + cadeia inline para subprojetos recolhidos
   const items = useMemo(() => {
     const result: GanttItem[] = [];
 
@@ -201,33 +204,73 @@ export function GanttTimeline({
       return true;
     };
 
+    // Árvore real: para cada operação raiz, agrupa descendentes por parent_id direto
     for (const op of operations) {
+      const allDescendants = (op.children || []) as Operation[];
+      const childrenByParent = new Map<string, Operation[]>();
+      for (const d of allDescendants) {
+        const pid = d.parent_id || op.id;
+        if (!childrenByParent.has(pid)) childrenByParent.set(pid, []);
+        childrenByParent.get(pid)!.push(d);
+      }
+
       const opItem = buildItem(op, 0, op.id, undefined, "operation");
 
-      const childItems: GanttItem[] = [];
-      for (const sub of (op.children || [])) {
-        childItems.push(buildItem(sub, 1, op.id, op.id, "sub-operation"));
-      }
-      childItems.forEach(c => { if (!c.categoria) c.categoria = opItem.categoria; });
+      // Walk recursivo: respeita expandedIds. Quando recolhido, descendentes
+      // viram barras inline na mesma linha do pai.
+      const collectInline = (parentId: string): GanttItem[] => {
+        const out: GanttItem[] = [];
+        const directs = childrenByParent.get(parentId) || [];
+        for (const d of directs) {
+          const item = buildItem(d, 1, op.id, parentId, "sub-operation");
+          if (!item.categoria) item.categoria = opItem.categoria;
+          out.push(item);
+          out.push(...collectInline(d.id));
+        }
+        return out;
+      };
 
-      const filteredChildren = childItems.filter(passesFilter);
-      const opPasses = passesFilter(opItem);
-      if (!opPasses && filteredChildren.length === 0) continue;
+      const walk = (parentId: string, level: number, accum: GanttItem[]) => {
+        const directs = childrenByParent.get(parentId) || [];
+        for (const d of directs) {
+          const item = buildItem(d, level, op.id, parentId, "sub-operation");
+          if (!item.categoria) item.categoria = opItem.categoria;
+          item.hasChildren = (childrenByParent.get(d.id)?.length ?? 0) > 0;
 
-      // Swimlanes apenas se expandido
-      const byArea = new Map<string, GanttItem[]>();
-      filteredChildren.forEach(c => {
-        const key = c.areaId || "__noarea__";
-        if (!byArea.has(key)) byArea.set(key, []);
-        byArea.get(key)!.push(c);
+          if (item.hasChildren && !expandedIds.has(d.id)) {
+            // Recolhido: anexa descendentes como cadeia inline (mesma linha)
+            item.inlineChain = collectInline(d.id);
+          }
+          if (!passesFilter(item) && !(item.inlineChain || []).some(passesFilter)) continue;
+
+          accum.push(item);
+
+          if (item.hasChildren && expandedIds.has(d.id)) {
+            walk(d.id, level + 1, accum);
+          }
+        }
+      };
+
+      const subAccum: GanttItem[] = [];
+      walk(op.id, 1, subAccum);
+
+      // Swimlanes para evitar sobreposição (apenas dentro do mesmo nível visual)
+      const byKey = new Map<string, GanttItem[]>();
+      subAccum.forEach(c => {
+        const key = `${c.parentId}:${c.level}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key)!.push(c);
       });
-      byArea.forEach(groupChildren => {
+      byKey.forEach(groupChildren => {
         const lanes: Array<Date | null> = [];
-        // ⚠️ Preserva ordem original do banco — mesmo concluídas mantêm sua linha
-        const ordered = groupChildren;
-        for (const child of ordered) {
+        for (const child of groupChildren) {
           const start = child.startReal || child.startPrev;
-          const end = child.endReal || child.endPrev;
+          // Considera o fim da cadeia inline também
+          let end = child.endReal || child.endPrev;
+          for (const inl of child.inlineChain || []) {
+            const inlEnd = inl.endReal || inl.endPrev;
+            if (inlEnd && (!end || inlEnd > end)) end = inlEnd;
+          }
           if (!start || !end) { child.swimlane = 0; continue; }
           let assigned = -1;
           for (let i = 0; i < lanes.length; i++) {
@@ -244,9 +287,12 @@ export function GanttTimeline({
         }
       });
 
+      const opPasses = passesFilter(opItem);
+      if (!opPasses && subAccum.length === 0) continue;
+
       result.push(opItem);
       if (expandedIds.has(op.id)) {
-        result.push(...filteredChildren);
+        result.push(...subAccum);
       }
     }
 
@@ -496,7 +542,7 @@ export function GanttTimeline({
                       onClick={() => onItemClick?.(item.id, item.type)}
                       title={item.name}
                     >
-                      {item.hasChildren && isProject ? (
+                      {item.hasChildren ? (
                         <button
                           className="p-0.5 rounded hover:bg-muted"
                           onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
@@ -527,7 +573,7 @@ export function GanttTimeline({
                     }}
                     onClick={() => onItemClick?.(item.id, item.type)}
                   >
-                    {item.hasChildren && isProject ? (
+                    {item.hasChildren ? (
                       <button
                         className="p-0.5 rounded hover:bg-muted transition-transform"
                         onClick={e => { e.stopPropagation(); toggleExpand(item.id); }}
@@ -566,12 +612,11 @@ export function GanttTimeline({
                         </div>
                       )}
                     </div>
-                    {(onAddSubproject || onAddSubdemand || onAddSubtask || onDeleteOperation || onCompleteOperation) && (
+                    {(onAddSubproject || onAddSubtask || onDeleteOperation || onCompleteOperation) && (
                       <ProjectActionsMenu
                         level={item.level}
                         isCompleted={item.derivedStatus === "concluida"}
-                        onAddSubproject={isProject && onAddSubproject ? () => onAddSubproject(item.id) : undefined}
-                        onAddSubdemand={onAddSubdemand ? () => onAddSubdemand(item.id) : undefined}
+                        onAddSubproject={onAddSubproject ? () => onAddSubproject(item.id) : undefined}
                         onAddSubtask={onAddSubtask ? () => onAddSubtask(item.id) : undefined}
                         onEdit={() => onItemClick?.(item.id, item.type)}
                         onComplete={onCompleteOperation ? () => onCompleteOperation(item.id) : undefined}
@@ -743,6 +788,71 @@ export function GanttTimeline({
                           <span className="text-[10px] text-muted-foreground/50">sem datas</span>
                         </div>
                       )}
+
+                      {/* Cadeia inline: barras dos descendentes na mesma linha (recolhido) */}
+                      {(item.inlineChain || []).map(inl => {
+                        const inlStart = inl.startReal || inl.startPrev;
+                        const inlEnd = inl.endReal ||
+                          (inl.derivedStatus === "atrasada" && inl.endPrev ? today : inl.endPrev);
+                        const inlPos = getBarPosition(inlStart, inlEnd);
+                        if (!inlPos) return null;
+                        const inlCat = getCategoryColor(inl.categoria, { sat: 60, light: 45 });
+                        const inlGlow = getCategoryColor(inl.categoria, { sat: 70, light: 50, alpha: 0.35 });
+                        let inlStyle: React.CSSProperties = {};
+                        if (inl.derivedStatus === "concluida") {
+                          inlStyle = { backgroundColor: inlCat, color: "white", boxShadow: `0 0 0 1px ${inlCat}, 0 0 6px ${inlGlow}` };
+                        } else if (inl.derivedStatus === "em_andamento" || inl.derivedStatus === "atrasada") {
+                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 50, light: 94 }), border: `1.5px solid ${inlCat}`, color: getCategoryColor(inl.categoria, { light: 25 }) };
+                        } else {
+                          inlStyle = { backgroundColor: getCategoryColor(inl.categoria, { sat: 40, light: 96 }), border: `1.5px dashed ${getCategoryColor(inl.categoria, { sat: 45, light: 65 })}`, color: getCategoryColor(inl.categoria, { light: 35 }) };
+                        }
+                        // Conector pontilhado entre o pai e este filho (ou entre filhos)
+                        const prevEndPx = pos ? pos.left + pos.width : inlPos.left;
+                        const connectorLeft = Math.min(prevEndPx, inlPos.left);
+                        const connectorWidth = Math.max(0, inlPos.left - prevEndPx);
+                        return (
+                          <div key={inl.id}>
+                            {connectorWidth > 2 && (
+                              <div
+                                className="absolute pointer-events-none"
+                                style={{
+                                  top: baseTop + baseHeight / 2 - 1,
+                                  left: connectorLeft,
+                                  width: connectorWidth,
+                                  height: 2,
+                                  borderTop: `1.5px dotted ${getProjectColor(item.rootProjectId)}`,
+                                  opacity: 0.6,
+                                }}
+                              />
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden"
+                                  style={{
+                                    ...inlStyle,
+                                    top: baseTop, left: inlPos.left, width: inlPos.width, height: baseHeight,
+                                    borderLeft: `2px solid ${getProjectColor(item.rootProjectId)}`,
+                                  }}
+                                  onClick={e => { e.stopPropagation(); onItemClick?.(inl.id, inl.type); }}
+                                >
+                                  <div className="relative z-10 flex items-center gap-1 truncate">
+                                    {inl.derivedStatus === "concluida" && <CheckCircle2 className="h-3 w-3 shrink-0" />}
+                                    {inlPos.width > 40 && <span className="truncate">{inl.name}</span>}
+                                  </div>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs space-y-1">
+                                <div className="font-semibold">{inl.name}</div>
+                                <div className="text-muted-foreground">Cadeia de {item.name}</div>
+                                <div>Status: <strong>{inl.derivedStatus}</strong></div>
+                                {inl.startPrev && <div>Início: {format(inl.startPrev, "dd/MM/yy")}</div>}
+                                {inl.endPrev && <div>Fim: {format(inl.endPrev, "dd/MM/yy")}</div>}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}

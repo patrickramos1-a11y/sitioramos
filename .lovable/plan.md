@@ -1,120 +1,69 @@
+## Reestruturação da hierarquia e visualização da Operação
 
-## Plano: Sistema de Responsáveis
+### Modelo conceitual
 
-Camada de gestão de pessoas responsáveis por registros (sem login/auth). Vínculos transversais com herança automática em hierarquia de projetos.
+Reduzir os níveis para apenas 3, eliminando "subdemanda":
 
-### 1. Banco de dados (migration)
+```
+Projeto
+└── Subprojeto (pode ter outros subprojetos vinculados em sequência)
+    └── Subtarefa
+```
 
-**Nova tabela `responsaveis`:**
-- `id` uuid PK
-- `nome` text NOT NULL
-- `apelido` text
-- `cor` text NOT NULL (hex, ex: `#22c55e`)
-- `icone` text (nome de ícone lucide ou inicial)
-- `status` text default `'ativo'` (ativo/inativo)
-- `observacoes` text
-- `created_at`, `updated_at`
-- RLS pública (consistente com restante)
-- Seed: Patrick (verde), William (laranja)
+Um subprojeto pode ser vinculado a outro subprojeto. Visualmente:
+- **Recolhido**: os subprojetos vinculados aparecem na MESMA linha, em sequência horizontal (encadeados na timeline, um após o outro).
+- **Expandido**: cada subprojeto vinculado quebra para sua própria linha, mostrando as dependências verticalmente.
 
-**Coluna `responsavel_id uuid` (nullable) adicionada a:**
-- `operational_stages` (cobre projeto/subprojeto/demanda/etapa)
-- `operational_tasks`
-- `areas`
-- `talhoes`
-- `cycles`
-- `cash_transactions`
-- `costs`
-- `revenues`
-- `investments`
-- `loans`
-- `installments`
+Cada subprojeto que tenha filhos vinculados ganha um ícone de expansão (▶) para alternar entre os modos.
 
-Mantemos a coluna textual `responsavel` existente em `operational_stages`/`operational_tasks` por compatibilidade, mas a UI passa a usar `responsavel_id`.
+### Exemplo (caso atual)
 
-### 2. Hook e componentes base
+O subprojeto "Levantamento" tem "Projeto da Casa de Farinha" e "teste" vinculados.
 
-**`src/hooks/useResponsaveis.ts`** — CRUD + lista cacheada via React Query.
+```
+Recolhido:
+[Levantamento]──[Projeto Casa de Farinha]──[teste]    ← tudo em uma linha
 
-**`src/components/responsaveis/ResponsavelSelect.tsx`** — Select reutilizável (bolinha colorida + nome). Aceita `value`, `onChange`, opção "Nenhum".
+Expandido:
+[Levantamento] ▼
+   └─[Projeto Casa de Farinha]
+   └─[teste]
+```
 
-**`src/components/responsaveis/ResponsavelBadge.tsx`** — Bolinha colorida + apelido para uso em cards e barras de Gantt.
+### Mudanças no menu de ações
 
-**`src/components/responsaveis/ResponsavelForm.tsx`** — Formulário (nome, apelido, color picker, ícone, status, obs).
+Renomear/reorganizar o `ProjectActionsMenu`:
+- "Adicionar dentro" → opções: **Subprojeto** e **Subtarefa** (remove "Subdemanda").
+- Manter: Marcar como concluído, Editar, Duplicar, Vincular a outro projeto/subprojeto, Excluir.
 
-### 3. Nova aba "Responsáveis"
+### Mudanças na timeline (GanttTimeline)
 
-- Rota `/responsaveis` → `src/pages/Responsaveis.tsx`
-- Item no `AppSidebar` (desktop) e `MobileBottomNav` (mobile, se houver espaço — caso contrário apenas no menu lateral)
-- Layout: lista de cards de responsáveis + botão "Novo"
-- Cada card mostra **indicadores consolidados** (queries agregadas):
-  - Projetos vinculados (operational_stages onde nivel_tipo='projeto')
-  - Tarefas em andamento / atrasadas / concluídas
-  - Total custos, total receitas, total transações
-  - Áreas e ciclos vinculados
-- Clicar no card abre drawer com edição + lista detalhada
+1. **Agrupamento por cadeia**: criar conceito de "chain" — quando um subprojeto B tem `parent_id` igual a outro subprojeto A (cadeia entre subprojetos), B é renderizado na mesma swimlane de A enquanto a cadeia estiver recolhida.
+2. **Estado de expansão por subprojeto**: hoje o expand/collapse só existe no projeto raiz. Estender para subprojetos que possuem filhos.
+3. **Renderização sequencial**: quando recolhido, ajustar o `swimlane` dos filhos diretos para coincidir com o pai e empilhá-los após o `endPrev/endReal` do antecessor (preservando ordem cronológica).
+4. **Botão expansão (▶)** ao lado do nome do subprojeto na coluna esquerda quando ele tiver filhos.
+5. **Indicador visual**: um pequeno conector horizontal (linha pontilhada) entre as barras encadeadas para reforçar que são parte da mesma cadeia.
 
-### 4. Integração nos formulários
+### Mudanças no banco
 
-Adicionar `<ResponsavelSelect>` em:
-- `OperationForm.tsx` (já tinha `responsavel` texto → migrar para `responsavel_id`)
-- `TaskForm.tsx`
-- Forms de Áreas, Talhões, Ciclos
-- Forms de transações (caixa), Custos, Receitas, Investimentos
-- `LoanForm` e form de pagamento de parcela
+Nenhuma alteração de schema. O campo `parent_id` já suporta encadeamento N níveis (corrigido anteriormente). A diferença é apenas semântica/visual.
 
-### 5. Herança automática
+### Migração leve dos dados existentes
 
-Em `useOperations.ts` (criação de subprojeto/subdemanda/subtarefa):
-- Ao criar filho via `ProjectActionsMenu`, pré-preencher `responsavel_id` com o do `parent_id`
-- Usuário pode alterar manualmente no formulário
+Atualizar `nivel_tipo` dos registros existentes que estavam como `subdemanda` para `subprojeto`, para uniformizar a nomenclatura.
 
-Mesma lógica em criação de tarefa dentro de stage (herda do stage).
+### Arquivos a alterar
 
-### 6. Exibição visual
+- `src/components/operacao/ProjectActionsMenu.tsx` — remover "Subdemanda".
+- `src/components/operacao/OperationForm.tsx` — remover opção "subdemanda" do seletor de nível.
+- `src/components/operacao/GanttTimeline.tsx` — lógica de cadeia, swimlane compartilhada, expansão por subprojeto, conector visual.
+- `src/pages/Operacao.tsx` — remover handler `onAddSubdemand`, ajustar criação para sempre usar `subprojeto` ou `subtarefa`.
+- `src/lib/operacaoConfig.ts` — atualizar labels/nomenclatura se houver "subdemanda".
+- Migration SQL: `UPDATE operational_stages SET nivel_tipo = 'subprojeto' WHERE nivel_tipo = 'subdemanda';`
 
-- **Gantt timeline** (`GanttTimeline.tsx`): adicionar `<ResponsavelBadge>` no canto da barra; borda lateral pode usar `cor` do responsável como segunda camada visual (sem conflitar com cor de categoria já existente — usar pequeno chip à esquerda do label).
-- **Cards de operação/tarefa**: bolinha colorida + apelido.
-- **Linhas do fluxo de caixa**: coluna/badge com bolinha + apelido.
+### Resultado esperado
 
-### 7. Filtros
-
-Adicionar dropdown "Responsável" (multi-select) em:
-- Visão Geral / Dashboard
-- Operação (filtra timeline e lista)
-- Fluxo de Caixa (Caixa)
-- Áreas, Talhões (lista), Ciclos
-- Empréstimos
-- Relatórios existentes
-
-Implementar como prop opcional `responsavelIds?: string[]` nos hooks de listagem (`useOperations`, `useCashTransactions`, etc.) e filtro local quando query já está cacheada.
-
-### 8. Detalhes técnicos
-
-- Cor armazenada como hex; renderizada via `style={{ backgroundColor: cor }}` em bolinha de 8–10px
-- `ResponsavelSelect` busca lista via React Query (`['responsaveis']`)
-- Indicadores na aba Responsáveis: usar `useMemo` sobre dados já carregados quando viável; senão `supabase.rpc`-free com queries `count`/`sum` simples por responsável
-- Sem alteração em auth; sem RLS por usuário
-
-### 9. Arquivos a criar/editar
-
-**Criar:**
-- `supabase/migrations/<timestamp>_responsaveis.sql`
-- `src/pages/Responsaveis.tsx`
-- `src/hooks/useResponsaveis.ts`
-- `src/components/responsaveis/ResponsavelSelect.tsx`
-- `src/components/responsaveis/ResponsavelBadge.tsx`
-- `src/components/responsaveis/ResponsavelForm.tsx`
-- `src/components/responsaveis/ResponsavelCard.tsx` (com indicadores)
-
-**Editar:**
-- `src/App.tsx` (rota)
-- `src/components/layout/AppSidebar.tsx` + `MobileBottomNav.tsx`
-- `src/components/operacao/OperationForm.tsx`, `TaskForm.tsx`, `GanttTimeline.tsx`
-- `src/hooks/useOperations.ts` (herança + filtro)
-- Forms e hooks de: areas, talhoes, cycles, costs, revenues, investments, loans, installments, cash_transactions
-- Páginas com filtros: `Dashboard.tsx`, `Operacao.tsx`, `Caixa.tsx`, `Areas.tsx`, `Emprestimos.tsx`
-
-### 10. Memória
-
-Adicionar `mem://features/responsaveis` documentando: camada não-auth, herança parent→filho, padrão de cor/badge.
+- Apenas 3 níveis claros: Projeto → Subprojeto → Subtarefa.
+- Subprojetos encadeados aparecem inline (mesma linha) quando recolhidos, e quebram em linhas próprias quando expandidos.
+- Cada subprojeto com filhos exibe seu próprio botão de expandir/recolher.
+- Timeline visualmente mais limpa, com leitura cronológica natural da cadeia.
