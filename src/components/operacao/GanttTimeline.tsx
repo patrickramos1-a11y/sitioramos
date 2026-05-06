@@ -19,7 +19,7 @@ const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; lab
   day:   { columns: 60,  minColWidth: 56, label: "Dia",    shortLabel: "D" },
   week:  { columns: 36,  minColWidth: 70, label: "Semana", shortLabel: "S" },
   month: { columns: 24,  minColWidth: 90, label: "Mês",    shortLabel: "M" },
-  year:  { columns: 10,  minColWidth: 140, label: "Ano",    shortLabel: "A" },
+  year:  { columns: 20,  minColWidth: 90, label: "Ano",    shortLabel: "A" },
 };
 
 interface GanttItem {
