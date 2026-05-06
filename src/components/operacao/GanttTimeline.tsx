@@ -41,6 +41,11 @@ interface GanttItem {
   type: "operation" | "sub-operation" | "task";
   hasChildren: boolean;
   metrics: ReturnType<typeof computeStageMetrics>;
+  areaId: string | null;
+  cycleId: string | null;
+  rootProjectId: string;
+  permiteSimultaneidade: boolean;
+  swimlane: number;
 }
 
 interface GanttTimelineProps {
