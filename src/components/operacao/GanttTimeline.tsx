@@ -191,7 +191,7 @@ export function GanttTimeline({
     };
   };
 
-  // Lista plana visível com filtros + swimlanes para simultaneidade
+  // Lista plana visível com filtros + cadeia inline para subprojetos recolhidos
   const items = useMemo(() => {
     const result: GanttItem[] = [];
 
@@ -204,33 +204,73 @@ export function GanttTimeline({
       return true;
     };
 
+    // Árvore real: para cada operação raiz, agrupa descendentes por parent_id direto
     for (const op of operations) {
+      const allDescendants = (op.children || []) as Operation[];
+      const childrenByParent = new Map<string, Operation[]>();
+      for (const d of allDescendants) {
+        const pid = d.parent_id || op.id;
+        if (!childrenByParent.has(pid)) childrenByParent.set(pid, []);
+        childrenByParent.get(pid)!.push(d);
+      }
+
       const opItem = buildItem(op, 0, op.id, undefined, "operation");
 
-      const childItems: GanttItem[] = [];
-      for (const sub of (op.children || [])) {
-        childItems.push(buildItem(sub, 1, op.id, op.id, "sub-operation"));
-      }
-      childItems.forEach(c => { if (!c.categoria) c.categoria = opItem.categoria; });
+      // Walk recursivo: respeita expandedIds. Quando recolhido, descendentes
+      // viram barras inline na mesma linha do pai.
+      const collectInline = (parentId: string): GanttItem[] => {
+        const out: GanttItem[] = [];
+        const directs = childrenByParent.get(parentId) || [];
+        for (const d of directs) {
+          const item = buildItem(d, 1, op.id, parentId, "sub-operation");
+          if (!item.categoria) item.categoria = opItem.categoria;
+          out.push(item);
+          out.push(...collectInline(d.id));
+        }
+        return out;
+      };
 
-      const filteredChildren = childItems.filter(passesFilter);
-      const opPasses = passesFilter(opItem);
-      if (!opPasses && filteredChildren.length === 0) continue;
+      const walk = (parentId: string, level: number, accum: GanttItem[]) => {
+        const directs = childrenByParent.get(parentId) || [];
+        for (const d of directs) {
+          const item = buildItem(d, level, op.id, parentId, "sub-operation");
+          if (!item.categoria) item.categoria = opItem.categoria;
+          item.hasChildren = (childrenByParent.get(d.id)?.length ?? 0) > 0;
 
-      // Swimlanes apenas se expandido
-      const byArea = new Map<string, GanttItem[]>();
-      filteredChildren.forEach(c => {
-        const key = c.areaId || "__noarea__";
-        if (!byArea.has(key)) byArea.set(key, []);
-        byArea.get(key)!.push(c);
+          if (item.hasChildren && !expandedIds.has(d.id)) {
+            // Recolhido: anexa descendentes como cadeia inline (mesma linha)
+            item.inlineChain = collectInline(d.id);
+          }
+          if (!passesFilter(item) && !(item.inlineChain || []).some(passesFilter)) continue;
+
+          accum.push(item);
+
+          if (item.hasChildren && expandedIds.has(d.id)) {
+            walk(d.id, level + 1, accum);
+          }
+        }
+      };
+
+      const subAccum: GanttItem[] = [];
+      walk(op.id, 1, subAccum);
+
+      // Swimlanes para evitar sobreposição (apenas dentro do mesmo nível visual)
+      const byKey = new Map<string, GanttItem[]>();
+      subAccum.forEach(c => {
+        const key = `${c.parentId}:${c.level}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key)!.push(c);
       });
-      byArea.forEach(groupChildren => {
+      byKey.forEach(groupChildren => {
         const lanes: Array<Date | null> = [];
-        // ⚠️ Preserva ordem original do banco — mesmo concluídas mantêm sua linha
-        const ordered = groupChildren;
-        for (const child of ordered) {
+        for (const child of groupChildren) {
           const start = child.startReal || child.startPrev;
-          const end = child.endReal || child.endPrev;
+          // Considera o fim da cadeia inline também
+          let end = child.endReal || child.endPrev;
+          for (const inl of child.inlineChain || []) {
+            const inlEnd = inl.endReal || inl.endPrev;
+            if (inlEnd && (!end || inlEnd > end)) end = inlEnd;
+          }
           if (!start || !end) { child.swimlane = 0; continue; }
           let assigned = -1;
           for (let i = 0; i < lanes.length; i++) {
@@ -247,9 +287,12 @@ export function GanttTimeline({
         }
       });
 
+      const opPasses = passesFilter(opItem);
+      if (!opPasses && subAccum.length === 0) continue;
+
       result.push(opItem);
       if (expandedIds.has(op.id)) {
-        result.push(...filteredChildren);
+        result.push(...subAccum);
       }
     }
 
