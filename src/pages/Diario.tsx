@@ -96,6 +96,7 @@ function fmtDur(s?: number | null) {
 
 export default function Diario() {
   const navigate = useNavigate();
+  const { online, pending } = useOfflineSync();
   const [filterReviewed, setFilterReviewed] = useState<"all" | "todo" | "done">("all");
   const [filterType, setFilterType] = useState<string>("");
   const [filterAreaId, setFilterAreaId] = useState<string>("");
