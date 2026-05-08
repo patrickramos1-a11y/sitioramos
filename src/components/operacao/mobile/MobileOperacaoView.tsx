@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Operation } from "@/hooks/useOperations";
 import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   SlidersHorizontal, X, LayoutGrid, CalendarDays, BarChart3,
   ChevronRight, ChevronDown, Clock, AlertTriangle, CheckCircle2, Circle, Pause,
+  Rows3, Columns3, Grid2x2,
 } from "lucide-react";
 import {
   getProjectColor, getCategoryEmoji, getCategoryLabel, OPERATION_CATEGORIES,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/operacaoConfig";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
-import { format, isToday, isSameMonth, startOfMonth, addMonths, isBefore, isAfter } from "date-fns";
+import { format, isToday, startOfMonth, addMonths, addDays, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
