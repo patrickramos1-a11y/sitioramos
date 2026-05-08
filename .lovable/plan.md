@@ -1,99 +1,70 @@
+## Problema
+
+Quando você abre o app pelo ícone fixado na tela inicial do iPhone (ou pelo link salvo), aparece uma versão antiga. Isso acontece porque:
+
+1. Em deploys anteriores ficou registrado um **service worker** que cacheou a versão antiga no aparelho. Ele continua servindo o HTML/JS antigo mesmo depois de novos deploys.
+2. O `start_url` do manifesto e o cache do iOS em modo "standalone" (PWA na tela inicial) também travam o app numa versão.
+3. Hoje não temos nenhum mecanismo de "checar se há versão nova e recarregar".
+
+O preview do navegador mostra a versão atual porque ele não tem SW antigo registrado.
+
 ## Objetivo
 
-Evoluir o Diário de Campo para capturar **múltiplos pontos GPS** por registro, com nome, observação, mídia opcional e exportação **KML** (com arquitetura preparada para KMZ/linhas/polígonos no futuro).
+Sempre que o app abrir **com internet**, ele deve detectar que existe uma versão nova e atualizar automaticamente — tanto no link quanto no ícone da tela inicial.
 
----
+## Plano
 
-## 1. Banco de dados (migration)
+### 1. Service worker "kill-switch" em `/sw.js`
 
-Criar tabela `journal_points` ligada a `journal_entries`:
+Criar `public/sw.js` que:
+- Faz `skipWaiting` e `clients.claim` na ativação.
+- Apaga **todos** os caches (`caches.keys()` → `caches.delete`).
+- Navega cada client aberto adicionando `?sw-cleanup=<timestamp>` para forçar busca fresca.
+- Em seguida chama `self.registration.unregister()`.
 
-- `entry_id` (uuid, ref. journal_entries)
-- `nome` (text)
-- `observacao` (text, nullable)
-- `latitude` (numeric)
-- `longitude` (numeric)
-- `accuracy` (numeric, nullable)
-- `captured_at` (timestamptz, default now)
-- `ordem` (int, default 0)
-- `manual` (boolean, default false) — true se digitado à mão
-- `geometry_type` (text, default `'point'`) — preparado para `'line'` / `'polygon'` no futuro
-- `coordinates` (jsonb, nullable) — para futuras geometrias multi-coordenada
-- `attachment_id` (uuid, nullable, ref. journal_attachments) — mídia vinculada opcional
-- timestamps padrão
+Resultado: aparelhos que já tinham SW antigo recebem este novo na próxima abertura, ele limpa o cache, recarrega a página, e se desregistra. Próximas aberturas passam a ir direto na rede.
 
-RLS pública (mesmo padrão das tabelas do diário). Índice em `entry_id`.
+### 2. Registro condicional no `main.tsx`
 
-Bucket de storage: reutiliza `journal-media` existente, prefixo `kml/` para os arquivos exportados.
+Manter o registro de `/sw.js` apenas em produção e fora do iframe/preview Lovable (já está assim). Garantir que ele seja registrado para que o kill-switch acima rode nos aparelhos atuais.
 
-## 2. Hook `useJournalPoints`
+### 3. Detector de versão nova
 
-`src/hooks/useJournalPoints.ts`:
+- Gerar um `public/version.json` em build time com um id (`{ "build": "<timestamp>" }`) — usar um pequeno script no `vite.config.ts` (plugin `closeBundle`) ou um arquivo emitido com `define`.
+- Embutir o mesmo id no bundle via `import.meta.env.VITE_BUILD_ID` (definido em `vite.config.ts` com `Date.now()` no momento do build).
+- No app, criar `src/lib/versionCheck.ts` que:
+  - Busca `/version.json` (com `cache: "no-store"`) na inicialização e ao voltar para a aba (`visibilitychange` / `focus`).
+  - Se o `build` retornado for diferente do embutido **e** estiver online → mostra um toast "Nova versão disponível" com botão "Atualizar" que faz `location.reload()`.
+  - Opcional: após 5s sem interação, recarrega automaticamente (configurável).
 
-- `list(entryId)` — lista pontos do registro
-- `add(point)` — insere
-- `update(id, patch)` — edita nome/observação
-- `remove(id)` — deleta
-- React Query com invalidação por `entryId`
+### 4. Botão manual "Atualizar app"
 
-## 3. Componente `JournalPointsManager`
+No componente `OfflineIndicator` (ou num menu adjacente), adicionar um item "Atualizar app" que:
+- Chama `caches.keys()` + `caches.delete` para limpar tudo.
+- Desregistra qualquer service worker remanescente.
+- Faz `location.reload()`.
 
-`src/components/diario/JournalPointsManager.tsx`:
+Assim, mesmo num cenário extremo, você consegue forçar a atualização com um toque.
 
-- **Botão grande "Adicionar ponto atual"** (h-14, full-width, mobile-first), usa Geolocation API com `enableHighAccuracy`
-- Estado de loading enquanto captura, toast de erro se permissão negada / timeout
-- **Fallback manual**: botão "Lançar manualmente" abre dialog com inputs lat/lng/nome/observação
-- Auto-naming: "Ponto 1", "Ponto 2"... com possibilidade de editar inline
-- Lista de pontos capturados com:
-  - Nome (editável inline)
-  - Coordenadas formatadas (ex: `-23.5505, -46.6333`)
-  - Precisão estimada (`±12m`)
-  - Hora da captura (relativa)
-  - Botão expandir → observação (textarea) + vincular mídia (select das mídias já anexadas ao registro)
-  - Botão excluir (trash)
-- Contador "N pontos capturados"
+### 5. Headers de cache (apenas observação)
 
-Funciona em dois modos:
-- **Modo rascunho** (registro ainda não salvo): mantém pontos em estado local; ao salvar registro, faz batch insert
-- **Modo persistido** (registro existente): CRUD direto no banco
+A hospedagem da Lovable já serve `index.html`, `/sw.js` e `/manifest.webmanifest` com `Cache-Control: no-cache`, então não precisa mexer em config de hosting.
 
-## 4. Integração no `Diario.tsx`
+## Detalhes técnicos
 
-- No card de captura, **substituir** o atual botão único "Capturar localização" por `<JournalPointsManager>` em modo rascunho
-- Os pontos do rascunho vão junto no `handleSave` (batch insert após criar entry)
-- Manter compatibilidade com `latitude`/`longitude`/`location_accuracy` do entry (preencher com o **primeiro ponto** se houver, para não quebrar a coluna existente)
-- Na lista de registros já salvos, adicionar seção colapsável "Pontos GPS (N)" mostrando o gestor em modo persistido
+- `public/sw.js` é estático e fica versionado no repo.
+- `vite.config.ts` ganha `define: { "import.meta.env.VITE_BUILD_ID": JSON.stringify(Date.now().toString()) }` e um plugin que escreve `dist/version.json` no `closeBundle`.
+- `versionCheck.ts` é chamado uma vez em `App.tsx` dentro de um `useEffect`.
+- O toast usa o `sonner` já instalado.
+- Nada muda no fluxo offline existente: o React Query persistido continua funcionando para leitura sem internet; a checagem de versão só roda quando online.
 
-## 5. Exportação KML
+## Fora de escopo
 
-`src/lib/kmlExport.ts`:
+- Não vamos transformar o app em PWA "completo" com cache de assets via Workbox (mantemos a abordagem atual de cache só do React Query).
+- Não vamos mexer em `start_url`/`scope` do manifesto — mudar esses campos não atualiza ícones já instalados.
 
-- `buildKml(entry, points)` → string KML com:
-  - `<Document>` com `<name>` = título/data do registro
-  - Cada ponto como `<Placemark>` contendo `<name>`, `<description>` (observação + hora), `<Point><coordinates>lng,lat,0</coordinates></Point>`
-- Arquitetura extensível: função aceita `geometry_type` e prepara branches para `LineString` / `Polygon` (não usados nesta fase)
-- Função `exportEntryKml(entryId)`:
-  1. Busca pontos
-  2. Gera KML
-  3. Upload para `journal-media/kml/{entry_id}-{timestamp}.kml`
-  4. Retorna URL pública e dispara download no navegador (`<a download>`)
+## O que você verá no fim
 
-Botão **"Exportar KML"** no header do registro (visível quando há ≥1 ponto), ícone `Download`.
-
-## 6. Detalhes técnicos
-
-- Geolocation: `{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }` (já usado na página)
-- Validação manual: lat ∈ [-90,90], lng ∈ [-180,180]
-- KML namespace: `http://www.opengis.net/kml/2.2`
-- Coordenadas no KML em ordem `lng,lat,alt` (alt=0)
-- Mobile: botão principal `h-14 text-base`, lista em cards verticais
-- Sem novas permissões/auth — RLS pública como o resto do diário
-
-## 7. Fora do escopo (preparado para depois)
-
-- KMZ com fotos embutidas (.kmz = zip do KML + assets)
-- Captura de linhas/trilhas (watchPosition)
-- Polígonos (área desenhada)
-- Visualização em mapa
-
-A tabela e o builder KML já são extensíveis para esses casos.
+- Na próxima vez que abrir o ícone do iPhone com internet: o SW antigo é morto, o app recarrega sozinho na versão nova.
+- Em deploys futuros: aparece um toast "Nova versão disponível — Atualizar" e/ou recarrega sozinho.
+- Se algo travar: botão "Atualizar app" no indicador de status no topo.
