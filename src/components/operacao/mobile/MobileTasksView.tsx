@@ -3,16 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Search, Plus, SlidersHorizontal, X, MoreVertical,
-  CalendarDays, Flag, AlertTriangle, Folder, User, Inbox,
+  CalendarDays, CalendarPlus, Flag, AlertTriangle, Folder, User, Inbox,
 } from "lucide-react";
-import type { Task } from "@/hooks/useTasks";
+import { useTasks, type Task } from "@/hooks/useTasks";
 import type { Operation } from "@/hooks/useOperations";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
 import { cn } from "@/lib/utils";
@@ -76,6 +78,7 @@ function formatPrazo(d: string | null) {
 
 export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete, onToggleComplete }: Props) {
   const { data: responsaveis = [] } = useResponsaveis();
+  const { updateTask } = useTasks();
 
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -511,7 +514,13 @@ export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete,
                   return (
                     <div key={t.id} className="flex items-start gap-2 p-2.5 active:bg-muted/40 transition-colors">
                       <Checkbox checked={done} onCheckedChange={() => onToggleComplete(t)} className="mt-0.5" />
-                      <button type="button" onClick={() => onEdit(t)} className="flex-1 text-left min-w-0">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onEdit(t)}
+                        onKeyDown={(e) => { if (e.key === "Enter") onEdit(t); }}
+                        className="flex-1 text-left min-w-0 cursor-pointer"
+                      >
                         <div className={cn("text-sm font-medium leading-tight", done && "line-through text-muted-foreground")}>
                           {t.titulo}
                         </div>
@@ -531,19 +540,12 @@ export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete,
                               {resp.nome}
                             </Badge>
                           )}
-                          {t.data_prazo && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "h-5 text-[10px] gap-1",
-                                overdue ? "border-destructive text-destructive"
-                                : isToday(t.data_prazo) ? "border-amber-500 text-amber-600" : "",
-                              )}
-                            >
-                              {overdue ? <AlertTriangle className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
-                              {formatPrazo(t.data_prazo)}
-                            </Badge>
-                          )}
+                          <QuickDatePicker
+                            value={t.data_prazo}
+                            overdue={!!overdue}
+                            isHoje={isToday(t.data_prazo)}
+                            onChange={(d) => updateTask.mutate({ id: t.id, data_prazo: d })}
+                          />
                           {t.prioridade && t.prioridade !== "media" && (
                             <Badge variant="outline" className={cn("h-5 text-[10px] gap-1", prioridade.cls)}>
                               <Flag className="h-3 w-3" />
@@ -551,7 +553,7 @@ export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete,
                             </Badge>
                           )}
                         </div>
-                      </button>
+                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
@@ -599,4 +601,95 @@ function Kpi({ label, value, valueClass }: { label: string; value: number; value
 
 function Sep() {
   return <span className="shrink-0 text-muted-foreground/40">·</span>;
+}
+
+function toISODate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function QuickDatePicker({
+  value, overdue, isHoje, onChange,
+}: {
+  value: string | null;
+  overdue: boolean;
+  isHoje: boolean;
+  onChange: (d: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+
+  const setOffset = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    onChange(toISODate(d));
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+        {value ? (
+          <button
+            type="button"
+            className={cn(
+              "inline-flex items-center gap-1 h-5 px-2 rounded-full border text-[10px] transition-colors",
+              overdue ? "border-destructive text-destructive bg-destructive/5"
+              : isHoje ? "border-amber-500 text-amber-600 bg-amber-500/5"
+              : "border-border text-foreground bg-background hover:bg-muted/40",
+            )}
+          >
+            {overdue ? <AlertTriangle className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
+            {formatPrazo(value)}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 h-5 px-2 rounded-full border border-dashed border-border text-[10px] text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+          >
+            <CalendarPlus className="h-3 w-3" />
+            Prazo
+          </button>
+        )}
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-2 border-b grid grid-cols-2 gap-1">
+          <Button size="sm" variant="ghost" className="h-8 justify-start text-xs" onClick={() => setOffset(0)}>Hoje</Button>
+          <Button size="sm" variant="ghost" className="h-8 justify-start text-xs" onClick={() => setOffset(1)}>Amanhã</Button>
+          <Button size="sm" variant="ghost" className="h-8 justify-start text-xs" onClick={() => setOffset(3)}>+ 3 dias</Button>
+          <Button size="sm" variant="ghost" className="h-8 justify-start text-xs" onClick={() => setOffset(7)}>+ 7 dias</Button>
+        </div>
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(d) => {
+            if (d) {
+              onChange(toISODate(d));
+              setOpen(false);
+            }
+          }}
+          initialFocus
+          className={cn("p-3 pointer-events-auto")}
+        />
+        {value && (
+          <div className="border-t p-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full h-8 text-xs text-muted-foreground"
+              onClick={() => { onChange(null); setOpen(false); }}
+            >
+              Remover prazo
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
 }
