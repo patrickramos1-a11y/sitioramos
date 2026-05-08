@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Mic, Square, Pause, Play, Trash2, Check } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Mic, Square, Pause, Play, Trash2, Check, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { cn } from "@/lib/utils";
@@ -22,19 +22,34 @@ function fmt(s: number) {
   return `${m}:${sec}`;
 }
 
+function friendlyMicError(msg: string) {
+  const m = msg.toLowerCase();
+  if (m.includes("denied") || m.includes("permission") || m.includes("notallowed"))
+    return "Permissão de microfone negada. Habilite o microfone nas configurações do navegador.";
+  if (m.includes("notfound") || m.includes("device"))
+    return "Nenhum microfone encontrado neste dispositivo.";
+  return "Não foi possível acessar o microfone.";
+}
+
 export function AudioRecorder({ onConfirm, onCancel }: Props) {
   const rec = useAudioRecorder();
-  const [autoStarted, setAutoStarted] = useState(false);
+  const startedRef = useRef(false);
 
-  if (!autoStarted && rec.status === "idle" && !rec.error) {
-    setAutoStarted(true);
-    rec.start();
-  }
+  useEffect(() => {
+    if (!startedRef.current) {
+      startedRef.current = true;
+      rec.start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="rounded-2xl border border-brand-leaf/30 bg-brand-leaf/5 p-4 space-y-3">
       {rec.error && (
-        <div className="text-sm text-destructive">{rec.error}</div>
+        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 text-destructive p-2 text-xs">
+          <MicOff className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{friendlyMicError(rec.error)}</span>
+        </div>
       )}
 
       <div className="flex items-center justify-between">
