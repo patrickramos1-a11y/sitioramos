@@ -184,6 +184,7 @@ export function MobileHome() {
                   {a.description}
                 </div>
               </div>
+            </div>
           );
           return a.to ? (
             <Link key={a.label} to={a.to} className="block h-full">
