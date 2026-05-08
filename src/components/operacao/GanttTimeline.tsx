@@ -852,6 +852,7 @@ export function GanttTimeline({
                     return 0;
                   })();
 
+                  const projHsl = getProjectHsl(item.rootProjectId);
                   const strong = projectColor(item.rootProjectId);
                   const soft = projectColor(item.rootProjectId, { l: 92, s: 45 });
                   const softer = projectColor(item.rootProjectId, { l: 96, s: 40 });
@@ -860,17 +861,24 @@ export function GanttTimeline({
                   const isProject = item.level === 0;
                   const isSub = item.level === 1;
 
+                  // Texto sempre calculado pelo contraste do fundo da barra
+                  const textOnStrong = getContrastTextHsl(projHsl.l); // fundo = strong (l da paleta)
+                  const textOnSoft = getContrastTextHsl(92);          // fundo = soft (claro) → escuro
+
                   // Estilo base da barra planejada — sempre cor do projeto, status muda só tratamento
                   let barStyle: React.CSSProperties = {};
+                  let barTextColor = textOnSoft;
                   let icon: React.ReactNode = null;
                   if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6, border: "1.5px solid hsl(var(--muted-foreground) / 0.3)" };
+                    barTextColor = "hsl(var(--muted-foreground))";
                   } else if (status === "travada") {
                     barStyle = {
                       backgroundColor: projectColor(item.rootProjectId, { l: 90, s: 15 }),
                       border: `1.5px dashed ${projectColor(item.rootProjectId, { l: 50, s: 25 })}`,
                       color: dark,
                     };
+                    barTextColor = dark;
                     icon = <Lock className="h-3 w-3 shrink-0" />;
                   } else if (status === "pausada") {
                     barStyle = {
@@ -878,12 +886,15 @@ export function GanttTimeline({
                       border: `1.5px solid ${strong}`,
                       color: dark,
                     };
+                    barTextColor = dark;
                   } else if (isDone) {
-                    barStyle = { backgroundColor: strong, color: "white", border: `1.5px solid ${strong}` };
+                    barStyle = { backgroundColor: strong, color: textOnStrong, border: `1.5px solid ${strong}` };
+                    barTextColor = textOnStrong;
                     icon = <CheckCircle2 className="h-3 w-3 shrink-0" />;
                   } else {
-                    // planejada / em_andamento / atrasada
-                    barStyle = { backgroundColor: soft, border: `1.5px solid ${strong}`, color: dark };
+                    // planejada / em_andamento / atrasada — fundo claro (soft)
+                    barStyle = { backgroundColor: soft, border: `1.5px solid ${strong}`, color: textOnSoft };
+                    barTextColor = textOnSoft;
                     if (isOverdue) icon = <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />;
                   }
 
