@@ -193,7 +193,9 @@ export function OperationForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
+    const isSub = formData.nivel_tipo === "subprojeto";
+    const effectiveParent = parentId || formData.linked_project_id || operation?.parent_id || null;
+    if (isSub && !effectiveParent) return;
       nome: formData.nome,
       tipo: formData.tipo,
       categoria: formData.categoria || null,
