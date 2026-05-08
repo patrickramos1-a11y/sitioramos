@@ -323,13 +323,32 @@ export default function Diario() {
           <span className="h-10 w-10 rounded-xl bg-brand-leaf/15 text-brand-leaf flex items-center justify-center shrink-0">
             <NotebookPen className="h-5 w-5" />
           </span>
-          <div>
+          <div className="flex-1">
             <h1 className="font-display text-xl font-semibold text-brand-forest">
               Diário de Campo
             </h1>
             <p className="text-xs text-muted-foreground">
               Registre o dia a dia do sítio.
             </p>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full",
+                online
+                  ? "bg-brand-leaf/10 text-brand-leaf"
+                  : "bg-[hsl(15_55%_45%)]/10 text-[hsl(15_55%_45%)]",
+              )}
+              title={online ? "Conectado" : "Sem internet — registros ficarão na fila"}
+            >
+              {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {online ? "Online" : "Offline"}
+            </span>
+            {pending > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-brand-sun/15 text-[hsl(38_95%_38%)] font-semibold">
+                <CloudUpload className="h-3 w-3" /> {pending} na fila
+              </span>
+            )}
           </div>
         </header>
 
