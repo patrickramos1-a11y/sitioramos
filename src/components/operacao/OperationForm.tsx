@@ -310,6 +310,8 @@ export function OperationForm({
                 label="Responsável"
                 value={formData.responsavel_id}
                 onChange={(id) => setFormData(p => ({ ...p, responsavel_id: id || "" }))}
+                disabled={isSubprojectNivel}
+                helperText={isSubprojectNivel ? "Herdado do projeto pai (alterar somente no projeto)" : undefined}
               />
             </div>
 
