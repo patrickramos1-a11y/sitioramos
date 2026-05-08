@@ -184,6 +184,9 @@ export function OperationCard({
                           <SubIcon className={`h-3.5 w-3.5 ${subSc.color}`} />
                           <span className="text-sm font-medium truncate">{sub.nome}</span>
                           <Badge variant={subSc.badgeVariant} className="text-[10px]">{subSc.label}</Badge>
+                          {(sub as any).responsavel_id && (
+                            <ResponsavelBadge responsavelId={(sub as any).responsavel_id} size="xs" />
+                          )}
                           {subTasks.length > 0 && (
                             <span className="text-[10px] text-muted-foreground tabular-nums">
                               ☑ {subDone}/{subTasks.length} ({subPct}%)
