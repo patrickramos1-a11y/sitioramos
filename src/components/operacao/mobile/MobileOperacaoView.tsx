@@ -320,13 +320,14 @@ function SegBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCli
   return (
     <button
       onClick={onClick}
+      aria-label={label}
       className={cn(
-        "flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-all",
-        active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+        "flex items-center justify-center gap-1 px-2.5 h-7 rounded text-[11px] font-medium transition-all",
+        active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
     >
       <Icon className="h-3.5 w-3.5" />
-      {label}
+      <span>{label}</span>
     </button>
   );
 }
