@@ -292,15 +292,18 @@ export default function Diario() {
       weather: weather.trim() || null,
       tags,
       is_important: important,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-      location_accuracy: coords?.accuracy ?? null,
+      latitude: coords?.lat ?? draftPoints[0]?.latitude ?? null,
+      longitude: coords?.lng ?? draftPoints[0]?.longitude ?? null,
+      location_accuracy: coords?.accuracy ?? draftPoints[0]?.accuracy ?? null,
       reviewed: !!(areaId || cycleId || entryType !== "observacao"),
     };
 
     if (!navigator.onLine) {
       enqueueJournalEntry(entryPayload, attachments).then(() => {
         toast.success("Salvo offline — sincroniza quando voltar a internet");
+        if (draftPoints.length) {
+          toast.info("Pontos GPS serão salvos ao sincronizar (em breve)");
+        }
         reset();
       });
       return;
@@ -308,7 +311,19 @@ export default function Diario() {
 
     create.mutate(
       { entry: entryPayload, attachments },
-      { onSuccess: reset },
+      {
+        onSuccess: async (row: any) => {
+          const newId = row?.id;
+          if (newId && draftPoints.length) {
+            try {
+              await batchInsertPoints(newId, draftPoints);
+            } catch (e: any) {
+              toast.error("Falha ao salvar pontos: " + (e.message || ""));
+            }
+          }
+          reset();
+        },
+      },
     );
   };
 
