@@ -407,8 +407,9 @@ export default function Diario() {
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título do registro"
-              className="h-9 bg-card/80 border-brand-leaf/20 focus-visible:ring-brand-leaf/40 font-medium"
+              onFocus={(e) => e.currentTarget.select()}
+              placeholder={titlePlaceholder}
+              className="h-9 bg-card/80 border-brand-leaf/20 focus-visible:ring-brand-leaf/40 font-medium placeholder:text-muted-foreground/60 placeholder:italic"
             />
           </div>
 
