@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { OfflineIndicator } from "./OfflineIndicator";
 
 interface AppLayoutProps {
   children: React.ReactNode;
