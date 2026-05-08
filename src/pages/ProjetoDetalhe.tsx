@@ -40,6 +40,7 @@ import {
   computeStageMetrics, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
 } from "@/lib/operacaoConfig";
 import { useStages } from "@/hooks/useStages";
+import { useProjectHistory } from "@/hooks/useProjectHistory";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
