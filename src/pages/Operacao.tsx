@@ -16,6 +16,7 @@ import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { OperationForm } from "@/components/operacao/OperationForm";
 import { OperationCard } from "@/components/operacao/OperationCard";
 import { SimpleTaskForm } from "@/components/operacao/SimpleTaskForm";
+import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
@@ -292,12 +293,15 @@ export default function Operacao() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="timeline" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="timeline" className="gap-2">
               <BarChart3 className="h-4 w-4" />Timeline
             </TabsTrigger>
             <TabsTrigger value="lista" className="gap-2">
               <ListTodo className="h-4 w-4" />Lista
+            </TabsTrigger>
+            <TabsTrigger value="tarefas" className="gap-2">
+              <CheckSquare className="h-4 w-4" />Tarefas
             </TabsTrigger>
           </TabsList>
 
@@ -362,6 +366,22 @@ export default function Operacao() {
                 ))
               )}
             </div>
+          </TabsContent>
+
+          {/* Tarefas Tab */}
+          <TabsContent value="tarefas">
+            <Card>
+              <CardContent className="pt-6">
+                <TasksBoard
+                  tasks={allTasks}
+                  operations={operations}
+                  onCreate={() => { setEditingTask(null); setTaskDefaultStageId(""); setTaskFormOpen(true); }}
+                  onEdit={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
+                  onDelete={(t) => { setDeleteTarget({ type: "task", id: t.id }); setDeleteDialogOpen(true); }}
+                  onToggleComplete={(t) => handleTaskStatusChange(t, t.status === "concluida" ? "pendente" : "concluida")}
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
