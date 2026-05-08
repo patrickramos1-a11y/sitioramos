@@ -297,6 +297,7 @@ export default function Diario() {
     const entryPayload = {
       entry_date: new Date().toISOString().split("T")[0],
       entry_type: entryType,
+      title: title.trim() || defaultTitle(),
       description: text.trim() || null,
       area_id: areaId || null,
       cycle_id: cycleId || null,
