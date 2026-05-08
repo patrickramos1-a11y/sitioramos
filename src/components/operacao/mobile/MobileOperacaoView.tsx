@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  SlidersHorizontal, X, LayoutGrid, CalendarDays, BarChart3,
+  SlidersHorizontal, X, LayoutGrid, CalendarDays, BarChart3, CheckSquare,
   ChevronRight, ChevronDown, Clock, AlertTriangle, CheckCircle2, Circle, Pause,
   Rows3, Columns3, Grid2x2,
 } from "lucide-react";
@@ -20,8 +20,9 @@ import { useResponsaveis } from "@/hooks/useResponsaveis";
 import { format, isToday, startOfMonth, addMonths, addDays, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { TasksBoard } from "@/components/operacao/TasksBoard";
 
-type ViewMode = "cards" | "agenda" | "gantt";
+type ViewMode = "cards" | "agenda" | "gantt" | "tarefas";
 
 interface Props {
   operations: Operation[];
@@ -30,6 +31,10 @@ interface Props {
   onItemClick: (id: string, type: "operation" | "sub-operation" | "task") => void;
   onAddSubproject: (parentId: string) => void;
   onAddTask: (stageId: string) => void;
+  onCreateTask: () => void;
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
+  onToggleTaskComplete: (task: Task) => void;
 }
 
 interface Filters {
