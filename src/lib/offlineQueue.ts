@@ -10,11 +10,25 @@ interface QueuedAttachment {
   height?: number;
 }
 
+export interface QueuedJournalPoint {
+  nome: string;
+  observacao: string | null;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  captured_at: string;
+  ordem: number;
+  manual: boolean;
+  geometry_type: string;
+  coordinates: any | null;
+}
+
 export interface QueuedJournalEntry {
   id: string;
   createdAt: number;
   entry: Record<string, any>;
   attachments: QueuedAttachment[];
+  points?: QueuedJournalPoint[];
 }
 
 interface OfflineDB extends DBSchema {
@@ -43,10 +57,11 @@ function getDb() {
 export async function enqueueJournalEntry(
   entry: Record<string, any>,
   attachments: QueuedAttachment[],
+  points: QueuedJournalPoint[] = [],
 ): Promise<string> {
   const db = await getDb();
   const id = `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  await db.put("journal_queue", { id, createdAt: Date.now(), entry, attachments });
+  await db.put("journal_queue", { id, createdAt: Date.now(), entry, attachments, points });
   notify();
   return id;
 }
@@ -94,6 +109,24 @@ async function uploadOne(item: QueuedJournalEntry) {
       height: att.height ?? null,
     } as any);
     if (attErr) throw attErr;
+  }
+
+  if (item.points && item.points.length) {
+    const rows = item.points.map((p, i) => ({
+      entry_id: entryId,
+      nome: p.nome,
+      observacao: p.observacao,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      accuracy: p.accuracy,
+      captured_at: p.captured_at,
+      ordem: i,
+      manual: p.manual,
+      geometry_type: p.geometry_type,
+      coordinates: p.coordinates,
+    }));
+    const { error: ptErr } = await supabase.from("journal_points" as any).insert(rows as any);
+    if (ptErr) throw ptErr;
   }
 }
 

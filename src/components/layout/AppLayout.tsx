@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { OfflineIndicator } from "./OfflineIndicator";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -46,6 +47,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <h1 className="font-display text-[14px] font-semibold leading-tight truncate">{title}</h1>
             <p className="text-[9px] uppercase tracking-[0.18em] text-brand-leaf leading-tight">Sítio Ramos</p>
           </div>
+          <OfflineIndicator />
         </header>
         <main
           className={cn(
@@ -69,6 +71,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="h-6 w-px bg-border" />
           <h2 className="font-display text-base lg:text-lg font-semibold text-foreground/90 truncate">{title}</h2>
           <div className="flex-1" />
+          <OfflineIndicator />
           <div className="hidden md:flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-brand-leaf">
             <span className="h-1.5 w-1.5 rounded-full bg-brand-sun" />
             Onde a terra produz futuro

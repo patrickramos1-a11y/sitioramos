@@ -1,9 +1,11 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { idbPersister } from "@/lib/queryPersist";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Areas from "./pages/Areas";
@@ -19,10 +21,28 @@ import Responsaveis from "./pages/Responsaveis";
 import Diario from "./pages/Diario";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,
+      gcTime: 1000 * 60 * 60 * 24 * 7,
+      networkMode: "offlineFirst",
+      refetchOnReconnect: true,
+      retry: (failureCount) => (navigator.onLine ? failureCount < 2 : false),
+    },
+    mutations: { networkMode: "offlineFirst" },
+  },
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <PersistQueryClientProvider
+    client={queryClient}
+    persistOptions={{
+      persister: idbPersister,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+      buster: "v1",
+    }}
+  >
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
@@ -42,13 +62,12 @@ const App = () => (
             <Route path="/contatos" element={<Contatos />} />
             <Route path="/responsaveis" element={<Responsaveis />} />
             <Route path="/diario" element={<Diario />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
-  </QueryClientProvider>
+  </PersistQueryClientProvider>
 );
 
 export default App;
