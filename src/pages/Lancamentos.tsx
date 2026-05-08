@@ -76,10 +76,25 @@ export default function Lancamentos() {
     subtipo: "",
     valor: "",
     descricao: "",
-    operation_id: operationFilter !== "all" ? operationFilter : "",
+    responsavel_id: "",
     area_id: areaFilter !== "all" ? areaFilter : "",
+    cycle_id: "",
+    project_id: "",
+    subproject_id: "",
     observacoes: "",
   });
+
+  // Projects = root operations only
+  const projects = useMemo(() => operations.filter(o => !o.parent_id), [operations]);
+  const subprojects = useMemo(() => {
+    if (!form.project_id) return [];
+    const proj = operations.find(o => o.id === form.project_id);
+    return (proj?.children || []).filter((c: any) => !c.parent_id || c.parent_id === form.project_id);
+  }, [operations, form.project_id]);
+  const cyclesForArea = useMemo(() => {
+    if (!form.area_id) return [];
+    return cycles.filter(c => c.area_id === form.area_id);
+  }, [cycles, form.area_id]);
 
   const openNewForm = () => {
     setForm({
@@ -88,8 +103,11 @@ export default function Lancamentos() {
       subtipo: "",
       valor: "",
       descricao: "",
-      operation_id: operationFilter !== "all" ? operationFilter : "",
+      responsavel_id: "",
       area_id: areaFilter !== "all" ? areaFilter : "",
+      cycle_id: "",
+      project_id: operationFilter !== "all" ? (operations.find(o => o.id === operationFilter && !o.parent_id)?.id || "") : "",
+      subproject_id: "",
       observacoes: "",
     });
     setFormOpen(true);
@@ -102,16 +120,21 @@ export default function Lancamentos() {
       ? (subLabel ? `${subLabel}: ${form.descricao}` : form.descricao)
       : subLabel || null;
 
+    // operation_id: prefer subproject, fallback to project
+    const operation_id = form.subproject_id || form.project_id || null;
+
     const payload: CashTransactionInsert = {
       data: form.data,
       tipo: "saida",
       categoria: form.categoria,
       valor: Number(form.valor),
       descricao: desc,
-      operation_id: form.operation_id || null,
+      operation_id,
       area_id: form.area_id || null,
+      cycle_id: form.cycle_id || null,
+      responsavel_id: form.responsavel_id || null,
       observacoes: form.observacoes || null,
-    };
+    } as any;
 
     createTransaction.mutate(payload as any, {
       onSuccess: () => setFormOpen(false),
