@@ -20,7 +20,7 @@ import { SimpleTaskForm } from "@/components/operacao/SimpleTaskForm";
 import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
+import { OPERATION_CATEGORIES, getEffectiveStatus } from "@/lib/operacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoView";
 import { ResponsavelFilter, matchesResponsavel, type ResponsavelFilterValue } from "@/components/responsaveis/ResponsavelFilter";
