@@ -110,6 +110,24 @@ async function uploadOne(item: QueuedJournalEntry) {
     } as any);
     if (attErr) throw attErr;
   }
+
+  if (item.points && item.points.length) {
+    const rows = item.points.map((p, i) => ({
+      entry_id: entryId,
+      nome: p.nome,
+      observacao: p.observacao,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      accuracy: p.accuracy,
+      captured_at: p.captured_at,
+      ordem: i,
+      manual: p.manual,
+      geometry_type: p.geometry_type,
+      coordinates: p.coordinates,
+    }));
+    const { error: ptErr } = await supabase.from("journal_points" as any).insert(rows as any);
+    if (ptErr) throw ptErr;
+  }
 }
 
 let syncing = false;
