@@ -261,7 +261,7 @@ export default function Diario() {
   };
 
   const handleSave = () => {
-    if (!hasContent) return;
+    if (!canSave) return;
     const attachments: PendingAttachment[] = [];
     if (audio) {
       attachments.push({
