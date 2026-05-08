@@ -728,7 +728,15 @@ function AgendaView({
 }
 
 /* ---------- Mini Gantt View ---------- */
-type GanttZoom = "month" | "quarter" | "year";
+type GanttZoom = "week" | "fortnight" | "month" | "quarter" | "year";
+
+const ZOOM_LABEL: Record<GanttZoom, string> = {
+  week: "Sem",
+  fortnight: "15d",
+  month: "Mês",
+  quarter: "Tri",
+  year: "Ano",
+};
 
 function MiniGanttView({
   operations, onItemClick,
@@ -738,41 +746,66 @@ function MiniGanttView({
 }) {
   const [zoom, setZoom] = useState<GanttZoom>("month");
 
-  const cfg = { month: { cols: 12, w: 70 }, quarter: { cols: 8, w: 90 }, year: { cols: 5, w: 110 } }[zoom];
+  const cfg = {
+    week:      { cols: 8,  w: 70  },
+    fortnight: { cols: 6,  w: 90  },
+    month:     { cols: 12, w: 70  },
+    quarter:   { cols: 8,  w: 90  },
+    year:      { cols: 5,  w: 110 },
+  }[zoom];
 
-  // Determine timeline window: 3 months/quarters/years before today
-  const { start, columns, totalWidth } = useMemo(() => {
+  // Determine timeline window
+  const { start, columns, totalMs, totalWidth } = useMemo(() => {
     const now = new Date();
     let s: Date;
+    let totalMs = 0;
     const cols: { label: string; date: Date }[] = [];
-    if (zoom === "month") {
+    if (zoom === "week") {
+      // 8 semanas, começando 2 antes de hoje
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dow = today.getDay();
+      const monday = addDays(today, -((dow + 6) % 7));
+      s = addDays(monday, -2 * 7);
+      for (let i = 0; i < cfg.cols; i++) {
+        const d = addDays(s, i * 7);
+        cols.push({ label: format(d, "dd/MM", { locale: ptBR }), date: d });
+      }
+      totalMs = cfg.cols * 7 * 24 * 60 * 60 * 1000;
+    } else if (zoom === "fortnight") {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      s = addDays(today, -30);
+      for (let i = 0; i < cfg.cols; i++) {
+        const d = addDays(s, i * 15);
+        cols.push({ label: format(d, "dd/MM", { locale: ptBR }), date: d });
+      }
+      totalMs = cfg.cols * 15 * 24 * 60 * 60 * 1000;
+    } else if (zoom === "month") {
       s = startOfMonth(addMonths(now, -3));
       for (let i = 0; i < cfg.cols; i++) {
         const d = addMonths(s, i);
         cols.push({ label: format(d, "MMM/yy", { locale: ptBR }), date: d });
       }
+      totalMs = addMonths(s, cfg.cols).getTime() - s.getTime();
     } else if (zoom === "quarter") {
       s = startOfMonth(addMonths(now, -6));
       for (let i = 0; i < cfg.cols; i++) {
         const d = addMonths(s, i * 3);
         cols.push({ label: `T${Math.floor(d.getMonth()/3)+1}/${format(d, "yy")}`, date: d });
       }
+      totalMs = addMonths(s, cfg.cols * 3).getTime() - s.getTime();
     } else {
       s = new Date(now.getFullYear() - 2, 0, 1);
       for (let i = 0; i < cfg.cols; i++) {
         const d = new Date(s.getFullYear() + i, 0, 1);
         cols.push({ label: format(d, "yyyy"), date: d });
       }
+      totalMs = new Date(s.getFullYear() + cfg.cols, 0, 1).getTime() - s.getTime();
     }
-    return { start: s, columns: cols, totalWidth: cfg.cols * cfg.w };
+    return { start: s, columns: cols, totalMs, totalWidth: cfg.cols * cfg.w };
   }, [zoom, cfg.cols, cfg.w]);
 
   const dayInWindow = (d: Date) => {
     const ms = d.getTime() - start.getTime();
-    const totalMs = (zoom === "year"
-      ? new Date(start.getFullYear() + cfg.cols, 0, 1).getTime()
-      : addMonths(start, zoom === "month" ? cfg.cols : cfg.cols * 3).getTime()
-    ) - start.getTime();
     return Math.max(0, Math.min(1, ms / totalMs));
   };
 
@@ -780,18 +813,18 @@ function MiniGanttView({
 
   return (
     <div className="space-y-2">
-      {/* Zoom switcher */}
-      <div className="flex items-center justify-end gap-1">
-        {(["month", "quarter", "year"] as GanttZoom[]).map(z => (
+      {/* Zoom switcher slim */}
+      <div className="flex items-center justify-end gap-0.5 p-0.5 bg-muted rounded-md w-fit ml-auto">
+        {(["week", "fortnight", "month", "quarter", "year"] as GanttZoom[]).map(z => (
           <button
             key={z}
             onClick={() => setZoom(z)}
             className={cn(
-              "text-[11px] px-2 py-1 rounded border",
-              zoom === z ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"
+              "text-[10px] font-medium px-2 h-6 rounded transition-all",
+              zoom === z ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
             )}
           >
-            {z === "month" ? "Mês" : z === "quarter" ? "Trimestre" : "Ano"}
+            {ZOOM_LABEL[z]}
           </button>
         ))}
       </div>
