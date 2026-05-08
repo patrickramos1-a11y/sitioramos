@@ -583,6 +583,7 @@ export default function AreaDetalhe() {
           areaId={id!}
           cycleId={activeCycleId}
           talhaoId={talhaoId}
+          allProjects={operations.flatMap(o => [o, ...((o.children || []) as any[])]).map((s: any) => ({ id: s.id, nome: s.nome, responsavel_id: s.responsavel_id || null }))}
           onSubmit={handleOpSubmit}
           isSubmitting={createOperation.isPending || updateOperation.isPending}
         />
