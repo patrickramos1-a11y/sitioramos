@@ -507,7 +507,11 @@ export default function ProjetoDetalhe() {
                   <Detail label="Fim real" value={currentOp.data_fim_real ? format(new Date(currentOp.data_fim_real), "dd/MM/yy", { locale: ptBR }) : "—"} />
                   <Detail label="Área" value={areaInfo?.nome || "—"} />
                   <Detail label="Ciclo" value={(cycleInfo as any)?.cultura || "—"} />
-                  <Detail label="Responsável" value={currentOp.responsavel || "—"} />
+                  <Detail label="Responsável" value={
+                    currentOp.responsavel_id
+                      ? <ResponsavelBadge responsavelId={currentOp.responsavel_id} />
+                      : (currentOp.responsavel || "—")
+                  } />
                   <Detail label="Categoria" value={currentOp.categoria ? getCategoryLabel(currentOp.categoria) : "—"} />
                 </div>
                 {currentOp.observacoes && (
