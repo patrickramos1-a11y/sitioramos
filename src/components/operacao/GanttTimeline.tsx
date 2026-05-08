@@ -466,14 +466,18 @@ export function GanttTimeline({
     return { left, width: Math.max(8, width) };
   };
 
-  // Navegação por 1 unidade (dia, semana, mês ou ano) — desloca a janela
+  // Navegação por 1 coluna por clique (passo único conforme o zoom)
   const shiftWindow = (direction: 1 | -1) => {
     setAnchorDate(prev => {
       switch (zoom) {
-        case "day": return addDays(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
-        case "week": return addWeeks(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
-        case "month": return addMonths(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
-        case "year": return addYears(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
+        case "day":       return addDays(prev, direction);
+        case "week":      return addWeeks(prev, direction);
+        case "fortnight": return addDays(prev, direction * 15);
+        case "month":     return addMonths(prev, direction);
+        case "bimonth":   return addMonths(prev, direction * 2);
+        case "quarter":   return addMonths(prev, direction * 3);
+        case "year":      return addYears(prev, direction);
+        case "biennium":  return addYears(prev, direction * 2);
       }
     });
   };
@@ -483,10 +487,14 @@ export function GanttTimeline({
     const today = startOfDay(new Date());
     const half = Math.floor(ZOOM_CONFIG[zoom].columns / 2);
     switch (zoom) {
-      case "day": setAnchorDate(addDays(today, -half)); break;
-      case "week": setAnchorDate(startOfWeek(addWeeks(today, -half), { weekStartsOn: 1 })); break;
-      case "month": setAnchorDate(startOfMonth(addMonths(today, -half))); break;
-      case "year": setAnchorDate(startOfYear(addYears(today, -half))); break;
+      case "day":       setAnchorDate(addDays(today, -half)); break;
+      case "week":      setAnchorDate(startOfWeek(addWeeks(today, -half), { weekStartsOn: 1 })); break;
+      case "fortnight": setAnchorDate(startOfDay(addDays(today, -half * 15))); break;
+      case "month":     setAnchorDate(startOfMonth(addMonths(today, -half))); break;
+      case "bimonth":   setAnchorDate(startOfMonth(addMonths(today, -half * 2))); break;
+      case "quarter":   setAnchorDate(startOfMonth(addMonths(today, -half * 3))); break;
+      case "year":      setAnchorDate(startOfYear(addYears(today, -half))); break;
+      case "biennium":  setAnchorDate(startOfYear(addYears(today, -half * 2))); break;
     }
     // após re-render, rolar viewport
     requestAnimationFrame(() => {
