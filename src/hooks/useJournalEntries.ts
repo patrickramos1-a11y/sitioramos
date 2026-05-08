@@ -47,22 +47,39 @@ export interface PendingAttachment {
   height?: number;
 }
 
+export interface JournalFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  type?: string;
+  areaId?: string;
+  cycleId?: string;
+  reviewed?: boolean;
+  important?: boolean;
+}
+
 const BUCKET = "journal-media";
 
 function publicUrl(path: string) {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-export function useJournalEntries(limit?: number) {
+export function useJournalEntries(limit?: number, filters?: JournalFilters) {
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["journal_entries", limit ?? "all"],
+    queryKey: ["journal_entries", limit ?? "all", filters ?? {}],
     queryFn: async () => {
       let q = supabase
         .from("journal_entries" as any)
         .select("*, journal_attachments(*)")
         .order("created_at", { ascending: false });
+      if (filters?.dateFrom) q = q.gte("entry_date", filters.dateFrom);
+      if (filters?.dateTo) q = q.lte("entry_date", filters.dateTo);
+      if (filters?.type) q = q.eq("entry_type", filters.type);
+      if (filters?.areaId) q = q.eq("area_id", filters.areaId);
+      if (filters?.cycleId) q = q.eq("cycle_id", filters.cycleId);
+      if (typeof filters?.reviewed === "boolean") q = q.eq("reviewed", filters.reviewed);
+      if (filters?.important) q = q.eq("is_important", true);
       if (limit) q = q.limit(limit);
       const { data, error } = await q;
       if (error) throw error;
@@ -145,5 +162,56 @@ export function useJournalEntries(limit?: number) {
     onError: (e: any) => toast.error(e.message),
   });
 
-  return { ...query, create, update, remove };
+  const markReviewed = useMutation({
+    mutationFn: async ({ id, reviewed = true }: { id: string; reviewed?: boolean }) => {
+      const { error } = await supabase
+        .from("journal_entries" as any)
+        .update({ reviewed } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["journal_entries"] });
+      toast.success("Marcado como revisado");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const convertToTask = useMutation({
+    mutationFn: async (entry: JournalEntry) => {
+      const titulo =
+        (entry.description?.split("\n")[0]?.slice(0, 80)) ||
+        entry.title ||
+        `Registro de ${new Date(entry.created_at).toLocaleDateString("pt-BR")}`;
+      const { data, error } = await supabase
+        .from("operational_tasks" as any)
+        .insert({
+          titulo,
+          descricao: entry.description || entry.notes || null,
+          tipo: "operacional",
+          status: "pendente",
+          area_id: entry.area_id,
+          cycle_id: entry.cycle_id,
+          responsavel_id: entry.responsavel_id,
+          observacoes: `Originado do Diário de Campo (${entry.id})`,
+        } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      await supabase
+        .from("journal_entries" as any)
+        .update({ reviewed: true } as any)
+        .eq("id", entry.id);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["journal_entries"] });
+      qc.invalidateQueries({ queryKey: ["operational_tasks"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Tarefa criada a partir do registro");
+    },
+    onError: (e: any) => toast.error(e.message || "Falha ao converter em tarefa"),
+  });
+
+  return { ...query, create, update, remove, markReviewed, convertToTask };
 }

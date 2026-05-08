@@ -29,9 +29,14 @@ import {
   NotebookPen,
   Clock,
   Tag,
+  CheckCircle2,
+  ListChecks,
+  Receipt,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const NONE = "__none__";
 
@@ -83,7 +88,15 @@ function fmtDur(s?: number | null) {
 }
 
 export default function Diario() {
-  const { data: entries = [], create } = useJournalEntries(20);
+  const navigate = useNavigate();
+  const [filterReviewed, setFilterReviewed] = useState<"all" | "todo" | "done">("all");
+  const [filterType, setFilterType] = useState<string>("");
+  const [filterAreaId, setFilterAreaId] = useState<string>("");
+  const { data: entries = [], create, markReviewed, convertToTask, remove } = useJournalEntries(50, {
+    type: filterType || undefined,
+    areaId: filterAreaId || undefined,
+    reviewed: filterReviewed === "all" ? undefined : filterReviewed === "done",
+  });
   const { areas = [] } = useAreas() as any;
   const { cycles = [] } = useCycles() as any;
 
@@ -239,11 +252,21 @@ export default function Diario() {
     );
   };
 
+  const handleConvertToExpense = (entry: JournalEntry) => {
+    const params = new URLSearchParams({ new: "1" });
+    if (entry.area_id) params.set("area_id", entry.area_id);
+    if (entry.cycle_id) params.set("cycle_id", entry.cycle_id);
+    if (entry.description) params.set("descricao", entry.description.slice(0, 80));
+    params.set("from_journal", entry.id);
+    navigate(`/lancamentos?${params.toString()}`);
+  };
+
   return (
     <AppLayout>
-      <div className="mx-auto max-w-2xl space-y-4 pb-4">
-        {/* Header compacto */}
-        <header className="flex items-start gap-3">
+      <div className="mx-auto max-w-6xl pb-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
+        <div className="space-y-4">
+          {/* Header compacto */}
+          <header className="flex items-start gap-3">
           <span className="h-10 w-10 rounded-xl bg-brand-leaf/15 text-brand-leaf flex items-center justify-center shrink-0">
             <NotebookPen className="h-5 w-5" />
           </span>
@@ -535,30 +558,93 @@ export default function Diario() {
             <Save className="h-4 w-4 mr-2" />
             {create.isPending ? "Salvando..." : "Salvar Registro"}
           </Button>
-        </section>
+          </section>
+        </div>
 
-        {/* Últimos registros */}
-        <section className="space-y-2">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-brand-forest/70 px-1">
-            Últimos registros
-          </h2>
+        {/* Coluna direita — timeline com filtros */}
+        <div className="mt-4 md:mt-0 space-y-3">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <h2 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-brand-forest/70">
+              Registros recentes
+            </h2>
+            <span className="text-[10px] text-muted-foreground">{entries.length}</span>
+          </div>
+
+          {/* Filtros simples */}
+          <div className="flex flex-wrap gap-1.5 px-1">
+            {(["all", "todo", "done"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setFilterReviewed(opt)}
+                className={cn(
+                  "text-[10px] px-2.5 py-1 rounded-full border transition",
+                  filterReviewed === opt
+                    ? "bg-brand-forest text-brand-paper border-brand-forest"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted/50",
+                )}
+              >
+                {opt === "all" ? "Todos" : opt === "todo" ? "A revisar" : "Revisados"}
+              </button>
+            ))}
+            <Select value={filterType || NONE} onValueChange={(v) => setFilterType(v === NONE ? "" : v)}>
+              <SelectTrigger className="h-7 text-[10px] w-auto px-2 gap-1">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Todos os tipos</SelectItem>
+                {TIPOS.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterAreaId || NONE} onValueChange={(v) => setFilterAreaId(v === NONE ? "" : v)}>
+              <SelectTrigger className="h-7 text-[10px] w-auto px-2 gap-1">
+                <SelectValue placeholder="Área" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Todas as áreas</SelectItem>
+                {areas.map((a: any) => (
+                  <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {entries.length === 0 && (
-            <div className="text-xs text-muted-foreground px-1 py-4 text-center">
-              Nenhum registro ainda. Capture o primeiro acima.
+            <div className="text-xs text-muted-foreground px-1 py-6 text-center">
+              Nenhum registro encontrado.
             </div>
           )}
           <div className="space-y-2">
             {entries.map((e) => (
-              <EntryCard key={e.id} entry={e} />
+              <EntryCard
+                key={e.id}
+                entry={e}
+                onMarkReviewed={() => markReviewed.mutate({ id: e.id })}
+                onConvertToTask={() => convertToTask.mutate(e)}
+                onConvertToExpense={() => handleConvertToExpense(e)}
+                onDelete={() => {
+                  if (confirm("Excluir este registro?")) remove.mutate(e.id);
+                }}
+              />
             ))}
           </div>
-        </section>
+        </div>
       </div>
     </AppLayout>
   );
 }
 
-function EntryCard({ entry }: { entry: JournalEntry }) {
+interface EntryCardProps {
+  entry: JournalEntry;
+  onMarkReviewed?: () => void;
+  onConvertToTask?: () => void;
+  onConvertToExpense?: () => void;
+  onDelete?: () => void;
+}
+
+function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense, onDelete }: EntryCardProps) {
   const photos = entry.attachments?.filter((a) => a.kind === "photo") || [];
   const audios = entry.attachments?.filter((a) => a.kind === "audio") || [];
   const videos = entry.attachments?.filter((a) => a.kind === "video") || [];
@@ -610,22 +696,66 @@ function EntryCard({ entry }: { entry: JournalEntry }) {
         <video key={v.id} controls src={v.url} className="w-full max-h-48 rounded-md bg-black" />
       ))}
 
-      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-        {audios.length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <Mic className="h-3 w-3" /> {fmtDur(audios[0].duration_seconds)}
-          </span>
-        )}
-        {photos.length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <ImageIcon className="h-3 w-3" /> {photos.length}
-          </span>
-        )}
-        {videos.length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <PlayCircle className="h-3 w-3" /> vídeo
-          </span>
-        )}
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          {audios.length > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Mic className="h-3 w-3" /> {fmtDur(audios[0].duration_seconds)}
+            </span>
+          )}
+          {photos.length > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <ImageIcon className="h-3 w-3" /> {photos.length}
+            </span>
+          )}
+          {videos.length > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <PlayCircle className="h-3 w-3" /> vídeo
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5">
+          {!entry.reviewed && onMarkReviewed && (
+            <button
+              type="button"
+              onClick={onMarkReviewed}
+              title="Marcar como revisado"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-brand-leaf hover:bg-brand-leaf/10"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onConvertToTask && (
+            <button
+              type="button"
+              onClick={onConvertToTask}
+              title="Converter em tarefa"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-brand-forest hover:bg-brand-forest/10"
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onConvertToExpense && (
+            <button
+              type="button"
+              onClick={onConvertToExpense}
+              title="Lançar como despesa"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-[hsl(15_55%_45%)] hover:bg-[hsl(15_55%_45%)]/10"
+            >
+              <Receipt className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Excluir"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );
