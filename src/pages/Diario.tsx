@@ -159,7 +159,38 @@ export default function Diario() {
     setStatus("informativo");
     setResponsavelId("");
     setMoreOpen(false);
+    setCoords(null);
     setTimeout(() => textareaRef.current?.focus(), 50);
+  };
+
+  const captureLocation = () => {
+    if (!("geolocation" in navigator)) {
+      toast.error("Geolocalização não suportada neste dispositivo");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setLocating(false);
+        toast.success("Localização capturada");
+      },
+      (err) => {
+        setLocating(false);
+        const msg =
+          err.code === 1
+            ? "Permissão de localização negada"
+            : err.code === 3
+            ? "Tempo esgotado ao buscar localização"
+            : "Não foi possível obter a localização";
+        toast.error(msg);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
   };
 
   const handlePhotoSelect = async (files: FileList | null) => {
