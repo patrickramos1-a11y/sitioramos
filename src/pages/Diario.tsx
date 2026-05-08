@@ -163,8 +163,10 @@ export default function Diario() {
 
   const hasContent =
     text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0;
+  const canSave = hasContent || title.trim().length > 0;
 
   const reset = () => {
+    setTitle(defaultTitle());
     setText("");
     setAudio(null);
     photos.forEach((p) => URL.revokeObjectURL(p.url));
