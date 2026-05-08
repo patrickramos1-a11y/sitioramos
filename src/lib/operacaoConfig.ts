@@ -40,6 +40,7 @@ export const STAGE_STATUS = [
   { value: "nao_iniciada", label: "Planejada" }, // legado: tratado igual a planejada
   { value: "em_andamento", label: "Em andamento" },
   { value: "concluida", label: "Concluída" },
+  { value: "concluida_com_atraso", label: "Concluída com atraso" },
   { value: "atrasada", label: "Atrasada" },
   { value: "travada", label: "Travada" },
   { value: "pausada", label: "Pausada" },
