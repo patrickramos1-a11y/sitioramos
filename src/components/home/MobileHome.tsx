@@ -1,22 +1,29 @@
 import { Link } from "react-router-dom";
-import { Sprout, Wallet, ClipboardList, MapPin } from "lucide-react";
+import { Sprout, Wallet, ClipboardList, MapPin, ArrowUpRight } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useTasks } from "@/hooks/useTasks";
 import { cn } from "@/lib/utils";
-import imgProjeto from "@/assets/home/action-projeto.png";
-import imgTarefa from "@/assets/home/action-tarefa.png";
-import imgDespesa from "@/assets/home/action-despesa.png";
-import imgDiario from "@/assets/home/action-diario.png";
+import {
+  SproutHorizonIcon,
+  FieldChecklistIcon,
+  ReceiptSeedIcon,
+  FieldNotebookIcon,
+} from "./ActionIcons";
 
 type Action = {
   label: string;
   description: string;
-  image: string;
+  Icon: React.ComponentType<{ stroke?: string; accent?: string; size?: number; className?: string }>;
+  iconStroke: string;
+  iconAccent: string;
+  iconBg: string;
   to?: string;
   onClick?: () => void;
   cardBg: string;
   textColor: string;
+  subtitleColor: string;
   glow: string;
+  arrowColor: string;
 };
 
 function formatCurrency(n: number) {
