@@ -641,65 +641,88 @@ function AgendaView({
     groups.get(k)!.push(it);
   }
 
+  const currentMonthKey = format(new Date(), "yyyy-MM");
+  const monthRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
+  useEffect(() => {
+    const el = monthRefs.current.get(currentMonthKey);
+    if (el) {
+      el.scrollIntoView({ behavior: "auto", block: "start" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="space-y-4">
-      {Array.from(groups.entries()).map(([k, arr]) => (
-        <div key={k}>
-          <h4 className="sticky top-14 z-10 bg-background/95 backdrop-blur py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {format(arr[0].date, "MMMM 'de' yyyy", { locale: ptBR })}
-          </h4>
-          <div className="space-y-2 mt-2">
-            {arr.map(it => {
-              const sty = STATUS_STYLE[it.status] || STATUS_STYLE.planejada;
-              const color = getProjectColor(it.rootId);
-              const today = isToday(it.date);
-              const past = isBefore(it.date, new Date()) && it.status !== "concluida";
-              return (
-                <button
-                  key={it.id + it.type}
-                  onClick={() => onItemClick(it.id, it.type)}
-                  className="w-full flex gap-3 text-left active:bg-muted/40 rounded-lg p-1.5"
-                >
-                  <div className="flex flex-col items-center w-10 shrink-0 pt-1">
-                    <span className={cn(
-                      "text-base font-bold leading-none tabular-nums",
-                      today ? "text-primary" : "text-foreground"
-                    )}>
-                      {format(it.date, "dd")}
-                    </span>
-                    <span className="text-[9px] uppercase text-muted-foreground mt-0.5">
-                      {format(it.date, "MMM", { locale: ptBR })}
-                    </span>
-                    {today && <span className="mt-1 h-1 w-1 rounded-full bg-primary" />}
-                  </div>
-                  <div
-                    className="flex-1 min-w-0 bg-card border border-border rounded-lg p-2.5 border-l-4"
-                    style={{ borderLeftColor: color }}
+    <div className="space-y-3">
+      {Array.from(groups.entries()).map(([k, arr]) => {
+        const isCurrent = k === currentMonthKey;
+        return (
+          <div
+            key={k}
+            ref={(el) => { monthRefs.current.set(k, el); }}
+            data-month={k}
+          >
+            <h4 className={cn(
+              "sticky top-14 z-10 bg-background/95 backdrop-blur py-1 text-[10px] font-semibold uppercase tracking-wide",
+              isCurrent ? "text-primary" : "text-muted-foreground"
+            )}>
+              {format(arr[0].date, "MMMM 'de' yyyy", { locale: ptBR })}
+              {isCurrent && <span className="ml-1.5 text-[9px] font-normal normal-case">(atual)</span>}
+            </h4>
+            <div className="mt-1 divide-y divide-border/60 border border-border rounded-lg bg-card overflow-hidden">
+              {arr.map(it => {
+                const sty = STATUS_STYLE[it.status] || STATUS_STYLE.planejada;
+                const color = getProjectColor(it.rootId);
+                const today = isToday(it.date);
+                const past = isBefore(it.date, new Date()) && it.status !== "concluida";
+                return (
+                  <button
+                    key={it.id + it.type}
+                    onClick={() => onItemClick(it.id, it.type)}
+                    className="w-full flex items-center gap-2 text-left active:bg-muted/40 px-2 py-1.5"
                   >
-                    <div className="flex items-start gap-1.5">
-                      <span className="text-base leading-none">{getCategoryEmoji(it.categoria)}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-tight line-clamp-2">{it.name}</p>
-                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded border", sty.cls)}>
-                            {sty.label}
-                          </span>
-                          {past && it.status !== "atrasada" && (
-                            <span className="text-[10px] text-destructive font-medium">Atrasado</span>
-                          )}
-                          {it.responsavelId && (
-                            <ResponsavelBadge responsavelId={it.responsavelId} size="xs" />
-                          )}
-                        </div>
+                    <div className={cn(
+                      "flex flex-col items-center justify-center w-8 shrink-0 rounded-md py-1",
+                      today ? "bg-primary/10" : ""
+                    )}>
+                      <span className={cn(
+                        "text-[13px] font-bold leading-none tabular-nums",
+                        today ? "text-primary" : "text-foreground"
+                      )}>
+                        {format(it.date, "dd")}
+                      </span>
+                      <span className="text-[8px] uppercase text-muted-foreground mt-0.5">
+                        {format(it.date, "EEE", { locale: ptBR })}
+                      </span>
+                    </div>
+                    <span
+                      className="w-0.5 self-stretch rounded-full shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm leading-none">{getCategoryEmoji(it.categoria)}</span>
+                        <p className="text-[12px] font-medium leading-tight line-clamp-1 flex-1">{it.name}</p>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <span className={cn("text-[9px] px-1 py-0 rounded border", sty.cls)}>
+                          {sty.label}
+                        </span>
+                        {past && it.status !== "atrasada" && (
+                          <span className="text-[9px] text-destructive font-medium">Atrasado</span>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                    {it.responsavelId && (
+                      <ResponsavelBadge responsavelId={it.responsavelId} size="xs" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
