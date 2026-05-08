@@ -611,6 +611,9 @@ export type Database = {
           entry_type: string
           id: string
           is_important: boolean
+          latitude: number | null
+          location_accuracy: number | null
+          longitude: number | null
           notes: string | null
           responsavel_id: string | null
           reviewed: boolean
@@ -629,6 +632,9 @@ export type Database = {
           entry_type?: string
           id?: string
           is_important?: boolean
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
           notes?: string | null
           responsavel_id?: string | null
           reviewed?: boolean
@@ -647,6 +653,9 @@ export type Database = {
           entry_type?: string
           id?: string
           is_important?: boolean
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
           notes?: string | null
           responsavel_id?: string | null
           reviewed?: boolean
