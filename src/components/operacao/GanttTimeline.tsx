@@ -143,6 +143,18 @@ export function GanttTimeline({
     return m;
   }, [operations]);
 
+  // Mapa categoria do projeto raiz (para herdar a cor visual em sub-itens)
+  const rootCategoryMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    operations.forEach(op => m.set(op.id, op.categoria ?? null));
+    return m;
+  }, [operations]);
+
+  // Helpers de cor que usam a categoria do projeto raiz para identidade visual
+  const projectColor = (projectId: string, opts?: { l?: number; s?: number; a?: number }) =>
+    projectColorFor(projectId, rootCategoryMap.get(projectId) ?? null, opts);
+  const getProjectColor = (projectId: string) => projectColor(projectId);
+
   // Lista de responsáveis únicos
   const { data: responsaveisList = [] } = useResponsaveis();
   const responsaveis = useMemo(() => {
