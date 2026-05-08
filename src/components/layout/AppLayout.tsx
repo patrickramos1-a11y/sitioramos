@@ -47,6 +47,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <h1 className="font-display text-[14px] font-semibold leading-tight truncate">{title}</h1>
             <p className="text-[9px] uppercase tracking-[0.18em] text-brand-leaf leading-tight">Sítio Ramos</p>
           </div>
+          <OfflineIndicator />
         </header>
         <main
           className={cn(
