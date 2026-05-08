@@ -261,6 +261,111 @@ export function computeStageMetrics(stage: {
   };
 }
 
+// ============================================================
+// STATUS EFETIVO (manual + derivado por datas/conclusão)
+// ============================================================
+export type EffectiveStatus =
+  | "planejado" | "em_execucao" | "atrasado" | "concluido"
+  | "concluido_com_atraso" | "pausado" | "travado" | "cancelado";
+
+export interface EffectiveStatusInput {
+  status?: string | null;
+  data_inicio_prevista?: string | null;
+  data_inicio_real?: string | null;
+  data_fim_prevista?: string | null;
+  data_fim_real?: string | null;
+}
+
+/** Combina status manual (concluído/pausado/travado/cancelado têm prioridade)
+ *  com derivação automática (planejado/em_execução/atrasado) baseada em datas. */
+export function getEffectiveStatus(s: EffectiveStatusInput): EffectiveStatus {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Concluído
+  if (s.status === "concluida" || s.data_fim_real) {
+    if (s.data_fim_real && s.data_fim_prevista) {
+      const fr = new Date(s.data_fim_real);
+      const fp = new Date(s.data_fim_prevista);
+      if (fr.getTime() > fp.getTime()) return "concluido_com_atraso";
+    }
+    return "concluido";
+  }
+  // Manuais que travam derivação
+  if (s.status === "pausada") return "pausado";
+  if (s.status === "travada") return "travado";
+  if (s.status === "cancelada") return "cancelado";
+
+  // Atrasado: passou do fim previsto
+  if (s.data_fim_prevista) {
+    const fp = new Date(s.data_fim_prevista);
+    if (fp.getTime() < today.getTime()) return "atrasado";
+  }
+
+  // Em execução: já iniciou (real ou previsto <= hoje) ou status manual
+  if (s.data_inicio_real || s.status === "em_andamento") return "em_execucao";
+  if (s.data_inicio_prevista) {
+    const ip = new Date(s.data_inicio_prevista);
+    if (ip.getTime() <= today.getTime()) return "em_execucao";
+  }
+
+  return "planejado";
+}
+
+export interface EffectiveStatusUI {
+  key: EffectiveStatus;
+  label: string;
+  /** classe Tailwind para badge */
+  badgeClass: string;
+  /** classe de texto p/ ícones */
+  iconClass: string;
+}
+
+export function getEffectiveStatusUI(key: EffectiveStatus): EffectiveStatusUI {
+  switch (key) {
+    case "planejado":
+      return { key, label: "Planejado", badgeClass: "bg-muted text-muted-foreground border-border", iconClass: "text-muted-foreground" };
+    case "em_execucao":
+      return { key, label: "Em execução", badgeClass: "bg-primary/15 text-primary border-primary/30", iconClass: "text-primary" };
+    case "atrasado":
+      return { key, label: "Atrasado", badgeClass: "bg-destructive/15 text-destructive border-destructive/30", iconClass: "text-destructive" };
+    case "concluido":
+      return { key, label: "Concluído", badgeClass: "bg-success/15 text-success border-success/30", iconClass: "text-success" };
+    case "concluido_com_atraso":
+      return { key, label: "Concluído c/ atraso", badgeClass: "bg-success/15 text-success border-success/30", iconClass: "text-success" };
+    case "pausado":
+      return { key, label: "Pausado", badgeClass: "bg-warning/15 text-warning border-warning/30", iconClass: "text-warning" };
+    case "travado":
+      return { key, label: "Travado", badgeClass: "bg-warning/15 text-warning border-warning/30", iconClass: "text-warning" };
+    case "cancelada" as any:
+    case "cancelado":
+      return { key, label: "Cancelado", badgeClass: "bg-muted text-muted-foreground border-border line-through", iconClass: "text-muted-foreground" };
+  }
+}
+
+/** Texto curto sobre prazo: "Faltam X dias" / "+X dias de atraso" / "Concluído em X dias" / "Sem prazo". */
+export function getDeadlineLabel(s: EffectiveStatusInput): { text: string; tone: "neutral" | "ok" | "warn" | "bad" | "done" } {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const eff = getEffectiveStatus(s);
+
+  if (eff === "concluido" || eff === "concluido_com_atraso") {
+    const start = s.data_inicio_real || s.data_inicio_prevista;
+    if (start && s.data_fim_real) {
+      const dias = Math.max(1, Math.round((new Date(s.data_fim_real).getTime() - new Date(start).getTime()) / 86400000) + 1);
+      return { text: `Concluído em ${dias}d`, tone: "done" };
+    }
+    return { text: "Concluído", tone: "done" };
+  }
+  if (!s.data_fim_prevista) return { text: "Sem prazo", tone: "neutral" };
+
+  const fp = new Date(s.data_fim_prevista);
+  const diff = Math.round((fp.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return { text: `+${Math.abs(diff)}d de atraso`, tone: "bad" };
+  if (diff === 0) return { text: "Vence hoje", tone: "warn" };
+  if (diff <= 3) return { text: `Faltam ${diff}d`, tone: "warn" };
+  return { text: `Faltam ${diff}d`, tone: "ok" };
+}
+
 export function addDaysISO(dateISO: string, days: number): string {
   const d = new Date(dateISO);
   d.setDate(d.getDate() + days);
