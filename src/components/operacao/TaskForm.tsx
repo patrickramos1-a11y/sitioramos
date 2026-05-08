@@ -206,21 +206,40 @@ export function TaskForm({ open, onOpenChange, task, stages, defaultValues, onSu
               <Label>Custo Real (R$)</Label>
               <Input type="number" step="0.01" value={formData.custo_real} onChange={e => setFormData(p => ({ ...p, custo_real: e.target.value }))} />
             </div>
-            <div className="col-span-2">
-              <Label>Descrição</Label>
-              <Textarea value={formData.descricao} onChange={e => setFormData(p => ({ ...p, descricao: e.target.value }))} />
-            </div>
-            <div className="col-span-2">
-              <Label>Observações</Label>
-              <Textarea value={formData.observacoes} onChange={e => setFormData(p => ({ ...p, observacoes: e.target.value }))} />
+            <div className="col-span-2 space-y-2">
+              <CollapsibleField label="Descrição" value={formData.descricao}>
+                <Textarea value={formData.descricao} onChange={e => setFormData(p => ({ ...p, descricao: e.target.value }))} rows={2} />
+              </CollapsibleField>
+              <CollapsibleField label="Observações" value={formData.observacoes}>
+                <Textarea value={formData.observacoes} onChange={e => setFormData(p => ({ ...p, observacoes: e.target.value }))} rows={2} />
+              </CollapsibleField>
             </div>
             <div className="col-span-2">
               <TaskChecklist taskId={task?.id || null} />
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar"}</Button>
+          <div className="flex flex-wrap justify-between gap-2">
+            {task && task.status !== "concluida" && (
+              <Button
+                type="button"
+                variant="outline"
+                className="text-success border-success/40 hover:bg-success/10"
+                onClick={() => {
+                  onSubmit({
+                    id: task.id,
+                    titulo: formData.titulo,
+                    status: "concluida",
+                    data_conclusao: new Date().toISOString().split("T")[0],
+                  } as any);
+                }}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1" /> Concluir tarefa
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar"}</Button>
+            </div>
           </div>
         </form>
       </DialogContent>
