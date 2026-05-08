@@ -1,59 +1,125 @@
-## Refatoração da página de Lançamentos
+# Plano — Diário de Campo (Captura Rápida)
 
-Hoje o formulário sobe de baixo (Sheet bottom) e mistura todos os vínculos no mesmo nível, sem hierarquia. Vamos reorganizar.
+Objetivo: transformar o Diário de Campo num caderno digital minimalista que prioriza captura rápida no mobile (texto/áudio/foto/vídeo), deixando organização e classificação para depois.
 
-### 1. Trocar o Sheet por um Dialog centrado
-- Substituir `Sheet side="bottom"` por `Dialog` (modal centralizado, com largura ~`max-w-lg`).
-- Título: **"Lançamento"** (sem o "Novo").
-- Botão da página continua "Novo lançamento" no header — só o título da janela muda.
+Princípio: **registre agora, organize depois.** Salvar em <20s, sem campos obrigatórios além de 1 conteúdo.
 
-### 2. Vínculos hierárquicos (cascata)
+---
 
-Reorganizar os campos do formulário nesta ordem:
+## Fase 1 — Fundação de dados e armazenamento
 
+Preparar schema e storage para suportar mídias e classificação posterior.
+
+**Schema (`journal_entries`)**
+- Tornar `title` opcional (NULL).
+- Adicionar `status` (informativo/atencao/pendente/resolvido/importante; default `informativo`).
+- Adicionar `reviewed` (boolean, default false) — controla "Não revisado / Revisado".
+- Adicionar `tags` (text[]).
+- Adicionar `weather` (text), `is_important` (bool).
+- Manter `area_id`, `cycle_id`, `responsavel_id`, `entry_type`, `description`, `notes`.
+
+**Nova tabela `journal_attachments`**
+- `id`, `entry_id` (FK), `kind` (audio/photo/video), `storage_path`, `mime_type`, `duration_seconds` (audio/vídeo), `size_bytes`, `width`/`height` (foto), `created_at`.
+
+**Storage bucket `journal-media`** (público para leitura, qualquer um pode upload — coerente com o padrão atual do projeto).
+
+**Regra de "Não revisado"**: derivada — qualquer registro sem `area_id` E sem `cycle_id` E sem `entry_type` (ou usando default `observacao`) é tratado como não revisado na UI; flag `reviewed` permite marcar manualmente.
+
+---
+
+## Fase 2 — Tela de captura rápida (mobile)
+
+Substituir o `JournalEntryForm` (modal) por uma página dedicada `/diario` (e atalho a partir do botão "Diário de Campo" na home).
+
+**Estrutura**
 ```text
-Data * | Valor *
-Categoria *
-Tipo de custo (se categoria = custo_operacional)
-─────────────────────────────────────────────
-Responsável                                ← NOVO
-─────────────────────────────────────────────
-Área
-  └─ Ciclo (aparece só quando Área selecionada)
-─────────────────────────────────────────────
-Projeto                                    ← só projetos raiz
-  └─ Subprojeto (aparece só quando Projeto selecionado)
-─────────────────────────────────────────────
-Descrição
-Observações
+[Header compacto]  Diário de Campo · "Registre o dia a dia do sítio."
+
+[Card de captura]
+  "O que aconteceu no campo hoje?"
+  ┌───────────────────────────────────┐
+  │ Escreva uma observação rápida...  │  (textarea auto-grow)
+  └───────────────────────────────────┘
+  [🎤 Áudio]  [📷 Foto]  [🎬 Vídeo]
+
+  ⌄ Adicionar detalhes      [Salvar Registro]
+
+[Últimos registros]   (timeline compacta, 5 mais recentes)
 ```
 
-**Regras de vínculo:**
-- **Área → Ciclo**: ao escolher uma Área, mostrar select de Ciclos filtrados por `cycles.area_id = areaSelecionada`. Se a Área não tiver ciclos, esconder o campo.
-- **Projeto → Subprojeto**: o select "Operação vinculada" passa a chamar **"Projeto"** e lista somente operações raiz (`parent_id = null` / nível projeto). Após escolher, aparece **"Subprojeto"** com filhos do projeto escolhido (vindos de `op.children`). Ambos opcionais.
-- **Responsável**: novo select usando `useResponsaveis()`, salvando em `responsavel_id` do `cash_transactions`.
+**Comportamento**
+- Botão "Salvar" só habilita se houver pelo menos 1 conteúdo (texto OU áudio OU foto OU vídeo).
+- Data/hora automática; usuário automático (quando autenticado).
+- "Adicionar detalhes" é um `Collapsible` com Tipo, Área, Projeto/Ciclo, Status.
+- Dentro dos detalhes, link "Mais opções" abre Responsável, Observações, Clima, Tags, "Marcar como importante", Vincular tarefa/despesa (placeholders prontos para evoluir).
+- Após salvar: limpar formulário, manter foco no textarea, exibir toast e atualizar timeline sem reload.
 
-**Dedução automática de área**:
-- Se o usuário escolher um **Ciclo**, o `area_id` é preenchido a partir do ciclo (regra: ciclo já valida a área).
-- Se escolher um **Subprojeto** com `area_id` próprio, sugerir/preencher Área se ainda vazia.
+---
 
-### 3. Campos persistidos em `cash_transactions`
-Já existem na tabela — sem migração:
-- `area_id`, `cycle_id`, `operation_id` (= projeto OU subprojeto), `responsavel_id`.
+## Fase 3 — Captura de mídia
 
-Quando o usuário escolher Subprojeto, gravamos `operation_id = subprojetoId` (o subprojeto já carrega referência ao pai pela árvore). Quando só Projeto, `operation_id = projetoId`.
+Implementar os três fluxos de mídia, todos opcionais e independentes.
 
-### 4. Pequenos ajustes de UX
-- Remover a palavra "Novo" do título do modal (fica "Lançamento").
-- Manter validação: Data, Valor e Categoria obrigatórios.
-- Resetar campos dependentes quando o pai muda (ex.: trocar Área limpa Ciclo; trocar Projeto limpa Subprojeto).
-- Manter o reset do `form` ao abrir.
+**Áudio** (`MediaRecorder` API)
+- Toque em 🎤 → abre painel inline com cronômetro, Pausar/Parar, preview (`<audio>`), Excluir, Confirmar.
+- Salva como `webm/opus`; upload no `journal-media/audios/<entryId>/...`.
+- Permite salvar registro só com áudio.
 
-### Arquivos afetados
-- `src/pages/Lancamentos.tsx` — única alteração estrutural.
-- Hooks já existentes reutilizados: `useAreas`, `useOperations`, `useResponsaveis`, `useCashTransactions`, e um novo uso de `useCycles` (já existe no projeto).
+**Foto**
+- `<input type="file" accept="image/*" capture="environment" multiple>`.
+- Mostra grid de miniaturas com botão remover.
+- Upload em `journal-media/photos/<entryId>/...`.
 
-### Fora de escopo
-- Edição inline de lançamento existente (continua só criar/excluir).
-- Mudanças na listagem/filtros e KPIs.
-- Migrações de banco.
+**Vídeo**
+- `<input type="file" accept="video/*" capture="environment">`.
+- Mostra miniatura (frame inicial via `<video preload=metadata>`).
+- Limite sugerido de duração 60s (validação client-side); compressão fica como evolução futura.
+
+**Fluxo de salvamento**
+1. Insere `journal_entries` (rascunho com texto e metadados).
+2. Faz upload de cada anexo no Storage.
+3. Insere linhas em `journal_attachments`.
+4. Em caso de falha de upload, marca o entry com `notes` indicando "anexo pendente" para retry posterior.
+
+---
+
+## Fase 4 — Timeline e ganchos para gestão posterior
+
+**Timeline (mobile, abaixo do card)**
+- Card por registro: data/hora relativa, tipo (chip), trecho do texto, ícones de anexos (🎤 com duração, 📷 com contagem, 🎬), badge "Não revisado" quando aplicável.
+- Tap no card abre detalhe simples (visualizar texto + mídias; ações: revisar, editar tipo/área/projeto, excluir).
+
+**Hooks de gestão (estrutura, sem tela completa de gestão desktop)**
+- `useJournalEntries` ganha filtros opcionais (data, tipo, área, projeto, reviewed).
+- Ações utilitárias: `markReviewed`, `convertToTask` (cria `operational_tasks` ligada ao entry), `convertToExpense` (abre fluxo de Lançamentos pré-preenchido).
+- Desktop herda a mesma página com layout em duas colunas (captura à esquerda, lista filtrável à direita) — implementação mínima nesta fase, evolução futura para tela de gestão dedicada.
+
+---
+
+## Detalhes técnicos
+
+- **Migrações**: 1 migração para alterar `journal_entries` + criar `journal_attachments` + criar bucket `journal-media` + policies públicas (alinhado ao padrão do projeto).
+- **Hooks novos**: `useJournalAttachments`, `useAudioRecorder` (encapsula `MediaRecorder`).
+- **Componentes novos**:
+  - `src/pages/Diario.tsx` (rota `/diario`).
+  - `src/components/diario/QuickCapture.tsx` (card principal).
+  - `src/components/diario/AudioRecorder.tsx`.
+  - `src/components/diario/PhotoPicker.tsx`.
+  - `src/components/diario/VideoPicker.tsx`.
+  - `src/components/diario/DetailsCollapsible.tsx`.
+  - `src/components/diario/EntryTimeline.tsx` + `EntryCard.tsx`.
+- **Remoção**: `JournalEntryForm` (modal) deixa de ser usado na home — botão "Diário de Campo" passa a navegar para `/diario`.
+- **Storage upload**: usar `supabase.storage.from('journal-media').upload(...)` direto do cliente; URLs públicas via `getPublicUrl`.
+- **Permissões do navegador**: pedir permissão de microfone só ao tocar em 🎤; mostrar fallback amigável se negada.
+- **Tema**: paleta verde floresta/folha + amarelo sol + bege; cards arredondados (`rounded-2xl`); microinterações suaves (`active:scale-[0.98]`); aparência de caderno (papel off-white, leve textura via gradient).
+
+---
+
+## Entregas por fase (para execução incremental)
+
+1. **Fase 1**: migração de schema + bucket + atualização do hook `useJournalEntries`.
+2. **Fase 2**: nova página `/diario` com captura de texto + Adicionar detalhes + Salvar (sem mídias ainda) + timeline básica.
+3. **Fase 3**: Áudio → Foto → Vídeo (nessa ordem), cada um habilitado e testado isoladamente.
+4. **Fase 4**: ações de revisão, conversão para tarefa/despesa, layout desktop em duas colunas.
+
+Critério de aceite final: usuário abre o app no mobile, toca em "Diário de Campo", grava um áudio de 10s e salva — sem digitar nada — em menos de 20 segundos.

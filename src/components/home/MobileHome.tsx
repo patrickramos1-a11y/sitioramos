@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Sprout, Wallet, ClipboardList, MapPin } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useTasks } from "@/hooks/useTasks";
-import { JournalEntryForm } from "@/components/diario/JournalEntryForm";
 import { cn } from "@/lib/utils";
 import imgProjeto from "@/assets/home/action-projeto.png";
 import imgTarefa from "@/assets/home/action-tarefa.png";
@@ -32,7 +30,7 @@ function formatCurrency(n: number) {
 export function MobileHome() {
   const { data: stats } = useDashboardStats();
   const { tasks } = useTasks();
-  const [diarioOpen, setDiarioOpen] = useState(false);
+  
 
   const tarefasPendentes = (tasks || []).filter(
     (t: any) => t.status !== "concluida" && t.status !== "concluido",
@@ -73,7 +71,7 @@ export function MobileHome() {
       label: "Diário de Campo",
       description: "Anotar ocorrência do dia.",
       image: imgDiario,
-      onClick: () => setDiarioOpen(true),
+      to: "/diario",
       cardBg: "bg-gradient-to-br from-[hsl(82_38%_86%)] to-[hsl(95_30%_64%)]",
       textColor: "text-brand-forest",
       glow: "bg-brand-leaf/30",
@@ -200,7 +198,7 @@ export function MobileHome() {
         />
       </section>
 
-      <JournalEntryForm open={diarioOpen} onOpenChange={setDiarioOpen} />
+      
     </div>
   );
 }
