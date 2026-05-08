@@ -87,16 +87,21 @@ export function getResponsavelTextColor(): string {
   return "white";
 }
 
-// Paleta de cores por projeto (Sítio Ramos — verde floresta, folha, sol, terra)
+// Paleta de cores por projeto (Sítio Ramos — paleta ampliada com mais matizes)
+// Hues bem distribuídas (~30° de separação) com saturação alta para diferenciação clara.
 const PROJECT_PALETTE: Array<{ h: number; s: number; l: number }> = [
-  { h: 145, s: 60, l: 22 },
-  { h: 138, s: 55, l: 32 },
-  { h: 43,  s: 88, l: 42 },
-  { h: 20,  s: 55, l: 38 },
-  { h: 95,  s: 45, l: 32 },
-  { h: 15,  s: 65, l: 42 },
-  { h: 200, s: 50, l: 32 },
-  { h: 280, s: 35, l: 38 },
+  { h: 145, s: 65, l: 32 }, // verde floresta
+  { h: 200, s: 70, l: 42 }, // azul céu
+  { h: 43,  s: 85, l: 45 }, // amarelo/dourado sol
+  { h: 25,  s: 75, l: 48 }, // laranja
+  { h: 15,  s: 50, l: 35 }, // marrom/terra
+  { h: 168, s: 60, l: 35 }, // verde-azulado (teal)
+  { h: 90,  s: 55, l: 38 }, // oliva
+  { h: 8,   s: 70, l: 45 }, // terracota/tijolo
+  { h: 285, s: 45, l: 45 }, // ameixa/violeta
+  { h: 35,  s: 70, l: 40 }, // ocre
+  { h: 220, s: 35, l: 40 }, // cinza-azulado
+  { h: 125, s: 50, l: 38 }, // verde grama
 ];
 export function getProjectHsl(projectId: string) {
   let h = 0;
@@ -105,6 +110,28 @@ export function getProjectHsl(projectId: string) {
 }
 export function getProjectColor(projectId: string, opts?: { l?: number; s?: number; a?: number }) {
   const c = getProjectHsl(projectId);
+  const s = opts?.s ?? c.s;
+  const l = opts?.l ?? c.l;
+  return opts?.a !== undefined
+    ? `hsl(${c.h} ${s}% ${l}% / ${opts.a})`
+    : `hsl(${c.h} ${s}% ${l}%)`;
+}
+
+/** Cor do projeto preferindo a hue da categoria quando disponível.
+ *  Mantém saturação/lightness da paleta de projeto para consistência. */
+export function getProjectVisualHsl(projectId: string, categoria?: string | null) {
+  const cat = OPERATION_CATEGORIES.find(c => c.value === categoria);
+  if (cat) {
+    return { h: cat.hue, s: 65, l: 40 };
+  }
+  return getProjectHsl(projectId);
+}
+export function getProjectVisualColor(
+  projectId: string,
+  categoria: string | null | undefined,
+  opts?: { l?: number; s?: number; a?: number },
+) {
+  const c = getProjectVisualHsl(projectId, categoria);
   const s = opts?.s ?? c.s;
   const l = opts?.l ?? c.l;
   return opts?.a !== undefined
@@ -124,7 +151,18 @@ export interface DerivedStatusInput {
 
 export function deriveStageStatus(input: DerivedStatusInput): string {
   if (input.status === "cancelada" || input.status === "reprogramada") return input.status;
-  if (input.data_fim_real || input.status === "concluida") return "concluida";
+  // Concluída: distinguir no prazo vs com atraso
+  if (input.data_fim_real || input.status === "concluida") {
+    if (input.data_fim_real && input.data_fim_prevista) {
+      const fimReal = new Date(input.data_fim_real);
+      const fimPrev = new Date(input.data_fim_prevista);
+      // Compara apenas a data (zera horas)
+      const fr = new Date(fimReal.getFullYear(), fimReal.getMonth(), fimReal.getDate());
+      const fp = new Date(fimPrev.getFullYear(), fimPrev.getMonth(), fimPrev.getDate());
+      if (fr.getTime() > fp.getTime()) return "concluida_com_atraso";
+    }
+    return "concluida";
+  }
   if (input.depends_on_id && input.dependencyConcluded === false) return "travada";
   if (input.data_fim_prevista) {
     const fim = new Date(input.data_fim_prevista);
@@ -152,10 +190,15 @@ export function computeStageMetrics(stage: {
   const duracaoPrevista = stage.duracao_prevista_dias ||
     (startPrev && fimPrev ? Math.max(1, Math.round((fimPrev.getTime() - startPrev.getTime()) / 86400000)) : null);
 
+  // Dias decorridos desde o início (sem cap)
+  const diasDecorridos = start
+    ? Math.max(0, Math.round(((fimReal ?? today).getTime() - start.getTime()) / 86400000))
+    : null;
+
   let percentConsumido = 0;
   if (start && duracaoPrevista) {
-    const diasDecorridos = Math.max(0, Math.round((today.getTime() - start.getTime()) / 86400000));
-    percentConsumido = Math.min(100, Math.round((diasDecorridos / duracaoPrevista) * 100));
+    const decor = Math.max(0, Math.round((today.getTime() - start.getTime()) / 86400000));
+    percentConsumido = Math.min(100, Math.round((decor / duracaoPrevista) * 100));
   }
 
   const diasRestantes = fimPrev ? Math.round((fimPrev.getTime() - today.getTime()) / 86400000) : null;
@@ -163,7 +206,33 @@ export function computeStageMetrics(stage: {
   const duracaoReal = startReal && fimReal ? Math.round((fimReal.getTime() - startReal.getTime()) / 86400000) : null;
   const diferencaPlanExec = duracaoReal !== null && duracaoPrevista !== null ? duracaoReal - duracaoPrevista : null;
 
-  return { percentConsumido, diasRestantes, diasAtraso, duracaoReal, duracaoPrevista, diferencaPlanExec };
+  // Dias excedidos: quanto a demanda ultrapassou o prazo planejado (até hoje, ou até fim real)
+  let diasExcedidos = 0;
+  if (fimPrev) {
+    const refEnd = fimReal ?? today;
+    const diff = Math.round((refEnd.getTime() - fimPrev.getTime()) / 86400000);
+    diasExcedidos = Math.max(0, diff);
+  }
+
+  // Dias totais de existência da demanda (do início até hoje, ou até conclusão)
+  const diasTotais = start
+    ? Math.max(0, Math.round(((fimReal ?? today).getTime() - start.getTime()) / 86400000))
+    : null;
+
+  const concluidaComAtraso = !!(fimReal && fimPrev && fimReal.getTime() > fimPrev.getTime());
+
+  return {
+    percentConsumido,
+    diasRestantes,
+    diasAtraso,
+    duracaoReal,
+    duracaoPrevista,
+    diferencaPlanExec,
+    diasDecorridos,
+    diasExcedidos,
+    diasTotais,
+    concluidaComAtraso,
+  };
 }
 
 export function addDaysISO(dateISO: string, days: number): string {
