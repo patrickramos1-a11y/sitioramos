@@ -315,11 +315,20 @@ export default function Diario() {
     };
 
     if (!navigator.onLine) {
-      enqueueJournalEntry(entryPayload, attachments).then(() => {
+      const queuedPoints = draftPoints.map((d, i) => ({
+        nome: d.nome,
+        observacao: d.observacao,
+        latitude: d.latitude,
+        longitude: d.longitude,
+        accuracy: d.accuracy,
+        captured_at: d.captured_at,
+        ordem: i,
+        manual: d.manual,
+        geometry_type: d.geometry_type,
+        coordinates: d.coordinates,
+      }));
+      enqueueJournalEntry(entryPayload, attachments, queuedPoints).then(() => {
         toast.success("Salvo offline — sincroniza quando voltar a internet");
-        if (draftPoints.length) {
-          toast.info("Pontos GPS serão salvos ao sincronizar (em breve)");
-        }
         reset();
       });
       return;
