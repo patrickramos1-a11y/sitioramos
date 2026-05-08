@@ -31,6 +31,9 @@ export interface JournalEntry {
   tags: string[];
   weather: string | null;
   is_important: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  location_accuracy: number | null;
   created_at: string;
   updated_at: string;
   attachments?: JournalAttachment[];
