@@ -272,27 +272,34 @@ export default function Diario() {
       .map((t) => t.trim())
       .filter(Boolean);
 
+    const entryPayload = {
+      entry_date: new Date().toISOString().split("T")[0],
+      entry_type: entryType,
+      description: text.trim() || null,
+      area_id: areaId || null,
+      cycle_id: cycleId || null,
+      responsavel_id: responsavelId || null,
+      status,
+      notes: notes.trim() || null,
+      weather: weather.trim() || null,
+      tags,
+      is_important: important,
+      latitude: coords?.lat ?? null,
+      longitude: coords?.lng ?? null,
+      location_accuracy: coords?.accuracy ?? null,
+      reviewed: !!(areaId || cycleId || entryType !== "observacao"),
+    };
+
+    if (!navigator.onLine) {
+      enqueueJournalEntry(entryPayload, attachments).then(() => {
+        toast.success("Salvo offline — sincroniza quando voltar a internet");
+        reset();
+      });
+      return;
+    }
+
     create.mutate(
-      {
-        entry: {
-          entry_date: new Date().toISOString().split("T")[0],
-          entry_type: entryType,
-          description: text.trim() || null,
-          area_id: areaId || null,
-          cycle_id: cycleId || null,
-          responsavel_id: responsavelId || null,
-          status,
-          notes: notes.trim() || null,
-          weather: weather.trim() || null,
-          tags,
-          is_important: important,
-          latitude: coords?.lat ?? null,
-          longitude: coords?.lng ?? null,
-          location_accuracy: coords?.accuracy ?? null,
-          reviewed: !!(areaId || cycleId || entryType !== "observacao"),
-        },
-        attachments,
-      },
+      { entry: entryPayload, attachments },
       { onSuccess: reset },
     );
   };
