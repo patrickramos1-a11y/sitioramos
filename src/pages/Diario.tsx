@@ -377,25 +377,63 @@ export default function Diario() {
               <Mic className="h-4 w-4" />
               <span className="text-[10px]">Áudio</span>
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-col gap-0.5 border-brand-leaf/30 text-brand-forest hover:bg-brand-leaf/10"
-              onClick={() => photoInput.current?.click()}
-            >
-              <Camera className="h-4 w-4" />
-              <span className="text-[10px]">Foto</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-col gap-0.5 border-brand-leaf/30 text-brand-forest hover:bg-brand-leaf/10"
-              onClick={() => videoInput.current?.click()}
-              disabled={!!video}
-            >
-              <Video className="h-4 w-4" />
-              <span className="text-[10px]">Vídeo</span>
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 flex-col gap-0.5 border-brand-leaf/30 text-brand-forest hover:bg-brand-leaf/10"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span className="text-[10px]">Foto</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="center" className="w-44 p-1">
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted"
+                  onClick={() => photoInput.current?.click()}
+                >
+                  <Camera className="h-4 w-4 text-brand-leaf" /> Tirar foto
+                </button>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted"
+                  onClick={() => photoLibInput.current?.click()}
+                >
+                  <ImageIcon className="h-4 w-4 text-brand-leaf" /> Da biblioteca
+                </button>
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 flex-col gap-0.5 border-brand-leaf/30 text-brand-forest hover:bg-brand-leaf/10"
+                  disabled={!!video}
+                >
+                  <Video className="h-4 w-4" />
+                  <span className="text-[10px]">Vídeo</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="center" className="w-44 p-1">
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted"
+                  onClick={() => videoInput.current?.click()}
+                >
+                  <Video className="h-4 w-4 text-brand-leaf" /> Gravar vídeo
+                </button>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted"
+                  onClick={() => videoLibInput.current?.click()}
+                >
+                  <PlayCircle className="h-4 w-4 text-brand-leaf" /> Da biblioteca
+                </button>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <input
@@ -411,10 +449,31 @@ export default function Diario() {
             }}
           />
           <input
+            ref={photoLibInput}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              handlePhotoSelect(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <input
             ref={videoInput}
             type="file"
             accept="video/*"
             capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              handleVideoSelect(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={videoLibInput}
+            type="file"
+            accept="video/*"
             className="hidden"
             onChange={(e) => {
               handleVideoSelect(e.target.files);
