@@ -38,7 +38,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-safe md:hidden shadow-[0_-4px_20px_-8px_hsl(145_60%_12%/0.18)]"
+      className="shrink-0 z-40 border-t border-border/60 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-safe md:hidden shadow-[0_-4px_20px_-8px_hsl(145_60%_12%/0.18)]"
       role="navigation"
       aria-label="Navegação principal"
     >
