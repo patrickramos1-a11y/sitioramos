@@ -252,11 +252,21 @@ export default function Diario() {
     );
   };
 
+  const handleConvertToExpense = (entry: JournalEntry) => {
+    const params = new URLSearchParams({ new: "1" });
+    if (entry.area_id) params.set("area_id", entry.area_id);
+    if (entry.cycle_id) params.set("cycle_id", entry.cycle_id);
+    if (entry.description) params.set("descricao", entry.description.slice(0, 80));
+    params.set("from_journal", entry.id);
+    navigate(`/lancamentos?${params.toString()}`);
+  };
+
   return (
     <AppLayout>
-      <div className="mx-auto max-w-2xl space-y-4 pb-4">
-        {/* Header compacto */}
-        <header className="flex items-start gap-3">
+      <div className="mx-auto max-w-6xl pb-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
+        <div className="space-y-4">
+          {/* Header compacto */}
+          <header className="flex items-start gap-3">
           <span className="h-10 w-10 rounded-xl bg-brand-leaf/15 text-brand-leaf flex items-center justify-center shrink-0">
             <NotebookPen className="h-5 w-5" />
           </span>
