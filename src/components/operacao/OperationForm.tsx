@@ -121,7 +121,7 @@ export function OperationForm({
     } else {
       setFormData({
         nome: "", nivel_tipo: defaultNivelTipo || (isChild ? "subprojeto" : "projeto"),
-        tipo: "outro", categoria: "", descricao: "", status: "planejada",
+        tipo: "outro", categoria: "", descricao: "", status: "em_andamento",
         prioridade: "media", data_inicio_prevista: todayISO(), data_inicio_real: "",
         data_fim_prevista: "", data_fim_real: "", duracao_prevista_dias: "",
         depends_on_id: "", linked_project_id: "", responsavel: "", responsavel_id: "", ordem: 0,
@@ -162,6 +162,12 @@ export function OperationForm({
       const novo = { ...p, data_inicio_prevista: v };
       const d = Number(p.duracao_prevista_dias);
       if (v && d > 0) novo.data_fim_prevista = addDaysISO(v, d - 1);
+      // Sugestão automática de status para itens novos:
+      // - data inicial <= hoje => "em_andamento"
+      // - data inicial futura => "planejada"
+      if (!operation && (p.status === "planejada" || p.status === "em_andamento")) {
+        novo.status = v && v <= todayISO() ? "em_andamento" : "planejada";
+      }
       return novo;
     });
   };

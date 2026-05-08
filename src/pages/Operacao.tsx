@@ -20,7 +20,7 @@ import { SimpleTaskForm } from "@/components/operacao/SimpleTaskForm";
 import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
+import { OPERATION_CATEGORIES, getEffectiveStatus } from "@/lib/operacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoView";
 import { ResponsavelFilter, matchesResponsavel, type ResponsavelFilterValue } from "@/components/responsaveis/ResponsavelFilter";
@@ -116,15 +116,14 @@ export default function Operacao() {
   const defaultAreaId = filterArea !== "all" ? filterArea : areas[0]?.id || "";
   const defaultCycleId = cycles.find(c => c.area_id === defaultAreaId)?.id || cycles[0]?.id || "";
 
-  // KPIs
+  // KPIs (status efetivo: planejado / em_execucao / atrasado / concluido)
   const allTasks = tasks;
-  const emAndamento = operations.filter(o => o.status === "em_andamento").length;
-  const atrasadas = operations.filter(o => {
-    if (o.status === "concluida") return false;
-    return o.data_fim_prevista && new Date(o.data_fim_prevista) < new Date();
-  }).length;
-  const pendentes = operations.filter(o => o.status === "nao_iniciada").length;
-  const concluidas = operations.filter(o => o.status === "concluida").length;
+  const allOpsFlat = operations.flatMap(o => [o, ...((o.children || []) as any[])]);
+  const effOf = (o: any) => getEffectiveStatus(o);
+  const emAndamento = allOpsFlat.filter(o => effOf(o) === "em_execucao").length;
+  const atrasadas = allOpsFlat.filter(o => effOf(o) === "atrasado").length;
+  const pendentes = allOpsFlat.filter(o => effOf(o) === "planejado").length;
+  const concluidas = allOpsFlat.filter(o => effOf(o) === "concluido" || effOf(o) === "concluido_com_atraso").length;
   const tasksAtrasadas = allTasks.filter(t => {
     if (t.status === "concluida" || t.status === "cancelada") return false;
     return t.data_prazo && new Date(t.data_prazo) < new Date();

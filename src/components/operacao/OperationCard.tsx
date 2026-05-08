@@ -8,27 +8,38 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   ChevronDown, ChevronRight, MoreVertical, Plus, Pencil, Trash2, Copy,
   PlayCircle, PauseCircle, CheckCircle2, Clock, AlertTriangle, Circle,
-  Layers, ListTodo, DollarSign
+  Layers, ListTodo, DollarSign, CalendarClock
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getCategoryEmoji, getCategoryLabel, getResponsavelColor } from "@/lib/operacaoConfig";
+import {
+  getCategoryEmoji, getCategoryLabel, getResponsavelColor,
+  getEffectiveStatus, getEffectiveStatusUI, getDeadlineLabel, type EffectiveStatus,
+} from "@/lib/operacaoConfig";
 import { OperationCostBlock } from "./OperationCostBlock";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 
-const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeVariant: "default" | "secondary" | "outline" | "destructive" }> = {
-  planejada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
-  nao_iniciada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
-  em_andamento: { label: "Em Andamento", icon: Clock, color: "text-primary", badgeVariant: "secondary" },
-  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "default" },
-  atrasada: { label: "Atrasada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
-  pausada: { label: "Pausada", icon: PauseCircle, color: "text-warning", badgeVariant: "outline" },
-  travada: { label: "Travada", icon: AlertTriangle, color: "text-muted-foreground", badgeVariant: "outline" },
-  cancelada: { label: "Cancelada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
-  reprogramada: { label: "Reprogramada", icon: Clock, color: "text-muted-foreground", badgeVariant: "outline" },
+const STATUS_ICON: Record<EffectiveStatus, React.ElementType> = {
+  planejado: Circle,
+  em_execucao: Clock,
+  atrasado: AlertTriangle,
+  concluido: CheckCircle2,
+  concluido_com_atraso: CheckCircle2,
+  pausado: PauseCircle,
+  travado: AlertTriangle,
+  cancelado: Circle,
+};
+
+const TONE_CLASS: Record<string, string> = {
+  neutral: "text-muted-foreground",
+  ok: "text-primary",
+  warn: "text-warning",
+  bad: "text-destructive",
+  done: "text-success",
 };
 
 const typeLabels: Record<string, string> = {
@@ -60,10 +71,14 @@ export function OperationCard({
 }: OperationCardProps) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const sc = statusConfig[operation.status] || statusConfig.nao_iniciada;
-  const Icon = sc.icon;
+  const [confirmComplete, setConfirmComplete] = useState(false);
 
-  const isOverdue = operation.data_fim_prevista && new Date(operation.data_fim_prevista) < new Date() && operation.status !== "concluida";
+  const eff = getEffectiveStatus(operation as any);
+  const ui = getEffectiveStatusUI(eff);
+  const Icon = STATUS_ICON[eff];
+  const deadline = getDeadlineLabel(operation as any);
+  const isOverdue = eff === "atrasado";
+  const isDone = eff === "concluido" || eff === "concluido_com_atraso";
 
   // Get tasks for this operation and its sub-operations
   const subIds = (operation.children || []).map(c => c.id);
@@ -73,13 +88,23 @@ export function OperationCard({
   );
 
   const totalCusto = allRelatedTasks.reduce((sum, t) => sum + (Number(t.custo_real) || 0), 0);
-  const tasksEmAndamento = allRelatedTasks.filter(t => t.status === "em_andamento").length;
   const tasksConcluidas = allRelatedTasks.filter(t => t.status === "concluida").length;
   const tasksTotal = allRelatedTasks.length;
+  const tasksPendentes = tasksTotal - tasksConcluidas;
   const progressPercent = tasksTotal > 0 ? Math.round((tasksConcluidas / tasksTotal) * 100) : (operation.progresso_percentual || 0);
+  const progressByTime = tasksTotal === 0;
+
+  const requestComplete = () => {
+    if (tasksPendentes > 0) setConfirmComplete(true);
+    else onStatusChange(operation, "concluida");
+  };
+
+  const periodoLabel = operation.data_inicio_prevista || operation.data_fim_prevista
+    ? `${operation.data_inicio_prevista ? format(new Date(operation.data_inicio_prevista), "dd MMM", { locale: ptBR }) : "?"} — ${operation.data_fim_prevista ? format(new Date(operation.data_fim_prevista), "dd MMM", { locale: ptBR }) : "?"}`
+    : null;
 
   return (
-    <Card className={`transition-all ${isOverdue ? "border-destructive/50" : ""}`}>
+    <Card className={`transition-all ${isOverdue ? "border-destructive/50" : ""} ${isDone ? "opacity-90" : ""}`}>
       <Collapsible open={expanded} onOpenChange={setExpanded}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
@@ -88,7 +113,7 @@ export function OperationCard({
                 {expanded ? <ChevronDown className="h-5 w-5 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 mt-0.5 shrink-0 text-muted-foreground" />}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Icon className={`h-4 w-4 ${sc.color}`} />
+                    <Icon className={`h-4 w-4 ${ui.iconClass}`} />
                     <CardTitle
                       className="text-base hover:underline cursor-pointer"
                       onClick={(e) => { e.stopPropagation(); navigate(`/operacao/projetos/${operation.id}`); }}
@@ -96,16 +121,20 @@ export function OperationCard({
                       {operation.nome}
                     </CardTitle>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge variant={sc.badgeVariant} className="text-xs">{sc.label}</Badge>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <Badge variant="outline" className={`text-xs ${ui.badgeClass}`}>{ui.label}</Badge>
+                    {!isDone && (
+                      <Badge variant="outline" className={`text-[10px] gap-1 ${TONE_CLASS[deadline.tone]}`}>
+                        <CalendarClock className="h-3 w-3" />{deadline.text}
+                      </Badge>
+                    )}
                     {operation.categoria && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-[10px]">
                         {getCategoryEmoji(operation.categoria)} {getCategoryLabel(operation.categoria)}
                       </Badge>
                     )}
-                    <span className="text-xs text-muted-foreground">{typeLabels[operation.tipo] || operation.tipo}</span>
-                    {operation.prioridade === "alta" && <Badge variant="destructive" className="text-xs">Alta</Badge>}
-                    {operation.prioridade === "critica" && <Badge variant="destructive" className="text-xs">Crítica</Badge>}
+                    {operation.prioridade === "alta" && <Badge variant="destructive" className="text-[10px]">Alta</Badge>}
+                    {operation.prioridade === "critica" && <Badge variant="destructive" className="text-[10px]">Crítica</Badge>}
                   </div>
                 </div>
               </button>
@@ -116,12 +145,15 @@ export function OperationCard({
                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreVertical className="h-4 w-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate(`/operacao/projetos/${operation.id}`)}>
+                  <ListTodo className="mr-2 h-3 w-3" />Ver detalhes
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onEdit(operation)}><Pencil className="mr-2 h-3 w-3" />Editar</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onDuplicate(operation.id)}><Copy className="mr-2 h-3 w-3" />Duplicar</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onAddSubOperation(operation.id)}><Layers className="mr-2 h-3 w-3" />Novo Subprojeto</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onAddTask(operation.id)}><ListTodo className="mr-2 h-3 w-3" />Nova Subtarefa</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {operation.status !== "em_andamento" && operation.status !== "concluida" && (
+                {!isDone && operation.status !== "em_andamento" && (
                   <DropdownMenuItem onClick={() => onStatusChange(operation, "em_andamento")}>
                     <PlayCircle className="mr-2 h-3 w-3" />Iniciar
                   </DropdownMenuItem>
@@ -129,14 +161,17 @@ export function OperationCard({
                 {operation.status === "em_andamento" && (
                   <DropdownMenuItem onClick={() => onStatusChange(operation, "pausada")}><PauseCircle className="mr-2 h-3 w-3" />Pausar</DropdownMenuItem>
                 )}
-                {operation.status !== "concluida" && (
-                  <DropdownMenuItem onClick={() => onStatusChange(operation, "concluida")} className="text-success focus:text-success">
+                {operation.status === "pausada" && (
+                  <DropdownMenuItem onClick={() => onStatusChange(operation, "em_andamento")}><PlayCircle className="mr-2 h-3 w-3" />Retomar</DropdownMenuItem>
+                )}
+                {!isDone && (
+                  <DropdownMenuItem onClick={requestComplete} className="text-success focus:text-success">
                     <CheckCircle2 className="mr-2 h-3 w-3" />Concluir projeto
                   </DropdownMenuItem>
                 )}
-                {operation.status === "concluida" && (
+                {isDone && (
                   <DropdownMenuItem onClick={() => onStatusChange(operation, "em_andamento")}>
-                    <PlayCircle className="mr-2 h-3 w-3" />Reabrir
+                    <PlayCircle className="mr-2 h-3 w-3" />Reabrir projeto
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -146,29 +181,48 @@ export function OperationCard({
           </div>
 
           {/* Summary row */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2 flex-wrap">
-            {operation.data_inicio_real && (
-              <span>Início: {format(new Date(operation.data_inicio_real), "dd/MM/yy", { locale: ptBR })}</span>
-            )}
-            {operation.data_fim_prevista && (
-              <span>Prev: {format(new Date(operation.data_fim_prevista), "dd/MM/yy", { locale: ptBR })}</span>
-            )}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2 flex-wrap">
             {(operation as any).responsavel_id ? (
               <ResponsavelBadge responsavelId={(operation as any).responsavel_id} size="xs" />
             ) : operation.responsavel ? (
               <span>👤 {operation.responsavel}</span>
-            ) : null}
+            ) : (
+              <span className="italic">Sem responsável</span>
+            )}
+            {periodoLabel && <span>📅 {periodoLabel}</span>}
             {totalCusto > 0 && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(totalCusto)}</span>}
-            {tasksTotal > 0 && <span>☑ {tasksConcluidas}/{tasksTotal} subtarefas</span>}
+            {tasksTotal > 0 && <span>☑ {tasksConcluidas}/{tasksTotal} tarefas</span>}
           </div>
 
           {/* Progress bar */}
-          {tasksTotal > 0 && (
-            <div className="mt-2">
-              <Progress value={progressPercent} className="h-1.5" />
+          {(tasksTotal > 0 || isDone) && (
+            <div className="mt-2 space-y-1">
+              <Progress value={isDone ? 100 : progressPercent} className="h-1.5" />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{progressByTime ? "Progresso temporal" : "Progresso por tarefas"}</span>
+                <span className="tabular-nums">{isDone ? 100 : progressPercent}%</span>
+              </div>
             </div>
           )}
         </CardHeader>
+
+        <AlertDialog open={confirmComplete} onOpenChange={setConfirmComplete}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Concluir com tarefas pendentes?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Este projeto ainda possui {tasksPendentes} {tasksPendentes === 1 ? "tarefa pendente" : "tarefas pendentes"}. Deseja concluir mesmo assim?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setConfirmComplete(false); onStatusChange(operation, "concluida"); }}>
+                Concluir mesmo assim
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-3">
@@ -179,18 +233,26 @@ export function OperationCard({
                   <Layers className="h-3 w-3" />Subprojetos
                 </h4>
                 {(operation.children || []).map(sub => {
-                  const subSc = statusConfig[sub.status] || statusConfig.nao_iniciada;
-                  const SubIcon = subSc.icon;
+                  const subEff = getEffectiveStatus(sub as any);
+                  const subUi = getEffectiveStatusUI(subEff);
+                  const subDeadline = getDeadlineLabel(sub as any);
+                  const SubIcon = STATUS_ICON[subEff];
                   const subTasks = tasks.filter(t => t.stage_id === sub.id);
                   const subDone = subTasks.filter(t => t.status === "concluida").length;
                   const subPct = subTasks.length > 0 ? Math.round((subDone / subTasks.length) * 100) : 0;
+                  const subDoneState = subEff === "concluido" || subEff === "concluido_com_atraso";
                   return (
                     <div key={sub.id} className="bg-muted/30 rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <SubIcon className={`h-3.5 w-3.5 ${subSc.color}`} />
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <SubIcon className={`h-3.5 w-3.5 ${subUi.iconClass}`} />
                           <span className="text-sm font-medium truncate">{sub.nome}</span>
-                          <Badge variant={subSc.badgeVariant} className="text-[10px]">{subSc.label}</Badge>
+                          <Badge variant="outline" className={`text-[10px] ${subUi.badgeClass}`}>{subUi.label}</Badge>
+                          {!subDoneState && (
+                            <Badge variant="outline" className={`text-[10px] gap-1 ${TONE_CLASS[subDeadline.tone]}`}>
+                              <CalendarClock className="h-3 w-3" />{subDeadline.text}
+                            </Badge>
+                          )}
                           {(sub as any).responsavel_id && (
                             <ResponsavelBadge responsavelId={(sub as any).responsavel_id} size="xs" />
                           )}
@@ -204,6 +266,15 @@ export function OperationCard({
                           <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" onClick={() => onAddTask(sub.id)}>
                             <Plus className="h-3 w-3 mr-1" />Subtarefa
                           </Button>
+                          {subDoneState ? (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" title="Reabrir subprojeto" onClick={() => onStatusChange(sub as any, "em_andamento")}>
+                              <PlayCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-success" title="Concluir subprojeto" onClick={() => onStatusChange(sub as any, "concluida")}>
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(sub)}>
                             <Pencil className="h-3 w-3" />
                           </Button>
