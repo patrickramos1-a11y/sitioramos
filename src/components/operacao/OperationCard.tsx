@@ -233,18 +233,26 @@ export function OperationCard({
                   <Layers className="h-3 w-3" />Subprojetos
                 </h4>
                 {(operation.children || []).map(sub => {
-                  const subSc = statusConfig[sub.status] || statusConfig.nao_iniciada;
-                  const SubIcon = subSc.icon;
+                  const subEff = getEffectiveStatus(sub as any);
+                  const subUi = getEffectiveStatusUI(subEff);
+                  const subDeadline = getDeadlineLabel(sub as any);
+                  const SubIcon = STATUS_ICON[subEff];
                   const subTasks = tasks.filter(t => t.stage_id === sub.id);
                   const subDone = subTasks.filter(t => t.status === "concluida").length;
                   const subPct = subTasks.length > 0 ? Math.round((subDone / subTasks.length) * 100) : 0;
+                  const subDoneState = subEff === "concluido" || subEff === "concluido_com_atraso";
                   return (
                     <div key={sub.id} className="bg-muted/30 rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <SubIcon className={`h-3.5 w-3.5 ${subSc.color}`} />
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <SubIcon className={`h-3.5 w-3.5 ${subUi.iconClass}`} />
                           <span className="text-sm font-medium truncate">{sub.nome}</span>
-                          <Badge variant={subSc.badgeVariant} className="text-[10px]">{subSc.label}</Badge>
+                          <Badge variant="outline" className={`text-[10px] ${subUi.badgeClass}`}>{subUi.label}</Badge>
+                          {!subDoneState && (
+                            <Badge variant="outline" className={`text-[10px] gap-1 ${TONE_CLASS[subDeadline.tone]}`}>
+                              <CalendarClock className="h-3 w-3" />{subDeadline.text}
+                            </Badge>
+                          )}
                           {(sub as any).responsavel_id && (
                             <ResponsavelBadge responsavelId={(sub as any).responsavel_id} size="xs" />
                           )}
