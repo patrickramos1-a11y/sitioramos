@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Task, TaskInsert } from "@/hooks/useTasks";
 import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
-import { CalendarDays, CheckSquare, Folder, FolderTree, RotateCcw, Flag } from "lucide-react";
+import { CollapsibleField } from "@/components/ui/collapsible-field";
+import { CalendarDays, CheckCircle2, CheckSquare, Folder, FolderTree, RotateCcw, Flag } from "lucide-react";
 import { addDaysISO } from "@/lib/operacaoConfig";
 
 interface ParentOption {
