@@ -406,6 +406,13 @@ export function GanttTimeline({
         end = addWeeks(start, cfg.columns);
         break;
       }
+      case "fortnight": {
+        start = startOfDay(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addDays(start, i * 15))
+          .map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
+        end = addDays(start, cfg.columns * 15);
+        break;
+      }
       case "month": {
         start = startOfMonth(anchorDate);
         cols = Array.from({ length: cfg.columns }, (_, i) => addMonths(start, i))
@@ -413,11 +420,32 @@ export function GanttTimeline({
         end = addMonths(start, cfg.columns);
         break;
       }
+      case "bimonth": {
+        start = startOfMonth(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addMonths(start, i * 2))
+          .map(d => ({ label: format(d, "MMM/yy", { locale: ptBR }), date: d }));
+        end = addMonths(start, cfg.columns * 2);
+        break;
+      }
+      case "quarter": {
+        start = startOfMonth(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addMonths(start, i * 3))
+          .map(d => ({ label: format(d, "MMM/yy", { locale: ptBR }), date: d }));
+        end = addMonths(start, cfg.columns * 3);
+        break;
+      }
       case "year": {
         start = startOfYear(anchorDate);
         cols = Array.from({ length: cfg.columns }, (_, i) => addYears(start, i))
           .map(d => ({ label: format(d, "yyyy", { locale: ptBR }), date: d }));
         end = addYears(start, cfg.columns);
+        break;
+      }
+      case "biennium": {
+        start = startOfYear(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addYears(start, i * 2))
+          .map(d => ({ label: format(d, "yyyy", { locale: ptBR }), date: d }));
+        end = addYears(start, cfg.columns * 2);
         break;
       }
     }
