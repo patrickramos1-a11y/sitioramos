@@ -475,6 +475,57 @@ export default function Diario() {
             </Popover>
           </div>
 
+          {/* Localização GPS */}
+          <div className="flex items-center gap-2">
+            {coords ? (
+              <div className="flex-1 flex items-center gap-2 rounded-xl border border-brand-leaf/30 bg-brand-leaf/5 px-3 py-2">
+                <MapPin className="h-4 w-4 text-brand-leaf shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-brand-forest truncate">
+                    {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+                  </div>
+                  {coords.accuracy != null && (
+                    <div className="text-[10px] text-muted-foreground">
+                      precisão ~{Math.round(coords.accuracy)} m
+                    </div>
+                  )}
+                </div>
+                <a
+                  href={`https://www.google.com/maps?q=${coords.lat},${coords.lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-7 w-7 rounded-md flex items-center justify-center text-brand-leaf hover:bg-brand-leaf/10"
+                  aria-label="Abrir no mapa"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setCoords(null)}
+                  className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted"
+                  aria-label="Remover localização"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 flex-1 border-brand-leaf/30 text-brand-forest hover:bg-brand-leaf/10 text-xs"
+                onClick={captureLocation}
+                disabled={locating}
+              >
+                {locating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MapPin className="h-4 w-4" />
+                )}
+                {locating ? "Buscando localização..." : "Marcar minha localização"}
+              </Button>
+            )}
+          </div>
+
           <input
             ref={photoInput}
             type="file"
