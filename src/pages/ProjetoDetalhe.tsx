@@ -588,7 +588,7 @@ export default function ProjetoDetalhe() {
             <Card>
               <CardContent className="pt-6">
                 <TasksBoard
-                  tasks={relatedTasks}
+                  tasks={filteredTasks}
                   operations={timelineOps}
                   onCreate={handleNewTask}
                   onEdit={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
