@@ -17,6 +17,7 @@ import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
 import Propriedade from "./pages/Propriedade";
 import Operacao from "./pages/Operacao";
+import ProjetoDetalhe from "./pages/ProjetoDetalhe";
 import Lancamentos from "./pages/Lancamentos";
 import Contatos from "./pages/Contatos";
 import Responsaveis from "./pages/Responsaveis";
