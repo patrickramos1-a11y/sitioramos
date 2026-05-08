@@ -81,7 +81,7 @@ function fmtRange(start?: string | null, end?: string | null) {
   return `${s} – ${e}`;
 }
 
-export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAddSubproject, onAddTask }: Props) {
+export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAddSubproject, onAddTask, onCreateTask, onEditTask, onDeleteTask, onToggleTaskComplete }: Props) {
   const [view, setView] = useState<ViewMode>("cards");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
