@@ -17,6 +17,7 @@ import {
 import {
   ArrowLeft, MoreVertical, Pencil, Trash2, Copy, Plus, Layers, ListTodo,
   CheckCircle2, AlertTriangle, Clock, DollarSign, Calendar, FileText, BarChart3, BookOpen, ChevronRight,
+  History, CircleDot,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
