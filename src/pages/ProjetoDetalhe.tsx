@@ -486,8 +486,8 @@ export default function ProjetoDetalhe() {
         <Tabs defaultValue="resumo" className="space-y-4">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
-            <TabsTrigger value="subprojetos">Subprojetos ({directChildren.length})</TabsTrigger>
-            <TabsTrigger value="tarefas">Tarefas ({relatedTasks.length})</TabsTrigger>
+            <TabsTrigger value="subprojetos">Subprojetos ({filteredSubChildren.length})</TabsTrigger>
+            <TabsTrigger value="tarefas">Tarefas ({filteredTasks.length})</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="custos">Custos</TabsTrigger>
             <TabsTrigger value="diario">Diário</TabsTrigger>
