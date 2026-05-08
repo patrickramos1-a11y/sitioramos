@@ -8,27 +8,38 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   ChevronDown, ChevronRight, MoreVertical, Plus, Pencil, Trash2, Copy,
   PlayCircle, PauseCircle, CheckCircle2, Clock, AlertTriangle, Circle,
-  Layers, ListTodo, DollarSign
+  Layers, ListTodo, DollarSign, CalendarClock
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getCategoryEmoji, getCategoryLabel, getResponsavelColor } from "@/lib/operacaoConfig";
+import {
+  getCategoryEmoji, getCategoryLabel, getResponsavelColor,
+  getEffectiveStatus, getEffectiveStatusUI, getDeadlineLabel, type EffectiveStatus,
+} from "@/lib/operacaoConfig";
 import { OperationCostBlock } from "./OperationCostBlock";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 
-const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeVariant: "default" | "secondary" | "outline" | "destructive" }> = {
-  planejada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
-  nao_iniciada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
-  em_andamento: { label: "Em Andamento", icon: Clock, color: "text-primary", badgeVariant: "secondary" },
-  concluida: { label: "Concluída", icon: CheckCircle2, color: "text-success", badgeVariant: "default" },
-  atrasada: { label: "Atrasada", icon: AlertTriangle, color: "text-destructive", badgeVariant: "destructive" },
-  pausada: { label: "Pausada", icon: PauseCircle, color: "text-warning", badgeVariant: "outline" },
-  travada: { label: "Travada", icon: AlertTriangle, color: "text-muted-foreground", badgeVariant: "outline" },
-  cancelada: { label: "Cancelada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
-  reprogramada: { label: "Reprogramada", icon: Clock, color: "text-muted-foreground", badgeVariant: "outline" },
+const STATUS_ICON: Record<EffectiveStatus, React.ElementType> = {
+  planejado: Circle,
+  em_execucao: Clock,
+  atrasado: AlertTriangle,
+  concluido: CheckCircle2,
+  concluido_com_atraso: CheckCircle2,
+  pausado: PauseCircle,
+  travado: AlertTriangle,
+  cancelado: Circle,
+};
+
+const TONE_CLASS: Record<string, string> = {
+  neutral: "text-muted-foreground",
+  ok: "text-primary",
+  warn: "text-warning",
+  bad: "text-destructive",
+  done: "text-success",
 };
 
 const typeLabels: Record<string, string> = {
