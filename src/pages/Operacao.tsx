@@ -206,8 +206,8 @@ export default function Operacao() {
   return (
     <AppLayout>
       <div className="space-y-4 md:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Header — DESKTOP */}
+        <div className="hidden md:flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="hidden sm:block">
             <h1 className="text-2xl font-bold tracking-tight">Operação</h1>
             <p className="text-muted-foreground">Projetos com etapas, dependências e linha do tempo</p>
@@ -241,8 +241,8 @@ export default function Operacao() {
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid gap-2 md:gap-3 grid-cols-2 lg:grid-cols-5">
+        {/* KPI Cards — DESKTOP */}
+        <div className="hidden md:grid gap-2 md:gap-3 grid-cols-2 lg:grid-cols-5">
           <Card className="cursor-pointer hover:shadow-md tap-card" onClick={() => setFilterStatus("em_andamento")}>
             <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 md:p-6 md:pb-2">
               <CardTitle className="text-[11px] md:text-xs font-medium leading-tight">Em Andamento</CardTitle>
@@ -278,6 +278,87 @@ export default function Operacao() {
             </CardHeader>
             <CardContent className="p-3 pt-0 md:p-6 md:pt-0"><div className="text-base md:text-lg font-bold">{formatCurrency(custoTotal)}</div></CardContent>
           </Card>
+        </div>
+
+        {/* Header MOBILE compacto: 1 linha de botões + 1 linha de KPIs + custo slim */}
+        <div className="md:hidden space-y-1.5">
+          {/* Linha 1: ações em ícone + label curto */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <Button onClick={openNewOperation} size="sm" className="h-8 text-xs px-2">
+              <Plus className="h-3.5 w-3.5 mr-1" />Projeto
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingOp(null);
+                setParentIdForNew(null);
+                setDefaultNivelTipo("subprojeto");
+                setFormContext({ areaId: defaultAreaId, cycleId: defaultCycleId, talhaoId: null });
+                setOpFormOpen(true);
+              }}
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs px-2"
+              disabled={operations.length === 0}
+            >
+              <FolderPlus className="h-3.5 w-3.5 mr-1" />Subprojeto
+            </Button>
+            <Button
+              onClick={() => { setEditingTask(null); setTaskDefaultStageId(""); setTaskFormOpen(true); }}
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs px-2"
+              disabled={operations.length === 0}
+            >
+              <CheckSquare className="h-3.5 w-3.5 mr-1" />Tarefa
+            </Button>
+          </div>
+
+          {/* Linha 2: 4 KPIs como mini-chips */}
+          <div className="grid grid-cols-4 gap-1.5">
+            <button
+              onClick={() => setFilterStatus("em_andamento")}
+              className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5 active:bg-muted/40 tap-card"
+            >
+              <div className="flex flex-col items-start min-w-0">
+                <span className="text-[9px] text-muted-foreground leading-none">Andam.</span>
+                <span className="text-sm font-bold text-primary leading-tight tabular-nums">{emAndamento}</span>
+              </div>
+              <Activity className="h-3 w-3 text-primary shrink-0" />
+            </button>
+            <button
+              onClick={() => setFilterStatus("all")}
+              className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5 active:bg-muted/40 tap-card"
+            >
+              <div className="flex flex-col items-start min-w-0">
+                <span className="text-[9px] text-muted-foreground leading-none">Atras.</span>
+                <span className="text-sm font-bold text-destructive leading-tight tabular-nums">{atrasadas + tasksAtrasadas}</span>
+              </div>
+              <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
+            </button>
+            <div className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5">
+              <div className="flex flex-col items-start min-w-0">
+                <span className="text-[9px] text-muted-foreground leading-none">Pend.</span>
+                <span className="text-sm font-bold leading-tight tabular-nums">{pendentes}</span>
+              </div>
+              <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+            </div>
+            <div className="flex items-center justify-between bg-card border border-border rounded-md px-2 py-1.5">
+              <div className="flex flex-col items-start min-w-0">
+                <span className="text-[9px] text-muted-foreground leading-none">Concl.</span>
+                <span className="text-sm font-bold text-success leading-tight tabular-nums">{concluidas}</span>
+              </div>
+              <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+            </div>
+          </div>
+
+          {/* Linha 3: custo operacional em barra slim */}
+          <div className="flex items-center justify-between bg-card border border-border rounded-md px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <DollarSign className="h-3 w-3" />
+              <span className="text-[10px]">Custo Operacional</span>
+            </div>
+            <span className="text-sm font-bold tabular-nums">{formatCurrency(custoTotal)}</span>
+          </div>
         </div>
 
         {/* Filters (desktop) */}
