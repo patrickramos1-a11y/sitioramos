@@ -198,9 +198,10 @@ export default function Operacao() {
     if (type === "task") {
       const task = allTasks.find(t => t.id === id);
       if (task) { setEditingTask(task); setTaskFormOpen(true); }
+    } else if (type === "sub-operation") {
+      navigate(`/operacao/subprojetos/${id}`);
     } else {
-      const op = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === id);
-      if (op) { setEditingOp(op); setOpFormOpen(true); }
+      navigate(`/operacao/projetos/${id}`);
     }
   };
 
