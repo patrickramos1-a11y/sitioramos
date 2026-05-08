@@ -387,7 +387,10 @@ export default function Operacao() {
           </div>
         </div>
 
-        {/* Filters (desktop) */}
+        {/* Filtro por Responsável (desktop + mobile) */}
+        <div className="bg-card border border-border rounded-md px-2.5 py-2 overflow-x-auto -mx-1 px-1 md:mx-0 md:px-2.5">
+          <ResponsavelFilter value={filterResp} onChange={setFilterResp} showLabel />
+        </div>
         <div className="hidden md:flex items-center gap-2 md:gap-3 flex-wrap">
           <Select value={filterArea} onValueChange={setFilterArea}>
             <SelectTrigger className="flex-1 min-w-[140px] sm:flex-initial sm:w-44">
