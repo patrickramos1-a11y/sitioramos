@@ -44,6 +44,11 @@ import { useNavigate } from "react-router-dom";
 import { enqueueJournalEntry } from "@/lib/offlineQueue";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { Wifi, WifiOff, CloudUpload } from "lucide-react";
+import {
+  JournalPointsManager,
+  JournalPointsCollapsible,
+} from "@/components/diario/JournalPointsManager";
+import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
 
 const NONE = "__none__";
 
@@ -128,6 +133,7 @@ export default function Diario() {
   const [important, setImportant] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const [locating, setLocating] = useState(false);
+  const [draftPoints, setDraftPoints] = useState<DraftPoint[]>([]);
 
   const photoInput = useRef<HTMLInputElement>(null);
   const photoLibInput = useRef<HTMLInputElement>(null);
@@ -144,7 +150,7 @@ export default function Diario() {
   }, []);
 
   const hasContent =
-    text.trim().length > 0 || !!audio || photos.length > 0 || !!video;
+    text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0;
 
   const reset = () => {
     setText("");
@@ -164,6 +170,7 @@ export default function Diario() {
     setResponsavelId("");
     setMoreOpen(false);
     setCoords(null);
+    setDraftPoints([]);
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
@@ -285,15 +292,18 @@ export default function Diario() {
       weather: weather.trim() || null,
       tags,
       is_important: important,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-      location_accuracy: coords?.accuracy ?? null,
+      latitude: coords?.lat ?? draftPoints[0]?.latitude ?? null,
+      longitude: coords?.lng ?? draftPoints[0]?.longitude ?? null,
+      location_accuracy: coords?.accuracy ?? draftPoints[0]?.accuracy ?? null,
       reviewed: !!(areaId || cycleId || entryType !== "observacao"),
     };
 
     if (!navigator.onLine) {
       enqueueJournalEntry(entryPayload, attachments).then(() => {
         toast.success("Salvo offline — sincroniza quando voltar a internet");
+        if (draftPoints.length) {
+          toast.info("Pontos GPS serão salvos ao sincronizar (em breve)");
+        }
         reset();
       });
       return;
@@ -301,7 +311,19 @@ export default function Diario() {
 
     create.mutate(
       { entry: entryPayload, attachments },
-      { onSuccess: reset },
+      {
+        onSuccess: async (row: any) => {
+          const newId = row?.id;
+          if (newId && draftPoints.length) {
+            try {
+              await batchInsertPoints(newId, draftPoints);
+            } catch (e: any) {
+              toast.error("Falha ao salvar pontos: " + (e.message || ""));
+            }
+          }
+          reset();
+        },
+      },
     );
   };
 
@@ -505,56 +527,11 @@ export default function Diario() {
             </Popover>
           </div>
 
-          {/* Localização GPS */}
-          <div className="flex items-center gap-2">
-            {coords ? (
-              <div className="flex-1 flex items-center gap-2 rounded-xl border border-brand-leaf/30 bg-brand-leaf/5 px-3 py-2">
-                <MapPin className="h-4 w-4 text-brand-leaf shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-brand-forest truncate">
-                    {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
-                  </div>
-                  {coords.accuracy != null && (
-                    <div className="text-[10px] text-muted-foreground">
-                      precisão ~{Math.round(coords.accuracy)} m
-                    </div>
-                  )}
-                </div>
-                <a
-                  href={`https://www.google.com/maps?q=${coords.lat},${coords.lng}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="h-7 w-7 rounded-md flex items-center justify-center text-brand-leaf hover:bg-brand-leaf/10"
-                  aria-label="Abrir no mapa"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setCoords(null)}
-                  className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted"
-                  aria-label="Remover localização"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 flex-1 border-brand-leaf/30 text-brand-forest hover:bg-brand-leaf/10 text-xs"
-                onClick={captureLocation}
-                disabled={locating}
-              >
-                {locating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MapPin className="h-4 w-4" />
-                )}
-                {locating ? "Buscando localização..." : "Marcar minha localização"}
-              </Button>
-            )}
-          </div>
+          {/* Pontos GPS */}
+          <JournalPointsManager
+            draftPoints={draftPoints}
+            onDraftChange={setDraftPoints}
+          />
 
           <input
             ref={photoInput}
@@ -877,6 +854,17 @@ function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense,
       {videos.map((v) => (
         <video key={v.id} controls src={v.url} className="w-full max-h-48 rounded-md bg-black" />
       ))}
+
+      <JournalPointsCollapsible
+        entryId={entry.id}
+        entryMeta={{
+          id: entry.id,
+          title: entry.title,
+          description: entry.description,
+          entry_date: entry.entry_date,
+        }}
+      />
+
 
       <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">

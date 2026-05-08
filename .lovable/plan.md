@@ -1,129 +1,99 @@
+## Objetivo
 
-# Mobile da Operação — Visualização e filtros
-
-Objetivo: no mobile (<768px), substituir a Gantt densa atual por um modo híbrido com 3 visões alternáveis, filtros em bottom sheet com chips e cartões muito reconhecíveis (cor do projeto + emoji da categoria + avatar do responsável). Desktop continua como está.
-
----
-
-## 1. Estrutura nova da página (mobile)
-
-```text
-┌─────────────────────────────┐
-│ KPIs (2 col, já existem)    │
-├─────────────────────────────┤
-│ [Filtros ▾]  3 ativos · ✕   │  ← botão único + chips de filtros ativos
-├─────────────────────────────┤
-│ [ Cards | Agenda | Gantt ]  │  ← segmented control (3 visões)
-├─────────────────────────────┤
-│                             │
-│        Conteúdo da          │
-│        visão escolhida      │
-│                             │
-└─────────────────────────────┘
-```
-
-A aba "Tarefas" atual continua existindo, mas no mobile vira um item dentro do menu de filtros / ou uma 4ª opção do segmented (manter "Tarefas" como tab separada de nível superior também funciona — proponho manter as Tabs existentes "Timeline / Lista / Tarefas" só no desktop, e no mobile usar o segmented novo).
+Evoluir o Diário de Campo para capturar **múltiplos pontos GPS** por registro, com nome, observação, mídia opcional e exportação **KML** (com arquitetura preparada para KMZ/linhas/polígonos no futuro).
 
 ---
 
-## 2. Visão A — Cards de Projeto (default mobile)
+## 1. Banco de dados (migration)
 
-Lista vertical de cartões grandes, um por projeto raiz. Cada cartão:
+Criar tabela `journal_points` ligada a `journal_entries`:
 
-- Faixa lateral colorida (4px) com a cor do projeto (paleta já existe em `GanttTimeline.tsx`).
-- Linha 1: emoji da categoria (grande, ~24px) + nome do projeto + menu `⋯`.
-- Linha 2: avatar circular do responsável (com `ResponsavelBadge`) + nome curto.
-- Linha 3: barra de progresso fina (% calculado a partir de tarefas concluídas / total) + status pill colorida.
-- Linha 4: período "12 mai – 30 jun" + chip de área (📍 Talhão 3) + custo total compacto.
-- Toque: expande inline mostrando subprojetos como mini-chips horizontais roláveis (cada chip = nome + status dot). Toque longo no cartão = abrir form de edição.
+- `entry_id` (uuid, ref. journal_entries)
+- `nome` (text)
+- `observacao` (text, nullable)
+- `latitude` (numeric)
+- `longitude` (numeric)
+- `accuracy` (numeric, nullable)
+- `captured_at` (timestamptz, default now)
+- `ordem` (int, default 0)
+- `manual` (boolean, default false) — true se digitado à mão
+- `geometry_type` (text, default `'point'`) — preparado para `'line'` / `'polygon'` no futuro
+- `coordinates` (jsonb, nullable) — para futuras geometrias multi-coordenada
+- `attachment_id` (uuid, nullable, ref. journal_attachments) — mídia vinculada opcional
+- timestamps padrão
 
----
+RLS pública (mesmo padrão das tabelas do diário). Índice em `entry_id`.
 
-## 3. Visão B — Agenda (timeline vertical)
+Bucket de storage: reutiliza `journal-media` existente, prefixo `kml/` para os arquivos exportados.
 
-Feed cronológico agrupado por mês, depois por semana. Cada item:
+## 2. Hook `useJournalPoints`
 
-- Coluna esquerda fina: dia + mês (estilo "12 MAI").
-- Cartão à direita com cor do projeto na borda esquerda, emoji categoria, nome da etapa, responsável (avatar pequeno) e status.
-- Marcadores especiais: "Hoje" (linha destacada), "Atrasado" (badge vermelho).
-- Ordenação: por `data_inicio_prevista` (ou `data_fim_prevista` quando concluída).
-- Inclui projetos, subprojetos e tarefas com data definida.
+`src/hooks/useJournalPoints.ts`:
 
----
+- `list(entryId)` — lista pontos do registro
+- `add(point)` — insere
+- `update(id, patch)` — edita nome/observação
+- `remove(id)` — deleta
+- React Query com invalidação por `entryId`
 
-## 4. Visão C — Gantt mini (1 linha por projeto)
+## 3. Componente `JournalPointsManager`
 
-Versão compactada da Gantt atual:
+`src/components/diario/JournalPointsManager.tsx`:
 
-- Apenas raízes (projetos), nunca expande no mobile.
-- 1 barra por projeto, altura 40px, cor do projeto, emoji da categoria à esquerda + nome truncado.
-- Zoom limitado a `month / quarter / year` (sem dia/semana — não fazem sentido em 380px).
-- Header de meses sticky no topo. Scroll horizontal preservado.
-- Toque na barra → abre bottom sheet com lista de subprojetos/tarefas (reaproveita `OperationCard`).
-- Reaproveita boa parte da lógica de `GanttTimeline.tsx`, com flag `compact` que: força nivel raiz, esconde swimlanes, esconde checklist progress inline, usa altura menor.
+- **Botão grande "Adicionar ponto atual"** (h-14, full-width, mobile-first), usa Geolocation API com `enableHighAccuracy`
+- Estado de loading enquanto captura, toast de erro se permissão negada / timeout
+- **Fallback manual**: botão "Lançar manualmente" abre dialog com inputs lat/lng/nome/observação
+- Auto-naming: "Ponto 1", "Ponto 2"... com possibilidade de editar inline
+- Lista de pontos capturados com:
+  - Nome (editável inline)
+  - Coordenadas formatadas (ex: `-23.5505, -46.6333`)
+  - Precisão estimada (`±12m`)
+  - Hora da captura (relativa)
+  - Botão expandir → observação (textarea) + vincular mídia (select das mídias já anexadas ao registro)
+  - Botão excluir (trash)
+- Contador "N pontos capturados"
 
----
+Funciona em dois modos:
+- **Modo rascunho** (registro ainda não salvo): mantém pontos em estado local; ao salvar registro, faz batch insert
+- **Modo persistido** (registro existente): CRUD direto no banco
 
-## 5. Filtros em bottom sheet único
+## 4. Integração no `Diario.tsx`
 
-Substitui no mobile os 3 selects atuais (Área/Status/Categoria) e o `LayersPanel` da Gantt:
+- No card de captura, **substituir** o atual botão único "Capturar localização" por `<JournalPointsManager>` em modo rascunho
+- Os pontos do rascunho vão junto no `handleSave` (batch insert após criar entry)
+- Manter compatibilidade com `latitude`/`longitude`/`location_accuracy` do entry (preencher com o **primeiro ponto** se houver, para não quebrar a coluna existente)
+- Na lista de registros já salvos, adicionar seção colapsável "Pontos GPS (N)" mostrando o gestor em modo persistido
 
-- Trigger: botão "Filtros" no topo (com badge de contagem) + chips ativos abaixo (clicáveis pra remover).
-- Sheet inferior (shadcn `Sheet side="bottom"`) com seções colapsáveis:
-  1. **Status** — segmented (Todos / Em andamento / Atrasadas / Pendentes / Concluídas).
-  2. **Responsável** — grid de avatares clicáveis (multi-select).
-  3. **Área** — lista com checkbox.
-  4. **Categoria** — chips com emoji.
-  5. **Camadas** (só na visão Gantt mini) — toggles para ocultar áreas/projetos/responsáveis.
-- Botões fixos no rodapé do sheet: "Limpar tudo" + "Aplicar".
-- Estado de filtros vive na página `Operacao.tsx` e é compartilhado entre as 3 visões.
+## 5. Exportação KML
 
----
+`src/lib/kmlExport.ts`:
 
-## 6. Identidade visual (aplicada nas 3 visões)
+- `buildKml(entry, points)` → string KML com:
+  - `<Document>` com `<name>` = título/data do registro
+  - Cada ponto como `<Placemark>` contendo `<name>`, `<description>` (observação + hora), `<Point><coordinates>lng,lat,0</coordinates></Point>`
+- Arquitetura extensível: função aceita `geometry_type` e prepara branches para `LineString` / `Polygon` (não usados nesta fase)
+- Função `exportEntryKml(entryId)`:
+  1. Busca pontos
+  2. Gera KML
+  3. Upload para `journal-media/kml/{entry_id}-{timestamp}.kml`
+  4. Retorna URL pública e dispara download no navegador (`<a download>`)
 
-- **Cor do projeto**: usa `getProjectHsl/projectColor` que já existe em `GanttTimeline.tsx` — extrair pra `src/lib/operacaoConfig.ts` para reuso.
-- **Emoji da categoria**: `getCategoryEmoji` já existe.
-- **Avatar do responsável**: `ResponsavelBadge` em modo `size="sm"` com inicial ou ícone, usando `cor` do `responsaveis`.
-- Garantir contraste WCAG no texto sobre as cores do projeto (texto branco em fundos escuros, escuro em claros).
+Botão **"Exportar KML"** no header do registro (visível quando há ≥1 ponto), ícone `Download`.
 
----
+## 6. Detalhes técnicos
 
-## Detalhes técnicos
+- Geolocation: `{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }` (já usado na página)
+- Validação manual: lat ∈ [-90,90], lng ∈ [-180,180]
+- KML namespace: `http://www.opengis.net/kml/2.2`
+- Coordenadas no KML em ordem `lng,lat,alt` (alt=0)
+- Mobile: botão principal `h-14 text-base`, lista em cards verticais
+- Sem novas permissões/auth — RLS pública como o resto do diário
 
-**Arquivos novos:**
-- `src/components/operacao/mobile/MobileOperacaoView.tsx` — orquestra segmented + filtros + visões.
-- `src/components/operacao/mobile/ProjectCard.tsx` — visão Cards.
-- `src/components/operacao/mobile/AgendaTimeline.tsx` — visão Agenda.
-- `src/components/operacao/mobile/MiniGantt.tsx` — Gantt simplificada (pode importar helpers de `GanttTimeline.tsx`).
-- `src/components/operacao/mobile/OperationFiltersSheet.tsx` — bottom sheet com filtros + camadas.
-- `src/components/operacao/mobile/ActiveFilterChips.tsx` — barra de chips removíveis.
+## 7. Fora do escopo (preparado para depois)
 
-**Arquivos modificados:**
-- `src/pages/Operacao.tsx` — usar `useIsMobile()` para renderizar `MobileOperacaoView` no mobile e manter o layout atual no desktop. Levantar estado de filtros para uso compartilhado.
-- `src/lib/operacaoConfig.ts` — exportar `getProjectColor` (mover de GanttTimeline).
-- `src/components/operacao/GanttTimeline.tsx` — extrair os helpers de cor; nenhuma mudança de comportamento.
+- KMZ com fotos embutidas (.kmz = zip do KML + assets)
+- Captura de linhas/trilhas (watchPosition)
+- Polígonos (área desenhada)
+- Visualização em mapa
 
-**Sem mudanças no banco de dados.** Tudo é UI sobre dados já existentes.
-
-**Breakpoint:** `useIsMobile()` (já existe, breakpoint 768px).
-
----
-
-## Critério de aceite
-
-1. Em 402px de largura, ao abrir Operação:
-   - Vejo KPIs, botão Filtros + chips ativos, segmented Cards/Agenda/Gantt.
-   - Default = Cards. Cada cartão mostra cor + emoji + avatar com clareza, sem precisar dar zoom.
-2. Toco em "Filtros" → bottom sheet sobe com seções organizadas; filtros aplicados aparecem como chips removíveis.
-3. Troco para Agenda → vejo timeline vertical agrupada por mês.
-4. Troco para Gantt → vejo 1 barra por projeto, scroll horizontal suave, sem barras minúsculas ilegíveis.
-5. Desktop (≥768px) permanece idêntico ao atual.
-
----
-
-## Fora de escopo (pode entrar depois)
-
-- Drag & drop de tarefas entre dias na Agenda.
-- Modo landscape específico para Gantt completa no mobile.
-- Sincronia de zoom entre Agenda e Gantt mini.
+A tabela e o builder KML já são extensíveis para esses casos.

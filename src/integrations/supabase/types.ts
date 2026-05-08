@@ -689,6 +689,60 @@ export type Database = {
           },
         ]
       }
+      journal_points: {
+        Row: {
+          accuracy: number | null
+          attachment_id: string | null
+          captured_at: string
+          coordinates: Json | null
+          created_at: string
+          entry_id: string
+          geometry_type: string
+          id: string
+          latitude: number
+          longitude: number
+          manual: boolean
+          nome: string
+          observacao: string | null
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          attachment_id?: string | null
+          captured_at?: string
+          coordinates?: Json | null
+          created_at?: string
+          entry_id: string
+          geometry_type?: string
+          id?: string
+          latitude: number
+          longitude: number
+          manual?: boolean
+          nome: string
+          observacao?: string | null
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          attachment_id?: string | null
+          captured_at?: string
+          coordinates?: Json | null
+          created_at?: string
+          entry_id?: string
+          geometry_type?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          manual?: boolean
+          nome?: string
+          observacao?: string | null
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       loans: {
         Row: {
           area_id: string | null
