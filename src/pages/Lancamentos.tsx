@@ -113,6 +113,17 @@ export default function Lancamentos() {
     setFormOpen(true);
   };
 
+  // Auto-open from ?new=1 (mobile home shortcut)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      openNewForm();
+      const np = new URLSearchParams(searchParams);
+      np.delete("new");
+      setSearchParams(np, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSubmit = () => {
     if (!form.valor || !form.categoria) return;
     const subLabel = form.subtipo ? costTypeConfig[form.subtipo]?.label || form.subtipo : "";
