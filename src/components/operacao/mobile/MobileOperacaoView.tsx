@@ -337,12 +337,12 @@ function SegBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCli
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1 px-1.5 h-7 rounded text-[11px] font-medium transition-all",
+        "flex flex-1 items-center justify-center gap-1 px-1.5 h-7 rounded text-[11px] font-medium transition-all min-w-0",
         active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
     >
-      <Icon className="h-3.5 w-3.5" />
-      <span className="hidden xs:inline truncate">{label}</span>
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      {active && <span className="truncate">{label}</span>}
     </button>
   );
 }
