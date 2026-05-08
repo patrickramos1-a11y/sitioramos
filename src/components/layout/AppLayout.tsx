@@ -4,6 +4,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -33,18 +34,24 @@ export function AppLayout({ children }: AppLayoutProps) {
       : "Sítio Ramos");
 
   if (isMobile) {
+    const isHome = location.pathname === "/";
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/60 bg-card/95 backdrop-blur px-4 pt-safe shadow-soft">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden bg-gradient-forest shadow-sun shrink-0">
-            <BrandLogo variant="mono" className="h-7 w-7 text-brand-paper" />
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
+        <header className="shrink-0 z-30 flex h-12 items-center gap-2.5 border-b border-border/60 bg-card/95 backdrop-blur px-3 pt-safe shadow-soft">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden bg-gradient-forest shadow-sun shrink-0">
+            <BrandLogo variant="mono" className="h-6 w-6 text-brand-paper" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-base font-semibold leading-tight truncate">{title}</h1>
-            <p className="text-[10px] uppercase tracking-[0.16em] text-brand-leaf leading-tight">Sítio Ramos</p>
+            <h1 className="font-display text-[14px] font-semibold leading-tight truncate">{title}</h1>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-brand-leaf leading-tight">Sítio Ramos</p>
           </div>
         </header>
-        <main className="flex-1 overflow-x-hidden p-4 pb-safe-nav">
+        <main
+          className={cn(
+            "flex-1 min-h-0 min-w-0 overflow-x-hidden",
+            isHome ? "overflow-hidden p-3" : "overflow-y-auto p-4",
+          )}
+        >
           {children}
         </main>
         <MobileBottomNav />
