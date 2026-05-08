@@ -196,6 +196,7 @@ export function OperationForm({
     const isSub = formData.nivel_tipo === "subprojeto";
     const effectiveParent = parentId || formData.linked_project_id || operation?.parent_id || null;
     if (isSub && !effectiveParent) return;
+    onSubmit({
       nome: formData.nome,
       tipo: formData.tipo,
       categoria: formData.categoria || null,
