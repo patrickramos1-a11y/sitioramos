@@ -513,7 +513,13 @@ export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete,
                   return (
                     <div key={t.id} className="flex items-start gap-2 p-2.5 active:bg-muted/40 transition-colors">
                       <Checkbox checked={done} onCheckedChange={() => onToggleComplete(t)} className="mt-0.5" />
-                      <button type="button" onClick={() => onEdit(t)} className="flex-1 text-left min-w-0">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onEdit(t)}
+                        onKeyDown={(e) => { if (e.key === "Enter") onEdit(t); }}
+                        className="flex-1 text-left min-w-0 cursor-pointer"
+                      >
                         <div className={cn("text-sm font-medium leading-tight", done && "line-through text-muted-foreground")}>
                           {t.titulo}
                         </div>
@@ -533,19 +539,12 @@ export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete,
                               {resp.nome}
                             </Badge>
                           )}
-                          {t.data_prazo && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "h-5 text-[10px] gap-1",
-                                overdue ? "border-destructive text-destructive"
-                                : isToday(t.data_prazo) ? "border-amber-500 text-amber-600" : "",
-                              )}
-                            >
-                              {overdue ? <AlertTriangle className="h-3 w-3" /> : <CalendarDays className="h-3 w-3" />}
-                              {formatPrazo(t.data_prazo)}
-                            </Badge>
-                          )}
+                          <QuickDatePicker
+                            value={t.data_prazo}
+                            overdue={!!overdue}
+                            isHoje={isToday(t.data_prazo)}
+                            onChange={(d) => updateTask.mutate({ id: t.id, data_prazo: d })}
+                          />
                           {t.prioridade && t.prioridade !== "media" && (
                             <Badge variant="outline" className={cn("h-5 text-[10px] gap-1", prioridade.cls)}>
                               <Flag className="h-3 w-3" />
@@ -553,7 +552,7 @@ export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete,
                             </Badge>
                           )}
                         </div>
-                      </button>
+                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
