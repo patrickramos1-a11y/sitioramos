@@ -1237,33 +1237,34 @@ export function GanttTimeline({
           </div>
         </div>
 
-        {/* Legenda */}
+        {/* Legenda — reflete a nova semântica visual */}
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }} />Planejada
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }} />
+            Período planejado
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)" }} />Em execução
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm overflow-hidden relative" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }}>
+              <span className="absolute inset-y-0 left-0" style={{ width: "60%", background: "hsl(200 60% 45%)", opacity: 0.85 }} />
+            </span>
+            Progresso realizado
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)", boxShadow: "0 0 0 1.5px hsl(var(--destructive) / 0.6)" }} />Atrasada
+          <span className="flex items-center gap-1.5">
+            <span className="inline-flex w-7 h-2.5 rounded-sm overflow-hidden" style={{ border: "1.5px solid hsl(200 60% 45%)" }}>
+              <span className="block h-full" style={{ width: "45%", background: "hsl(200 60% 45%)" }} />
+              <span className="block h-full" style={{ width: "55%", background: "repeating-linear-gradient(45deg, hsl(200 60% 22%) 0 4px, hsl(200 60% 32%) 4px 8px)" }} />
+            </span>
+            Tempo excedido (continuação)
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><CheckCircle2 className="h-3 w-3 text-success" />No prazo
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm" style={{ background: "hsl(145 65% 32%)" }} />
+            <CheckCircle2 className="h-3 w-3 text-success" />Concluída
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><AlertTriangle className="h-3 w-3 text-destructive" />Concluída c/ atraso
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm" style={{ background: "repeating-linear-gradient(45deg, hsl(200 50% 92%) 0 4px, hsl(200 50% 80%) 4px 8px)", border: "1.5px dashed hsl(200 60% 45%)" }} />
+            <Lock className="h-3 w-3" />Pausada/Travada
           </span>
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block w-4 h-2.5 rounded"
-              style={{ background: "repeating-linear-gradient(45deg, hsl(0 0% 25%), hsl(0 0% 25%) 3px, hsl(0 0% 45%) 3px, hsl(0 0% 45%) 6px)", borderTop: "1px dotted hsl(var(--destructive))", borderBottom: "1px dotted hsl(var(--destructive))" }}
-            />Tempo excedido
-          </span>
-          <span className="flex items-center gap-1">
-            <Lock className="h-3 w-3" />Travada
-          </span>
-          <span className="flex items-center gap-1 ml-auto">
+          <span className="flex items-center gap-1.5 ml-auto">
             <span className="inline-block w-0.5 h-3 bg-destructive" />Hoje
           </span>
         </div>
