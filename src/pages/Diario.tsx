@@ -41,6 +41,9 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { enqueueJournalEntry } from "@/lib/offlineQueue";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { Wifi, WifiOff, CloudUpload } from "lucide-react";
 
 const NONE = "__none__";
 
