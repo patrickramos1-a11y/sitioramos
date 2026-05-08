@@ -415,21 +415,33 @@ export default function ProjetoDetalhe() {
           </CardHeader>
         </Card>
 
+        {/* Filtro por responsável */}
+        <Card>
+          <CardContent className="p-3">
+            <ResponsavelFilter value={respFilter} onChange={setRespFilter} showLabel />
+            {respFilter !== "all" && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Mostrando apenas itens deste projeto vinculados ao responsável selecionado.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Cards de resumo */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KpiCard icon={<Layers className="h-4 w-4" />} label="Subprojetos" value={directChildren.length} />
-          <KpiCard icon={<ListTodo className="h-4 w-4" />} label="Tarefas" value={relatedTasks.length} sub={`${tasksConcluidas} concluídas`} />
+          <KpiCard icon={<Layers className="h-4 w-4" />} label="Subprojetos" value={filteredSubChildren.length} />
+          <KpiCard icon={<ListTodo className="h-4 w-4" />} label="Tarefas" value={filteredTasks.length} sub={`${tasksConcluidasF} concluídas`} />
           <KpiCard
             icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
             label="Atrasadas"
-            value={tasksAtrasadas}
-            tone={tasksAtrasadas > 0 ? "destructive" : undefined}
+            value={tasksAtrasadasF}
+            tone={tasksAtrasadasF > 0 ? "destructive" : undefined}
           />
-          <KpiCard icon={<Clock className="h-4 w-4" />} label="Pendentes" value={tasksPendentes} />
+          <KpiCard icon={<Clock className="h-4 w-4" />} label="Pendentes" value={tasksPendentesF} />
           <KpiCard
             icon={<DollarSign className="h-4 w-4" />}
             label="Custo total"
-            value={formatCurrency(totalCusto)}
+            value={formatCurrency(totalCustoF)}
           />
           {metrics?.duracaoPrevista !== null && metrics?.duracaoPrevista !== undefined && (
             <KpiCard icon={<Calendar className="h-4 w-4" />} label="Dias planejados" value={`${metrics.duracaoPrevista}d`} />
@@ -445,7 +457,7 @@ export default function ProjetoDetalhe() {
               tone="destructive"
             />
           )}
-          <KpiCard icon={<BarChart3 className="h-4 w-4" />} label="Progresso" value={`${progressoGeral}%`} />
+          <KpiCard icon={<BarChart3 className="h-4 w-4" />} label="Progresso" value={`${progressoGeralF}%`} />
         </div>
 
         {/* Ações rápidas */}
