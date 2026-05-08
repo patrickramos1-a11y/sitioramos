@@ -1021,7 +1021,7 @@ export function GanttTimeline({
                                 </div>
                                 {/* Chip "Nd planejado" no fim do segmento planejado */}
                                 {pos.width > 60 && dPrev !== null && (() => {
-                                  const isDarkBg = isDone;
+                                  const isDarkBg = barTextColor === "hsl(0 0% 100%)";
                                   const chipBg = isDarkBg ? "rgba(255,255,255,0.22)" : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
                                   const chipColor = isDarkBg ? "white" : dark;
                                   const label = isCompactRow ? `${dPrev}d` : (isDone && !isLateDone ? `${dReal ?? dPrev}d ✓` : `${dPrev}d plan`);
@@ -1037,7 +1037,7 @@ export function GanttTimeline({
                                 {pos.width > 110 && (() => {
                                   const cl = checklistProgressByStage.get(item.id);
                                   if (!cl || cl.total === 0) return null;
-                                  const isDarkBg = isDone;
+                                  const isDarkBg = barTextColor === "hsl(0 0% 100%)";
                                   const chipBg = isDarkBg ? "rgba(255,255,255,0.22)" : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
                                   const chipColor = isDarkBg ? "white" : dark;
                                   return (
