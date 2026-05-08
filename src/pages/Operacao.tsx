@@ -186,7 +186,7 @@ export default function Operacao() {
           </div>
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             <Button onClick={openNewOperation} variant="default" className="flex-1 sm:flex-initial">
-              <Plus className="h-4 w-4 mr-1" />Novo Projeto
+              <Plus className="h-4 w-4 mr-1" />Projeto
             </Button>
             <Button
               onClick={() => {
@@ -200,7 +200,7 @@ export default function Operacao() {
               className="flex-1 sm:flex-initial"
               disabled={operations.length === 0}
             >
-              <FolderPlus className="h-4 w-4 mr-1" />Novo Subprojeto
+              <FolderPlus className="h-4 w-4 mr-1" />Subprojeto
             </Button>
             <Button
               onClick={() => { setEditingTask(null); setTaskDefaultStageId(""); setTaskFormOpen(true); }}
@@ -208,7 +208,7 @@ export default function Operacao() {
               className="flex-1 sm:flex-initial"
               disabled={operations.length === 0}
             >
-              <CheckSquare className="h-4 w-4 mr-1" />Nova Subtarefa
+              <CheckSquare className="h-4 w-4 mr-1" />Tarefa
             </Button>
           </div>
         </div>

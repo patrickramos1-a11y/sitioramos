@@ -222,9 +222,7 @@ export function OperationForm({
     } as any);
   };
 
-  const formTitle = title || (operation
-    ? `Editar ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`
-    : `Novo ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`);
+  const formTitle = title || (formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto");
 
   const projectsForLink = (allProjects || []).filter(p => p.id !== operation?.id);
   const isSubproject = formData.nivel_tipo === "subprojeto";
