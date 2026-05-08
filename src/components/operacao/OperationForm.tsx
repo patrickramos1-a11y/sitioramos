@@ -56,7 +56,7 @@ interface OperationFormProps {
   cycles?: { id: string; cultura: string; area_id: string }[];
   siblingStages?: { id: string; nome: string }[];
   /** Lista de projetos para vincular */
-  allProjects?: { id: string; nome: string }[];
+  allProjects?: { id: string; nome: string; responsavel_id?: string | null }[];
   onSubmit: (data: OperationInsert & { nivel_tipo?: string; linked_project_id?: string | null }) => void;
   isSubmitting: boolean;
   title?: string;
@@ -130,6 +130,24 @@ export function OperationForm({
   }, [operation, open, areaId, cycleId, defaultNivelTipo, isChild]);
 
   const availableCycles = (cycles || []).filter((c) => c.area_id === formData.area_id);
+
+  // ===== Herança do responsável: subprojeto sempre herda do projeto pai =====
+  const isSubprojectNivel = formData.nivel_tipo === "subprojeto";
+  const effectiveParentId = parentId || formData.linked_project_id || operation?.parent_id || null;
+  const parentResponsavelId = useMemo(() => {
+    if (!effectiveParentId) return null;
+    return (allProjects || []).find(p => p.id === effectiveParentId)?.responsavel_id || null;
+  }, [effectiveParentId, allProjects]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!isSubprojectNivel) return;
+    // Sempre força o responsável do subprojeto para o do projeto pai
+    if ((parentResponsavelId || null) !== (formData.responsavel_id || null)) {
+      setFormData(p => ({ ...p, responsavel_id: parentResponsavelId || "" }));
+    }
+  }, [open, isSubprojectNivel, parentResponsavelId]);
+
 
   // ===== Sincronização bidirecional início/duração/fim =====
   const recomputeFim = (inicio: string, dias: number | string) => {
@@ -292,6 +310,8 @@ export function OperationForm({
                 label="Responsável"
                 value={formData.responsavel_id}
                 onChange={(id) => setFormData(p => ({ ...p, responsavel_id: id || "" }))}
+                disabled={isSubprojectNivel}
+                helperText={isSubprojectNivel ? "Herdado do projeto pai (alterar somente no projeto)" : undefined}
               />
             </div>
 

@@ -11,15 +11,17 @@ interface Props {
   placeholder?: string;
   className?: string;
   required?: boolean;
+  disabled?: boolean;
+  helperText?: string;
 }
 
-export function ResponsavelSelect({ value, onChange, label, placeholder = "Sem responsável", className, required }: Props) {
+export function ResponsavelSelect({ value, onChange, label, placeholder = "Sem responsável", className, required, disabled, helperText }: Props) {
   const { data } = useResponsaveis();
 
   return (
     <div className={className}>
       {label && <Label>{label}{required && " *"}</Label>}
-      <Select value={value || NONE} onValueChange={(v) => onChange(v === NONE ? null : v)}>
+      <Select value={value || NONE} onValueChange={(v) => onChange(v === NONE ? null : v)} disabled={disabled}>
         <SelectTrigger>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
@@ -38,6 +40,7 @@ export function ResponsavelSelect({ value, onChange, label, placeholder = "Sem r
           ))}
         </SelectContent>
       </Select>
+      {helperText && <p className="text-xs text-muted-foreground mt-1">{helperText}</p>}
     </div>
   );
 }
