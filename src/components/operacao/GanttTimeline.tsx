@@ -10,7 +10,7 @@ import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
   computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, getCategoryColor,
-  getProjectVisualHsl,
+  getProjectHsl,
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,14 +19,14 @@ import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
 type ZoomLevel = "day" | "week" | "fortnight" | "month" | "bimonth" | "quarter" | "year" | "biennium";
 
-// Cor visual por projeto: usa hue da categoria quando disponível, senão hash do id.
-// Lookup map para herdar a categoria do projeto raiz mesmo em sub-itens.
+// Cor visual por projeto: SEMPRE prioriza o id (paleta hash) para garantir
+// que demandas distintas tenham cores distintas, mesmo dentro da mesma categoria.
 const projectColorFor = (
   projectId: string,
-  categoria: string | null | undefined,
+  _categoria: string | null | undefined,
   opts?: { l?: number; s?: number; a?: number },
 ) => {
-  const c = getProjectVisualHsl(projectId, categoria);
+  const c = getProjectHsl(projectId);
   const s = opts?.s ?? c.s;
   const l = opts?.l ?? c.l;
   return opts?.a !== undefined
