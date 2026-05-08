@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Operation } from "@/hooks/useOperations";
 import { Task } from "@/hooks/useTasks";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   SlidersHorizontal, X, LayoutGrid, CalendarDays, BarChart3,
   ChevronRight, ChevronDown, Clock, AlertTriangle, CheckCircle2, Circle, Pause,
+  Rows3, Columns3, Grid2x2,
 } from "lucide-react";
 import {
   getProjectColor, getCategoryEmoji, getCategoryLabel, OPERATION_CATEGORIES,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/operacaoConfig";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
-import { format, isToday, isSameMonth, startOfMonth, addMonths, isBefore, isAfter } from "date-fns";
+import { format, isToday, startOfMonth, addMonths, addDays, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -135,16 +136,16 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
   };
 
   return (
-    <div className="space-y-3">
-      {/* Filter trigger + active chips */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <div className="space-y-2">
+      {/* Linha 1: Filtros + Segmented (compactos) */}
+      <div className="flex items-center gap-1.5">
         <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="shrink-0 h-9 gap-1.5">
+            <Button variant="outline" size="sm" className="shrink-0 h-8 px-2.5 gap-1">
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filtros
+              <span className="text-xs">Filtros</span>
               {activeFilterCount > 0 && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{activeFilterCount}</Badge>
+                <Badge variant="secondary" className="h-4 px-1 text-[9px] ml-0.5">{activeFilterCount}</Badge>
               )}
             </Button>
           </SheetTrigger>
@@ -267,33 +268,37 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
           </SheetContent>
         </Sheet>
 
-        {/* Active filter chips */}
-        {filters.status !== "all" && (
-          <FilterChip label={STATUS_STYLE[filters.status]?.label || filters.status} onRemove={() => removeChip("status")} />
-        )}
-        {Array.from(filters.responsavelIds).map(id => {
-          const r = responsaveis.find(x => x.id === id);
-          if (!r) return null;
-          return <FilterChip key={id} label={r.apelido || r.nome} color={r.cor} onRemove={() => removeChip("responsavelIds", id)} />;
-        })}
-        {Array.from(filters.areaIds).map(id => {
-          const a = areas.find(x => x.id === id);
-          if (!a) return null;
-          return <FilterChip key={id} label={a.nome} onRemove={() => removeChip("areaIds", id)} />;
-        })}
-        {Array.from(filters.categorias).map(v => {
-          const c = OPERATION_CATEGORIES.find(x => x.value === v);
-          if (!c) return null;
-          return <FilterChip key={v} label={`${c.emoji} ${c.label}`} onRemove={() => removeChip("categorias", v)} />;
-        })}
+        {/* Segmented compacto (icon-only) */}
+        <div className="flex-1 flex items-center justify-end gap-0.5 p-0.5 bg-muted rounded-md">
+          <SegBtn active={view === "cards"} onClick={() => setView("cards")} icon={LayoutGrid} label="Cards" />
+          <SegBtn active={view === "agenda"} onClick={() => setView("agenda")} icon={CalendarDays} label="Agenda" />
+          <SegBtn active={view === "gantt"} onClick={() => setView("gantt")} icon={BarChart3} label="Gantt" />
+        </div>
       </div>
 
-      {/* Segmented view switcher */}
-      <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg">
-        <SegBtn active={view === "cards"} onClick={() => setView("cards")} icon={LayoutGrid} label="Cards" />
-        <SegBtn active={view === "agenda"} onClick={() => setView("agenda")} icon={CalendarDays} label="Agenda" />
-        <SegBtn active={view === "gantt"} onClick={() => setView("gantt")} icon={BarChart3} label="Gantt" />
-      </div>
+      {/* Linha 2: chips ativos (só aparece se houver) */}
+      {activeFilterCount > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+          {filters.status !== "all" && (
+            <FilterChip label={STATUS_STYLE[filters.status]?.label || filters.status} onRemove={() => removeChip("status")} />
+          )}
+          {Array.from(filters.responsavelIds).map(id => {
+            const r = responsaveis.find(x => x.id === id);
+            if (!r) return null;
+            return <FilterChip key={id} label={r.apelido || r.nome} color={r.cor} onRemove={() => removeChip("responsavelIds", id)} />;
+          })}
+          {Array.from(filters.areaIds).map(id => {
+            const a = areas.find(x => x.id === id);
+            if (!a) return null;
+            return <FilterChip key={id} label={a.nome} onRemove={() => removeChip("areaIds", id)} />;
+          })}
+          {Array.from(filters.categorias).map(v => {
+            const c = OPERATION_CATEGORIES.find(x => x.value === v);
+            if (!c) return null;
+            return <FilterChip key={v} label={`${c.emoji} ${c.label}`} onRemove={() => removeChip("categorias", v)} />;
+          })}
+        </div>
+      )}
 
       {/* View content */}
       {filteredOps.length === 0 ? (
@@ -315,13 +320,14 @@ function SegBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCli
   return (
     <button
       onClick={onClick}
+      aria-label={label}
       className={cn(
-        "flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-all",
-        active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
+        "flex items-center justify-center gap-1 px-2.5 h-7 rounded text-[11px] font-medium transition-all",
+        active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
     >
       <Icon className="h-3.5 w-3.5" />
-      {label}
+      <span>{label}</span>
     </button>
   );
 }
@@ -349,7 +355,9 @@ function EmptyState() {
   );
 }
 
-/* ---------- Cards View ---------- */
+/* ---------- Cards View (com layouts: lista, grade, kanban) ---------- */
+type CardsLayout = "list" | "grid" | "kanban";
+
 function CardsView({
   operations, tasks, onItemClick, onAddSubproject, onAddTask,
 }: {
@@ -358,118 +366,211 @@ function CardsView({
   onAddSubproject: (parentId: string) => void;
   onAddTask: (stageId: string) => void;
 }) {
+  const [layout, setLayout] = useState<CardsLayout>("grid");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) => setExpanded(prev => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
+  const enriched = useMemo(() => operations.map(op => {
+    const status = deriveOpStatus(op);
+    const opTasks = tasks.filter(t => t.stage_id === op.id || (op.children || []).some(c => c.id === t.stage_id));
+    const done = opTasks.filter(t => t.status === "concluida").length;
+    const total = opTasks.length;
+    const percent = total > 0 ? Math.round((done / total) * 100) : (op.progresso_percentual || 0);
+    return { op, status, done, total, percent };
+  }), [operations, tasks]);
+
   return (
-    <div className="space-y-3">
-      {operations.map(op => {
-        const status = deriveOpStatus(op);
-        const sty = STATUS_STYLE[status] || STATUS_STYLE.planejada;
-        const color = getProjectColor(op.id);
-        const emoji = getCategoryEmoji(op.categoria);
-        const range = fmtRange(op.data_inicio_prevista, op.data_fim_prevista);
-        const opTasks = tasks.filter(t => {
-          if (t.stage_id === op.id) return true;
-          return (op.children || []).some(c => c.id === t.stage_id);
-        });
-        const done = opTasks.filter(t => t.status === "concluida").length;
-        const total = opTasks.length;
-        const percent = total > 0 ? Math.round((done / total) * 100) : (op.progresso_percentual || 0);
-        const isExp = expanded.has(op.id);
-        const subs = op.children || [];
+    <div className="space-y-2">
+      {/* Layout sub-toggle */}
+      <div className="flex items-center justify-end gap-0.5">
+        <LayoutBtn active={layout === "list"} onClick={() => setLayout("list")} icon={Rows3} label="Lista" />
+        <LayoutBtn active={layout === "grid"} onClick={() => setLayout("grid")} icon={Grid2x2} label="Grade" />
+        <LayoutBtn active={layout === "kanban"} onClick={() => setLayout("kanban")} icon={Columns3} label="Colunas" />
+      </div>
 
-        return (
-          <div
-            key={op.id}
-            className="relative bg-card rounded-xl border border-border shadow-sm overflow-hidden"
-          >
-            {/* Color stripe */}
-            <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: color }} />
+      {layout === "kanban" ? (
+        <KanbanCards enriched={enriched} onItemClick={onItemClick} />
+      ) : (
+        <div className={cn(layout === "grid" ? "grid grid-cols-2 gap-2" : "space-y-2")}>
+          {enriched.map(({ op, status, done, total, percent }) => {
+            const sty = STATUS_STYLE[status] || STATUS_STYLE.planejada;
+            const color = getProjectColor(op.id);
+            const emoji = getCategoryEmoji(op.categoria);
+            const range = fmtRange(op.data_inicio_prevista, op.data_fim_prevista);
+            const isExp = expanded.has(op.id);
+            const subs = op.children || [];
+            const compact = layout === "grid";
 
-            <button
-              onClick={() => onItemClick(op.id, "operation")}
-              className="w-full text-left pl-4 pr-3 pt-3 pb-2 active:bg-muted/40"
-            >
-              <div className="flex items-start gap-2">
-                <span className="text-2xl leading-none mt-0.5">{emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-[15px] leading-tight line-clamp-2">{op.nome}</h3>
+            return (
+              <div
+                key={op.id}
+                className="relative bg-card rounded-xl border border-border shadow-sm overflow-hidden"
+              >
+                <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: color }} />
+
+                <button
+                  onClick={() => onItemClick(op.id, "operation")}
+                  className={cn("w-full text-left active:bg-muted/40", compact ? "pl-2.5 pr-2 pt-2 pb-1.5" : "pl-3.5 pr-3 pt-2.5 pb-1.5")}
+                >
+                  <div className="flex items-start gap-1.5">
+                    <span className={cn("leading-none mt-0.5", compact ? "text-lg" : "text-xl")}>{emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className={cn("font-semibold leading-tight line-clamp-2", compact ? "text-[12px]" : "text-[14px]")}>{op.nome}</h3>
+                      <span className={cn("inline-flex items-center font-medium px-1.5 py-0.5 rounded border mt-1", sty.cls, compact ? "text-[9px]" : "text-[10px]")}>
+                        {sty.label}
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    <span className={cn("inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border", sty.cls)}>
-                      {sty.label}
-                    </span>
-                    {op.categoria && (
-                      <span className="text-[10px] text-muted-foreground">{getCategoryLabel(op.categoria)}</span>
+                </button>
+
+                {total > 0 && (
+                  <div className={cn("pb-1.5", compact ? "px-2.5" : "px-3.5")}>
+                    <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-0.5">
+                      <span>{done}/{total}</span>
+                      <span className="font-medium tabular-nums">{percent}%</span>
+                    </div>
+                    <div className="h-1 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${percent}%`, backgroundColor: color }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className={cn("pb-2 flex items-center justify-between gap-1.5", compact ? "px-2.5" : "px-3.5")}>
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground min-w-0">
+                    {range && (
+                      <span className="inline-flex items-center gap-0.5 truncate">
+                        <CalendarDays className="h-2.5 w-2.5 shrink-0" />
+                        <span className="truncate">{range}</span>
+                      </span>
+                    )}
+                    {op.responsavel_id && !compact && (
+                      <ResponsavelBadge responsavelId={op.responsavel_id} size="xs" />
                     )}
                   </div>
-                </div>
-              </div>
-            </button>
-
-            {/* Progress */}
-            {total > 0 && (
-              <div className="px-4 pb-2">
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-                  <span>{done} de {total} tarefas</span>
-                  <span className="font-medium tabular-nums">{percent}%</span>
-                </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${percent}%`, backgroundColor: color }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Footer: range + responsavel + subprojects toggle */}
-            <div className="px-4 pb-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
-                {range && (
-                  <span className="inline-flex items-center gap-1 truncate">
-                    <CalendarDays className="h-3 w-3 shrink-0" />
-                    {range}
-                  </span>
-                )}
-                {op.responsavel_id && (
-                  <ResponsavelBadge responsavelId={op.responsavel_id} size="xs" />
-                )}
-              </div>
-              {subs.length > 0 && (
-                <button
-                  onClick={() => toggle(op.id)}
-                  className="text-[10px] font-medium text-muted-foreground inline-flex items-center gap-0.5 hover:text-foreground"
-                >
-                  {subs.length} {subs.length === 1 ? "etapa" : "etapas"}
-                  {isExp ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                </button>
-              )}
-            </div>
-
-            {/* Subprojects chips */}
-            {isExp && subs.length > 0 && (
-              <div className="border-t border-border bg-muted/20 px-3 py-2 flex gap-1.5 overflow-x-auto no-scrollbar">
-                {subs.map(s => {
-                  const ss = deriveOpStatus(s);
-                  const ssty = STATUS_STYLE[ss] || STATUS_STYLE.planejada;
-                  return (
+                  {subs.length > 0 && !compact && (
                     <button
-                      key={s.id}
-                      onClick={() => onItemClick(s.id, "sub-operation")}
-                      className="shrink-0 inline-flex items-center gap-1.5 bg-card border border-border rounded-full pl-1.5 pr-2.5 py-1 text-[11px] hover:bg-muted/60"
+                      onClick={() => toggle(op.id)}
+                      className="text-[10px] font-medium text-muted-foreground inline-flex items-center gap-0.5 hover:text-foreground shrink-0"
                     >
-                      <span className={cn("h-2 w-2 rounded-full", ssty.cls.split(" ")[0])} />
-                      <span className="truncate max-w-[140px]">{s.nome}</span>
+                      {subs.length} {subs.length === 1 ? "etapa" : "etapas"}
+                      {isExp ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                     </button>
-                  );
-                })}
+                  )}
+                  {compact && op.responsavel_id && (
+                    <ResponsavelBadge responsavelId={op.responsavel_id} size="xs" />
+                  )}
+                </div>
+
+                {isExp && subs.length > 0 && !compact && (
+                  <div className="border-t border-border bg-muted/20 px-3 py-2 flex gap-1.5 overflow-x-auto no-scrollbar">
+                    {subs.map(s => {
+                      const ss = deriveOpStatus(s);
+                      const ssty = STATUS_STYLE[ss] || STATUS_STYLE.planejada;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => onItemClick(s.id, "sub-operation")}
+                          className="shrink-0 inline-flex items-center gap-1.5 bg-card border border-border rounded-full pl-1.5 pr-2.5 py-1 text-[11px] hover:bg-muted/60"
+                        >
+                          <span className={cn("h-2 w-2 rounded-full", ssty.cls.split(" ")[0])} />
+                          <span className="truncate max-w-[140px]">{s.nome}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LayoutBtn({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: any; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "h-7 w-7 inline-flex items-center justify-center rounded-md border transition-colors",
+        active ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+const KANBAN_COLS = [
+  { key: "em_andamento", label: "Em andamento" },
+  { key: "atrasada", label: "Atrasadas" },
+  { key: "planejada", label: "Pendentes" },
+  { key: "concluida", label: "Concluídas" },
+  { key: "pausada", label: "Pausadas" },
+] as const;
+
+function KanbanCards({
+  enriched, onItemClick,
+}: {
+  enriched: Array<{ op: Operation; status: string; done: number; total: number; percent: number }>;
+  onItemClick: (id: string, type: "operation" | "sub-operation" | "task") => void;
+}) {
+  const buckets = useMemo(() => {
+    const map = new Map<string, typeof enriched>();
+    KANBAN_COLS.forEach(c => map.set(c.key, []));
+    enriched.forEach(e => {
+      const key = map.has(e.status) ? e.status : "planejada";
+      map.get(key)!.push(e);
+    });
+    return map;
+  }, [enriched]);
+
+  return (
+    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-2 snap-x">
+      {KANBAN_COLS.map(col => {
+        const items = buckets.get(col.key) || [];
+        const sty = STATUS_STYLE[col.key];
+        return (
+          <div key={col.key} className="shrink-0 w-[78vw] max-w-[280px] snap-start bg-muted/30 rounded-lg border border-border p-2 space-y-1.5">
+            <div className="flex items-center justify-between px-1 pb-1 border-b border-border/60">
+              <div className="flex items-center gap-1.5">
+                <span className={cn("h-2 w-2 rounded-full", sty.cls.split(" ")[0])} />
+                <span className="text-[11px] font-semibold uppercase tracking-wide">{col.label}</span>
+              </div>
+              <Badge variant="secondary" className="h-4 px-1.5 text-[9px]">{items.length}</Badge>
+            </div>
+            {items.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground text-center py-4">Nenhum projeto</p>
+            ) : (
+              items.map(({ op, percent, done, total }) => {
+                const color = getProjectColor(op.id);
+                const emoji = getCategoryEmoji(op.categoria);
+                return (
+                  <button
+                    key={op.id}
+                    onClick={() => onItemClick(op.id, "operation")}
+                    className="relative w-full text-left bg-card rounded-md border border-border p-2 active:bg-muted/40 overflow-hidden"
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: color }} />
+                    <div className="pl-1.5 flex items-start gap-1.5">
+                      <span className="text-base leading-none mt-0.5">{emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium leading-tight line-clamp-2">{op.nome}</p>
+                        <div className="mt-1 flex items-center gap-1.5 text-[9px] text-muted-foreground">
+                          {total > 0 && <span className="tabular-nums">{percent}%</span>}
+                          {op.responsavel_id && <ResponsavelBadge responsavelId={op.responsavel_id} size="xs" />}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
             )}
           </div>
         );
@@ -540,71 +641,102 @@ function AgendaView({
     groups.get(k)!.push(it);
   }
 
+  const currentMonthKey = format(new Date(), "yyyy-MM");
+  const monthRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
+  useEffect(() => {
+    const el = monthRefs.current.get(currentMonthKey);
+    if (el) {
+      el.scrollIntoView({ behavior: "auto", block: "start" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="space-y-4">
-      {Array.from(groups.entries()).map(([k, arr]) => (
-        <div key={k}>
-          <h4 className="sticky top-14 z-10 bg-background/95 backdrop-blur py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {format(arr[0].date, "MMMM 'de' yyyy", { locale: ptBR })}
-          </h4>
-          <div className="space-y-2 mt-2">
-            {arr.map(it => {
-              const sty = STATUS_STYLE[it.status] || STATUS_STYLE.planejada;
-              const color = getProjectColor(it.rootId);
-              const today = isToday(it.date);
-              const past = isBefore(it.date, new Date()) && it.status !== "concluida";
-              return (
-                <button
-                  key={it.id + it.type}
-                  onClick={() => onItemClick(it.id, it.type)}
-                  className="w-full flex gap-3 text-left active:bg-muted/40 rounded-lg p-1.5"
-                >
-                  <div className="flex flex-col items-center w-10 shrink-0 pt-1">
-                    <span className={cn(
-                      "text-base font-bold leading-none tabular-nums",
-                      today ? "text-primary" : "text-foreground"
-                    )}>
-                      {format(it.date, "dd")}
-                    </span>
-                    <span className="text-[9px] uppercase text-muted-foreground mt-0.5">
-                      {format(it.date, "MMM", { locale: ptBR })}
-                    </span>
-                    {today && <span className="mt-1 h-1 w-1 rounded-full bg-primary" />}
-                  </div>
-                  <div
-                    className="flex-1 min-w-0 bg-card border border-border rounded-lg p-2.5 border-l-4"
-                    style={{ borderLeftColor: color }}
+    <div className="space-y-3">
+      {Array.from(groups.entries()).map(([k, arr]) => {
+        const isCurrent = k === currentMonthKey;
+        return (
+          <div
+            key={k}
+            ref={(el) => { monthRefs.current.set(k, el); }}
+            data-month={k}
+          >
+            <h4 className={cn(
+              "sticky top-14 z-10 bg-background/95 backdrop-blur py-1 text-[10px] font-semibold uppercase tracking-wide",
+              isCurrent ? "text-primary" : "text-muted-foreground"
+            )}>
+              {format(arr[0].date, "MMMM 'de' yyyy", { locale: ptBR })}
+              {isCurrent && <span className="ml-1.5 text-[9px] font-normal normal-case">(atual)</span>}
+            </h4>
+            <div className="mt-1 divide-y divide-border/60 border border-border rounded-lg bg-card overflow-hidden">
+              {arr.map(it => {
+                const sty = STATUS_STYLE[it.status] || STATUS_STYLE.planejada;
+                const color = getProjectColor(it.rootId);
+                const today = isToday(it.date);
+                const past = isBefore(it.date, new Date()) && it.status !== "concluida";
+                return (
+                  <button
+                    key={it.id + it.type}
+                    onClick={() => onItemClick(it.id, it.type)}
+                    className="w-full flex items-center gap-2 text-left active:bg-muted/40 px-2 py-1.5"
                   >
-                    <div className="flex items-start gap-1.5">
-                      <span className="text-base leading-none">{getCategoryEmoji(it.categoria)}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-tight line-clamp-2">{it.name}</p>
-                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded border", sty.cls)}>
-                            {sty.label}
-                          </span>
-                          {past && it.status !== "atrasada" && (
-                            <span className="text-[10px] text-destructive font-medium">Atrasado</span>
-                          )}
-                          {it.responsavelId && (
-                            <ResponsavelBadge responsavelId={it.responsavelId} size="xs" />
-                          )}
-                        </div>
+                    <div className={cn(
+                      "flex flex-col items-center justify-center w-8 shrink-0 rounded-md py-1",
+                      today ? "bg-primary/10" : ""
+                    )}>
+                      <span className={cn(
+                        "text-[13px] font-bold leading-none tabular-nums",
+                        today ? "text-primary" : "text-foreground"
+                      )}>
+                        {format(it.date, "dd")}
+                      </span>
+                      <span className="text-[8px] uppercase text-muted-foreground mt-0.5">
+                        {format(it.date, "EEE", { locale: ptBR })}
+                      </span>
+                    </div>
+                    <span
+                      className="w-0.5 self-stretch rounded-full shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm leading-none">{getCategoryEmoji(it.categoria)}</span>
+                        <p className="text-[12px] font-medium leading-tight line-clamp-1 flex-1">{it.name}</p>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <span className={cn("text-[9px] px-1 py-0 rounded border", sty.cls)}>
+                          {sty.label}
+                        </span>
+                        {past && it.status !== "atrasada" && (
+                          <span className="text-[9px] text-destructive font-medium">Atrasado</span>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+                    {it.responsavelId && (
+                      <ResponsavelBadge responsavelId={it.responsavelId} size="xs" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 /* ---------- Mini Gantt View ---------- */
-type GanttZoom = "month" | "quarter" | "year";
+type GanttZoom = "week" | "fortnight" | "month" | "quarter" | "year";
+
+const ZOOM_LABEL: Record<GanttZoom, string> = {
+  week: "Sem",
+  fortnight: "15d",
+  month: "Mês",
+  quarter: "Tri",
+  year: "Ano",
+};
 
 function MiniGanttView({
   operations, onItemClick,
@@ -614,41 +746,66 @@ function MiniGanttView({
 }) {
   const [zoom, setZoom] = useState<GanttZoom>("month");
 
-  const cfg = { month: { cols: 12, w: 70 }, quarter: { cols: 8, w: 90 }, year: { cols: 5, w: 110 } }[zoom];
+  const cfg = {
+    week:      { cols: 8,  w: 70  },
+    fortnight: { cols: 6,  w: 90  },
+    month:     { cols: 12, w: 70  },
+    quarter:   { cols: 8,  w: 90  },
+    year:      { cols: 5,  w: 110 },
+  }[zoom];
 
-  // Determine timeline window: 3 months/quarters/years before today
-  const { start, columns, totalWidth } = useMemo(() => {
+  // Determine timeline window
+  const { start, columns, totalMs, totalWidth } = useMemo(() => {
     const now = new Date();
     let s: Date;
+    let totalMs = 0;
     const cols: { label: string; date: Date }[] = [];
-    if (zoom === "month") {
+    if (zoom === "week") {
+      // 8 semanas, começando 2 antes de hoje
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dow = today.getDay();
+      const monday = addDays(today, -((dow + 6) % 7));
+      s = addDays(monday, -2 * 7);
+      for (let i = 0; i < cfg.cols; i++) {
+        const d = addDays(s, i * 7);
+        cols.push({ label: format(d, "dd/MM", { locale: ptBR }), date: d });
+      }
+      totalMs = cfg.cols * 7 * 24 * 60 * 60 * 1000;
+    } else if (zoom === "fortnight") {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      s = addDays(today, -30);
+      for (let i = 0; i < cfg.cols; i++) {
+        const d = addDays(s, i * 15);
+        cols.push({ label: format(d, "dd/MM", { locale: ptBR }), date: d });
+      }
+      totalMs = cfg.cols * 15 * 24 * 60 * 60 * 1000;
+    } else if (zoom === "month") {
       s = startOfMonth(addMonths(now, -3));
       for (let i = 0; i < cfg.cols; i++) {
         const d = addMonths(s, i);
         cols.push({ label: format(d, "MMM/yy", { locale: ptBR }), date: d });
       }
+      totalMs = addMonths(s, cfg.cols).getTime() - s.getTime();
     } else if (zoom === "quarter") {
       s = startOfMonth(addMonths(now, -6));
       for (let i = 0; i < cfg.cols; i++) {
         const d = addMonths(s, i * 3);
         cols.push({ label: `T${Math.floor(d.getMonth()/3)+1}/${format(d, "yy")}`, date: d });
       }
+      totalMs = addMonths(s, cfg.cols * 3).getTime() - s.getTime();
     } else {
       s = new Date(now.getFullYear() - 2, 0, 1);
       for (let i = 0; i < cfg.cols; i++) {
         const d = new Date(s.getFullYear() + i, 0, 1);
         cols.push({ label: format(d, "yyyy"), date: d });
       }
+      totalMs = new Date(s.getFullYear() + cfg.cols, 0, 1).getTime() - s.getTime();
     }
-    return { start: s, columns: cols, totalWidth: cfg.cols * cfg.w };
+    return { start: s, columns: cols, totalMs, totalWidth: cfg.cols * cfg.w };
   }, [zoom, cfg.cols, cfg.w]);
 
   const dayInWindow = (d: Date) => {
     const ms = d.getTime() - start.getTime();
-    const totalMs = (zoom === "year"
-      ? new Date(start.getFullYear() + cfg.cols, 0, 1).getTime()
-      : addMonths(start, zoom === "month" ? cfg.cols : cfg.cols * 3).getTime()
-    ) - start.getTime();
     return Math.max(0, Math.min(1, ms / totalMs));
   };
 
@@ -656,18 +813,18 @@ function MiniGanttView({
 
   return (
     <div className="space-y-2">
-      {/* Zoom switcher */}
-      <div className="flex items-center justify-end gap-1">
-        {(["month", "quarter", "year"] as GanttZoom[]).map(z => (
+      {/* Zoom switcher slim */}
+      <div className="flex items-center justify-end gap-0.5 p-0.5 bg-muted rounded-md w-fit ml-auto">
+        {(["week", "fortnight", "month", "quarter", "year"] as GanttZoom[]).map(z => (
           <button
             key={z}
             onClick={() => setZoom(z)}
             className={cn(
-              "text-[11px] px-2 py-1 rounded border",
-              zoom === z ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"
+              "text-[10px] font-medium px-2 h-6 rounded transition-all",
+              zoom === z ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
             )}
           >
-            {z === "month" ? "Mês" : z === "quarter" ? "Trimestre" : "Ano"}
+            {ZOOM_LABEL[z]}
           </button>
         ))}
       </div>
