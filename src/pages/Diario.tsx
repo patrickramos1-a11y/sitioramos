@@ -34,6 +34,9 @@ import {
   ListChecks,
   Receipt,
   Trash2,
+  MapPin,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
