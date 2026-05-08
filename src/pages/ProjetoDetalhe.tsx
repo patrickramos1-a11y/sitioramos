@@ -183,6 +183,38 @@ export default function ProjetoDetalhe() {
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // Responsável filter (interno ao projeto)
+  const [respFilter, setRespFilter] = useState<ResponsavelFilterValue>("all");
+
+  // Timeline contextual: precisa estar antes de qualquer early-return para preservar ordem dos hooks
+  const timelineOps: Operation[] = useMemo(() => {
+    if (!currentOp) return [];
+    const matchingRoot = rawOperations.find(o => o.id === currentOp.id);
+    if (matchingRoot) return [matchingRoot];
+    const descendants = Array.from(allDescendantIds)
+      .map(d => allStages.find(s => s.id === d))
+      .filter(Boolean) as Operation[];
+    return [{ ...currentOp, children: descendants }];
+  }, [currentOp, rawOperations, allDescendantIds, allStages]);
+
+  // Filtrados por responsável
+  const filteredSubChildren = useMemo(
+    () => directChildren.filter(s => matchesResponsavel(respFilter, (s as any).responsavel_id)),
+    [directChildren, respFilter]
+  );
+  const filteredTasks = useMemo(
+    () => relatedTasks.filter(t => matchesResponsavel(respFilter, (t as any).responsavel_id)),
+    [relatedTasks, respFilter]
+  );
+  const filteredTransactions = useMemo(
+    () => projectTransactions.filter(t => matchesResponsavel(respFilter, (t as any).responsavel_id)),
+    [projectTransactions, respFilter]
+  );
+  const filteredJournal = useMemo(
+    () => (journalEntries as any[]).filter(j => matchesResponsavel(respFilter, j.responsavel_id)),
+    [journalEntries, respFilter]
+  );
+
   if (!currentOp) {
     return (
       <AppLayout>
@@ -199,8 +231,8 @@ export default function ProjetoDetalhe() {
   const isSubproject = !!currentOp.parent_id;
   const sb = statusBadge[derivedStatus] || statusBadge.planejada;
 
-  // Subprojetos como cards (filhos diretos do nó atual)
-  const subCards = directChildren.map(sub => {
+  // Subprojetos como cards (filhos diretos do nó atual, já filtrados por responsável)
+  const subCards = filteredSubChildren.map(sub => {
     const subTasks = allTasks.filter(t => t.stage_id === sub.id);
     const subDone = subTasks.filter(t => t.status === "concluida").length;
     const subPct = subTasks.length > 0 ? Math.round((subDone / subTasks.length) * 100) : 0;
@@ -221,20 +253,19 @@ export default function ProjetoDetalhe() {
     return { sub, subTasks, subDone, subPct, subSt, subM, subSb };
   });
 
-  // Para a Timeline contextual: mostra somente o projeto atual + descendentes
-  const timelineOps: Operation[] = useMemo(() => {
-    if (!currentOp) return [];
-    // Reutilizamos a estrutura do `operations` (com children) mas filtrada
-    const matchingRoot = rawOperations.find(o => o.id === currentOp.id);
-    if (matchingRoot) return [matchingRoot];
-    // Quando é subprojeto, montamos um root virtual incluindo seus descendentes
-    const descendants = Array.from(allDescendantIds)
-      .map(d => allStages.find(s => s.id === d))
-      .filter(Boolean) as Operation[];
-    return [{ ...currentOp, children: descendants }];
-  }, [currentOp, rawOperations, allDescendantIds, allStages]);
+  // Recalcular métricas/contagens com base no filtro
+  const tasksConcluidasF = filteredTasks.filter(t => t.status === "concluida").length;
+  const tasksPendentesF = filteredTasks.filter(t => t.status === "pendente" || t.status === "em_andamento").length;
+  const tasksAtrasadasF = filteredTasks.filter(t => {
+    if (t.status === "concluida" || t.status === "cancelada") return false;
+    return t.data_prazo && new Date(t.data_prazo) < new Date();
+  }).length;
+  const totalCustoF = filteredTransactions.filter(t => t.tipo === "saida").reduce((sum, t) => sum + Number(t.valor || 0), 0);
+  const progressoGeralF = filteredTasks.length > 0
+    ? Math.round((tasksConcluidasF / filteredTasks.length) * 100)
+    : (currentOp?.progresso_percentual ?? 0);
 
-  const timelineTasks = relatedTasks;
+  const timelineTasks = filteredTasks;
 
   // Handlers
   const handleNewSubproject = () => {
