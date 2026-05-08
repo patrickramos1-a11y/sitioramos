@@ -121,7 +121,7 @@ export function OperationForm({
     } else {
       setFormData({
         nome: "", nivel_tipo: defaultNivelTipo || (isChild ? "subprojeto" : "projeto"),
-        tipo: "outro", categoria: "", descricao: "", status: "planejada",
+        tipo: "outro", categoria: "", descricao: "", status: "em_andamento",
         prioridade: "media", data_inicio_prevista: todayISO(), data_inicio_real: "",
         data_fim_prevista: "", data_fim_real: "", duracao_prevista_dias: "",
         depends_on_id: "", linked_project_id: "", responsavel: "", responsavel_id: "", ordem: 0,
