@@ -33,6 +33,7 @@ import { SimpleTaskForm } from "@/components/operacao/SimpleTaskForm";
 import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
+import { ResponsavelFilter, matchesResponsavel, type ResponsavelFilterValue } from "@/components/responsaveis/ResponsavelFilter";
 
 import {
   computeStageMetrics, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
