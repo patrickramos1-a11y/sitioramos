@@ -1015,7 +1015,7 @@ export function GanttTimeline({
                                     style={{ backgroundColor: respColor }}
                                   />
                                 )}
-                                <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0" style={{ color: isDone ? "white" : (isProject ? "white" : dark) }}>
+                                <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0" style={{ color: barTextColor, textShadow: barTextColor === "hsl(0 0% 100%)" ? "0 1px 2px rgba(0,0,0,0.25)" : "none" }}>
                                   {icon}
                                   {pos.width > 50 && <span className="truncate">{item.name}</span>}
                                 </div>
