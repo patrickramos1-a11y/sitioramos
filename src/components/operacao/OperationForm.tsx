@@ -224,6 +224,9 @@ export function OperationForm({
     : `Novo ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`);
 
   const projectsForLink = (allProjects || []).filter(p => p.id !== operation?.id);
+  const isSubproject = formData.nivel_tipo === "subprojeto";
+  // Apenas projetos top-level (sem " › " na string de caminho hierárquico)
+  const topLevelProjects = projectsForLink.filter(p => !p.nome.includes("›"));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
