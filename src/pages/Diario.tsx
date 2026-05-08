@@ -401,6 +401,16 @@ export default function Diario() {
             O que aconteceu no campo hoje?
           </div>
 
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Título</Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título do registro"
+              className="h-9 bg-card/80 border-brand-leaf/20 focus-visible:ring-brand-leaf/40 font-medium"
+            />
+          </div>
+
           <Textarea
             ref={textareaRef}
             value={text}
