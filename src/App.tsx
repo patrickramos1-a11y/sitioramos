@@ -17,6 +17,7 @@ import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
 import Propriedade from "./pages/Propriedade";
 import Operacao from "./pages/Operacao";
+import ProjetoDetalhe from "./pages/ProjetoDetalhe";
 import Lancamentos from "./pages/Lancamentos";
 import Contatos from "./pages/Contatos";
 import Responsaveis from "./pages/Responsaveis";
@@ -64,6 +65,8 @@ const App = () => {
             <Route path="/talhoes/:id" element={<TalhaoDetalhe />} />
             <Route path="/emprestimos" element={<Emprestimos />} />
             <Route path="/operacao" element={<Operacao />} />
+            <Route path="/operacao/projetos/:id" element={<ProjetoDetalhe />} />
+            <Route path="/operacao/subprojetos/:id" element={<ProjetoDetalhe />} />
             <Route path="/lancamentos" element={<Lancamentos />} />
             <Route path="/contatos" element={<Contatos />} />
             <Route path="/responsaveis" element={<Responsaveis />} />

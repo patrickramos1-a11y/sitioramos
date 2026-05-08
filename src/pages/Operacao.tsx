@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoV
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 export default function Operacao() {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { areas } = useAreas();
   const { cycles } = useCycles();
@@ -197,9 +198,10 @@ export default function Operacao() {
     if (type === "task") {
       const task = allTasks.find(t => t.id === id);
       if (task) { setEditingTask(task); setTaskFormOpen(true); }
+    } else if (type === "sub-operation") {
+      navigate(`/operacao/subprojetos/${id}`);
     } else {
-      const op = operations.flatMap(o => [o, ...(o.children || [])]).find(o => o.id === id);
-      if (op) { setEditingOp(op); setOpFormOpen(true); }
+      navigate(`/operacao/projetos/${id}`);
     }
   };
 
