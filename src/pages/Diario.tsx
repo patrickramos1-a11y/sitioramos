@@ -88,7 +88,15 @@ function fmtDur(s?: number | null) {
 }
 
 export default function Diario() {
-  const { data: entries = [], create } = useJournalEntries(20);
+  const navigate = useNavigate();
+  const [filterReviewed, setFilterReviewed] = useState<"all" | "todo" | "done">("all");
+  const [filterType, setFilterType] = useState<string>("");
+  const [filterAreaId, setFilterAreaId] = useState<string>("");
+  const { data: entries = [], create, markReviewed, convertToTask, remove } = useJournalEntries(50, {
+    type: filterType || undefined,
+    areaId: filterAreaId || undefined,
+    reviewed: filterReviewed === "all" ? undefined : filterReviewed === "done",
+  });
   const { areas = [] } = useAreas() as any;
   const { cycles = [] } = useCycles() as any;
 
