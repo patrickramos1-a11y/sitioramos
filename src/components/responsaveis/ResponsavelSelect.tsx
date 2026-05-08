@@ -40,6 +40,7 @@ export function ResponsavelSelect({ value, onChange, label, placeholder = "Sem r
           ))}
         </SelectContent>
       </Select>
+      {helperText && <p className="text-xs text-muted-foreground mt-1">{helperText}</p>}
     </div>
   );
 }
