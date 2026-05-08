@@ -10,6 +10,7 @@ import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
   computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, getCategoryColor,
+  getProjectVisualHsl,
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,33 +19,20 @@ import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
 type ZoomLevel = "day" | "week" | "fortnight" | "month" | "bimonth" | "quarter" | "year" | "biennium";
 
-// Paleta de cores por projeto (Sítio Ramos — verde floresta, folha, sol, terra)
-// Cada entrada é { h, s, l } base; variações são derivadas alterando lightness.
-const PROJECT_PALETTE: Array<{ h: number; s: number; l: number }> = [
-  { h: 145, s: 60, l: 22 }, // verde floresta
-  { h: 138, s: 55, l: 32 }, // verde folha
-  { h: 43,  s: 88, l: 42 }, // amarelo sol
-  { h: 20,  s: 55, l: 38 }, // terra
-  { h: 95,  s: 45, l: 32 }, // oliva
-  { h: 15,  s: 65, l: 42 }, // tijolo
-  { h: 200, s: 50, l: 32 }, // azul sereno
-  { h: 280, s: 35, l: 38 }, // ameixa
-];
-const getProjectHsl = (projectId: string) => {
-  let h = 0;
-  for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
-  return PROJECT_PALETTE[h % PROJECT_PALETTE.length];
-};
-const projectColor = (projectId: string, opts?: { l?: number; s?: number; a?: number }) => {
-  const c = getProjectHsl(projectId);
+// Cor visual por projeto: usa hue da categoria quando disponível, senão hash do id.
+// Lookup map para herdar a categoria do projeto raiz mesmo em sub-itens.
+const projectColorFor = (
+  projectId: string,
+  categoria: string | null | undefined,
+  opts?: { l?: number; s?: number; a?: number },
+) => {
+  const c = getProjectVisualHsl(projectId, categoria);
   const s = opts?.s ?? c.s;
   const l = opts?.l ?? c.l;
   return opts?.a !== undefined
     ? `hsl(${c.h} ${s}% ${l}% / ${opts.a})`
     : `hsl(${c.h} ${s}% ${l}%)`;
 };
-// Compat: cor "forte" do projeto (usada na borda lateral da lista)
-const getProjectColor = (projectId: string) => projectColor(projectId);
 
 // Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
 const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
@@ -154,6 +142,18 @@ export function GanttTimeline({
     });
     return m;
   }, [operations]);
+
+  // Mapa categoria do projeto raiz (para herdar a cor visual em sub-itens)
+  const rootCategoryMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    operations.forEach(op => m.set(op.id, op.categoria ?? null));
+    return m;
+  }, [operations]);
+
+  // Helpers de cor que usam a categoria do projeto raiz para identidade visual
+  const projectColor = (projectId: string, opts?: { l?: number; s?: number; a?: number }) =>
+    projectColorFor(projectId, rootCategoryMap.get(projectId) ?? null, opts);
+  const getProjectColor = (projectId: string) => projectColor(projectId);
 
   // Lista de responsáveis únicos
   const { data: responsaveisList = [] } = useResponsaveis();
@@ -805,25 +805,42 @@ export function GanttTimeline({
                   const endPrev = item.endPrev;
                   const endReal = item.endReal;
                   const today = new Date();
+                  const isOverdue = status === "atrasada";
+                  const isLateDone = status === "concluida_com_atraso";
+                  const isDone = status === "concluida" || isLateDone;
 
-                  // posição barra principal (do início até max(fimPrev, hoje se atrasada, fimReal))
-                  const visualEnd = endReal ||
-                    (status === "atrasada" && endPrev ? today : endPrev);
-                  const pos = getBarPosition(start, visualEnd);
+                  // Geometria da barra:
+                  // - Concluída no prazo: start → endReal (sem extensão)
+                  // - Concluída com atraso: barra principal start → endPrev; extensão endPrev → endReal
+                  // - Em execução atrasada: barra start → endPrev; extensão endPrev → today
+                  // - Demais: start → endPrev (planejado)
+                  const mainEnd = isLateDone
+                    ? (endPrev || endReal)
+                    : (status === "concluida" ? (endReal || endPrev) : endPrev) || endReal || endPrev;
+                  const pos = getBarPosition(start, mainEnd);
 
-                  // posição da extensão de atraso (do fimPrev até hoje)
-                  const overdueExt = status === "atrasada" && endPrev ? {
-                    left: dayToPx(endPrev),
-                    width: Math.max(4, dayToPx(today) - dayToPx(endPrev)),
-                  } : null;
+                  // Extensão de tempo excedido
+                  const overdueExt = (() => {
+                    if (!endPrev) return null;
+                    if (isOverdue) {
+                      return {
+                        left: dayToPx(endPrev),
+                        width: Math.max(4, dayToPx(today) - dayToPx(endPrev)),
+                      };
+                    }
+                    if (isLateDone && endReal) {
+                      return {
+                        left: dayToPx(endPrev),
+                        width: Math.max(4, dayToPx(endReal) - dayToPx(endPrev)),
+                      };
+                    }
+                    return null;
+                  })();
 
                   // % consumido visual
-                  const progressPct = status === "concluida" ? 100 : item.metrics.percentConsumido;
+                  const progressPct = isDone ? 100 : item.metrics.percentConsumido;
 
-                  // Estilo conforme status + cor do PROJETO RAIZ + nível hierárquico
-                  // Projeto (level 0): preenchido sólido, cor forte
-                  // Subprojeto (level 1): fundo claro + borda sólida na cor forte
-                  // Sub-sub (level ≥ 2): fundo bem claro + borda tracejada
+                  // Estilo: cor base = identidade do projeto (sempre); status muda só o tratamento.
                   let barStyle: React.CSSProperties = {};
                   let barClasses = "absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
 
@@ -831,30 +848,44 @@ export function GanttTimeline({
                   const soft = projectColor(item.rootProjectId, { l: 92, s: 45 });
                   const softer = projectColor(item.rootProjectId, { l: 96, s: 40 });
                   const dark = projectColor(item.rootProjectId, { l: 18 });
+                  const mid = projectColor(item.rootProjectId, { l: 38 });
                   const glow = projectColor(item.rootProjectId, { a: 0.3, l: 35 });
                   const isProject = item.level === 0;
                   const isSub = item.level === 1;
 
-                  if (status === "concluida") {
+                  if (isDone) {
                     barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1.5px ${strong}, 0 0 8px ${glow}` };
                   } else if (status === "travada") {
-                    barStyle = { backgroundColor: "hsl(var(--muted))", border: "2px dashed hsl(var(--muted-foreground))", color: "hsl(var(--muted-foreground))" };
+                    barStyle = {
+                      backgroundColor: projectColor(item.rootProjectId, { l: 88, s: 15 }),
+                      border: `2px dashed ${projectColor(item.rootProjectId, { l: 50, s: 25 })}`,
+                      color: dark,
+                    };
                   } else if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
+                  } else if (status === "pausada") {
+                    barStyle = {
+                      background: `repeating-linear-gradient(45deg, ${soft}, ${soft} 6px, ${projectColor(item.rootProjectId, { l: 86, s: 35 })} 6px, ${projectColor(item.rootProjectId, { l: 86, s: 35 })} 12px)`,
+                      border: `2px solid ${strong}`,
+                      color: dark,
+                      opacity: 0.85,
+                    };
+                  } else if (status === "planejada") {
+                    barStyle = { backgroundColor: soft, border: `2px solid ${strong}`, color: dark };
+                  } else if (isOverdue) {
+                    barStyle = isProject
+                      ? { backgroundColor: strong, color: "white", boxShadow: `0 0 0 2px hsl(var(--destructive) / 0.5), 0 2px 6px ${glow}` }
+                      : { backgroundColor: soft, border: `2px solid ${strong}`, color: dark, boxShadow: `0 0 0 1.5px hsl(var(--destructive) / 0.45)` };
                   } else if (isProject) {
-                    // Projeto raiz: sólido na cor forte
                     barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1px ${strong}, 0 2px 6px ${glow}` };
                   } else if (isSub) {
-                    // Subprojeto: claro com borda sólida
                     barStyle = { backgroundColor: soft, border: `2px solid ${strong}`, color: dark };
                   } else {
-                    // Sub-sub: borda tracejada
                     barStyle = { backgroundColor: softer, border: `2px dashed ${strong}`, color: dark };
                   }
 
-                  // Tamanho uniforme para todas as barras
-                  const baseTop = 5;
-                  const baseHeight = ROW_HEIGHT - 10;
+                  const baseTop = item.level >= 2 ? 7 : 5;
+                  const baseHeight = ROW_HEIGHT - (item.level >= 2 ? 14 : 10);
 
                   // Tarefas: linha simples sem barra (somente grid + linha de hoje)
                   if (item.type === "task") {
@@ -873,6 +904,25 @@ export function GanttTimeline({
                       </div>
                     );
                   }
+
+                  const dPrev = item.metrics.duracaoPrevista;
+                  const dReal = item.metrics.duracaoReal;
+                  const dExc = item.metrics.diasExcedidos;
+                  const dTot = item.metrics.diasTotais;
+                  const dDec = item.metrics.diasDecorridos;
+
+                  const buildDurationLabel = (): string | null => {
+                    if (status === "concluida" && (dReal ?? dPrev) !== null) return `${dReal ?? dPrev}d ✓`;
+                    if (isLateDone && dPrev !== null) return `${dPrev}d +${dExc}d`;
+                    if (isOverdue && dPrev !== null) return `${dPrev}d +${dExc}d`;
+                    if (status === "em_andamento" && dPrev !== null && start) {
+                      const elapsed = Math.max(0, Math.min(dPrev, differenceInDays(today, start)));
+                      return `${elapsed}/${dPrev}d`;
+                    }
+                    if (dPrev !== null) return `${dPrev}d`;
+                    return null;
+                  };
+                  const durationLabel = buildDurationLabel();
 
                   return (
                     <div key={item.id} className={`relative border-b ${isProject ? "bg-muted/5" : ""}`} style={{ height: ROW_HEIGHT }}>
@@ -899,18 +949,37 @@ export function GanttTimeline({
                         return null;
                       })()}
 
-                      {/* Extensão de tempo excedido (verde escuro hachurado) */}
+                      {/* Extensão de tempo excedido — hachura na cor do projeto + borda pontilhada + chip +Nd */}
                       {overdueExt && (
-                        <div
-                          className="absolute rounded-r"
-                          style={{
-                            top: baseTop,
-                            left: overdueExt.left,
-                            width: overdueExt.width,
-                            height: baseHeight,
-                            background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 5px, hsl(142 60% 32%) 5px, hsl(142 60% 32%) 10px)",
-                          }}
-                        />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="absolute rounded-r cursor-help"
+                              style={{
+                                top: baseTop,
+                                left: overdueExt.left,
+                                width: overdueExt.width,
+                                height: baseHeight,
+                                background: `repeating-linear-gradient(45deg, ${dark}, ${dark} 5px, ${mid} 5px, ${mid} 10px)`,
+                                borderTop: `1.5px dotted hsl(var(--destructive))`,
+                                borderBottom: `1.5px dotted hsl(var(--destructive))`,
+                              }}
+                            >
+                              {overdueExt.width > 28 && dExc > 0 && (
+                                <span
+                                  className="absolute right-0.5 top-1/2 -translate-y-1/2 px-1 py-0.5 rounded-sm text-[9px] font-bold tabular-nums shadow-sm"
+                                  style={{ backgroundColor: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}
+                                >
+                                  +{dExc}d
+                                </span>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            <div className="font-semibold">Tempo excedido</div>
+                            <div>+{dExc}d além do prazo planejado</div>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
 
                       {/* Barra principal */}
@@ -922,12 +991,11 @@ export function GanttTimeline({
                               style={{
                                 ...barStyle,
                                 top: baseTop, left: pos.left, width: pos.width, height: baseHeight,
-                                borderLeft: `3px solid ${getProjectColor(item.rootProjectId)}`,
+                                borderLeft: `3px solid ${strong}`,
                               }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
-                              {/* Progresso interno — preenchimento com cor do responsável */}
-                              {(status === "em_andamento" || status === "atrasada") && progressPct > 0 && (
+                              {(status === "em_andamento" || isOverdue) && progressPct > 0 && (
                                 <div
                                   className="absolute inset-y-0 left-0 rounded-l"
                                   style={{ width: `${Math.min(100, progressPct)}%`, backgroundColor: respColor, opacity: 0.85 }}
@@ -935,46 +1003,33 @@ export function GanttTimeline({
                               )}
                               <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0">
                                 {status === "travada" && <Lock className="h-3 w-3 shrink-0" />}
-                                {status === "atrasada" && <AlertTriangle className="h-3 w-3 shrink-0" />}
-                                {status === "concluida" && <CheckCircle2 className="h-3 w-3 shrink-0" />}
+                                {isOverdue && <AlertTriangle className="h-3 w-3 shrink-0" />}
+                                {(status === "concluida" || isLateDone) && <CheckCircle2 className="h-3 w-3 shrink-0" />}
                                 {pos.width > 50 && <span className="truncate">{item.name}</span>}
                               </div>
-                              {/* Chip de duração / decorrido na ponta direita da barra */}
-                              {pos.width > 80 && (() => {
-                                const dPrev = item.metrics.duracaoPrevista;
-                                const dReal = item.metrics.duracaoReal;
-                                const startD = item.startReal || item.startPrev;
-                                let label: string | null = null;
-                                if (status === "concluida" && (dReal ?? dPrev) !== null) {
-                                  label = `${dReal ?? dPrev}d ✓`;
-                                } else if (dPrev !== null && startD) {
-                                  const elapsed = Math.max(0, Math.min(dPrev, differenceInDays(today, startD)));
-                                  label = `${elapsed}/${dPrev}d`;
-                                } else if (dPrev !== null) {
-                                  label = `${dPrev}d`;
-                                }
-                                if (!label) return null;
-                                const chipBg = isProject || status === "concluida"
+                              {pos.width > 80 && durationLabel && (() => {
+                                const isDarkBg = isProject || isDone;
+                                const chipBg = isDarkBg
                                   ? "rgba(255,255,255,0.22)"
-                                  : projectColor(item.rootProjectId, { a: 0.15, l: 35 });
-                                const chipColor = isProject || status === "concluida" ? "white" : dark;
+                                  : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
+                                const chipColor = isDarkBg ? "white" : dark;
                                 return (
                                   <span
                                     className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
                                     style={{ backgroundColor: chipBg, color: chipColor }}
                                   >
-                                    {label}
+                                    {durationLabel}
                                   </span>
                                 );
                               })()}
-                              {/* Chip de checklist (subtarefas) */}
                               {pos.width > 110 && (() => {
                                 const cl = checklistProgressByStage.get(item.id);
                                 if (!cl || cl.total === 0) return null;
-                                const chipBg = isProject || status === "concluida"
+                                const isDarkBg = isProject || isDone;
+                                const chipBg = isDarkBg
                                   ? "rgba(255,255,255,0.22)"
-                                  : projectColor(item.rootProjectId, { a: 0.15, l: 35 });
-                                const chipColor = isProject || status === "concluida" ? "white" : dark;
+                                  : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
+                                const chipColor = isDarkBg ? "white" : dark;
                                 return (
                                   <span
                                     className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
@@ -987,21 +1042,42 @@ export function GanttTimeline({
                               })()}
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs space-y-1">
+                          <TooltipContent side="top" className="text-xs space-y-1 max-w-xs">
                             <div className="font-semibold">{item.name}</div>
-                            {item.categoria && <div>📂 {getCategoryLabel(item.categoria)}</div>}
-                            {item.responsavel && <div>👤 {item.responsavel}</div>}
-                            <div>Status: <strong>{status}</strong></div>
-                            {item.startPrev && <div>Início prev: {format(item.startPrev, "dd/MM/yy")}</div>}
-                            {item.endPrev && <div>Fim prev: {format(item.endPrev, "dd/MM/yy")}</div>}
-                            {item.metrics.duracaoPrevista !== null && <div>Duração prev: {item.metrics.duracaoPrevista}d</div>}
-                            {item.metrics.diasRestantes !== null && status !== "concluida" && (
-                              <div>{item.metrics.diasRestantes >= 0 ? `${item.metrics.diasRestantes} dias restantes` : `${Math.abs(item.metrics.diasRestantes)} dias atrasada`}</div>
+                            {item.categoria && <div className="text-muted-foreground">📂 {getCategoryLabel(item.categoria)}</div>}
+                            {item.responsavel && <div className="text-muted-foreground">👤 {item.responsavel}</div>}
+                            <div>Status: <strong>{
+                              status === "concluida_com_atraso" ? "Concluída com atraso"
+                              : status === "em_andamento" ? "Em andamento"
+                              : status === "atrasada" ? "Atrasada"
+                              : status === "concluida" ? "Concluída"
+                              : status === "planejada" ? "Planejada"
+                              : status === "travada" ? "Travada"
+                              : status === "pausada" ? "Pausada"
+                              : status
+                            }</strong></div>
+                            <div className="border-t pt-1 mt-1 space-y-0.5">
+                              {item.startPrev && <div>Início prev: {format(item.startPrev, "dd/MM/yy")}</div>}
+                              {item.startReal && <div>Início real: {format(item.startReal, "dd/MM/yy")}</div>}
+                              {endPrev && <div>Fim previsto: {format(endPrev, "dd/MM/yy")}</div>}
+                              {endReal && <div>Fim real: {format(endReal, "dd/MM/yy")}</div>}
+                            </div>
+                            <div className="border-t pt-1 mt-1 space-y-0.5">
+                              {dPrev !== null && <div>Duração planejada: <strong>{dPrev}d</strong></div>}
+                              {dDec !== null && !isDone && <div>Decorridos desde início: <strong>{dDec}d</strong></div>}
+                              {dExc > 0 && <div className="text-destructive font-semibold">Excedido: +{dExc}d</div>}
+                              {dTot !== null && <div>Total existência: <strong>{dTot}d</strong></div>}
+                              {dReal !== null && <div>Duração real: <strong>{dReal}d</strong></div>}
+                            </div>
+                            {!isDone && item.metrics.diasRestantes !== null && (
+                              <div className={item.metrics.diasRestantes < 0 ? "text-destructive font-semibold" : ""}>
+                                {item.metrics.diasRestantes >= 0
+                                  ? `${item.metrics.diasRestantes}d restantes`
+                                  : `Em atraso há ${Math.abs(item.metrics.diasRestantes)}d`}
+                              </div>
                             )}
-                            {item.metrics.duracaoReal !== null && <div>Duração real: {item.metrics.duracaoReal}d</div>}
-                            {item.metrics.diferencaPlanExec !== null && (
-                              <div>Diferença: {item.metrics.diferencaPlanExec >= 0 ? "+" : ""}{item.metrics.diferencaPlanExec}d</div>
-                            )}
+                            {isLateDone && <div className="text-destructive font-semibold">Concluída com {dExc}d de atraso</div>}
+                            {status === "concluida" && <div className="text-success">Concluída no prazo</div>}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -1125,18 +1201,24 @@ export function GanttTimeline({
         {/* Legenda */}
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded border-2 border-dashed" style={{ borderColor: "hsl(142 40% 65%)", background: "hsl(142 40% 95%)" }} />Planejado
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }} />Planejada
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)" }} />Em execução
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)" }} />Em execução
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 60% 38%)" }} />Concluído
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)", boxShadow: "0 0 0 1.5px hsl(var(--destructive) / 0.6)" }} />Atrasada
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><CheckCircle2 className="h-3 w-3 text-success" />No prazo
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><AlertTriangle className="h-3 w-3 text-destructive" />Concluída c/ atraso
           </span>
           <span className="flex items-center gap-1">
             <span
               className="inline-block w-4 h-2.5 rounded"
-              style={{ background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 3px, hsl(142 60% 32%) 3px, hsl(142 60% 32%) 6px)" }}
+              style={{ background: "repeating-linear-gradient(45deg, hsl(0 0% 25%), hsl(0 0% 25%) 3px, hsl(0 0% 45%) 3px, hsl(0 0% 45%) 6px)", borderTop: "1px dotted hsl(var(--destructive))", borderBottom: "1px dotted hsl(var(--destructive))" }}
             />Tempo excedido
           </span>
           <span className="flex items-center gap-1">
