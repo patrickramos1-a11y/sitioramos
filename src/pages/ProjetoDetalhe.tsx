@@ -17,6 +17,7 @@ import {
 import {
   ArrowLeft, MoreVertical, Pencil, Trash2, Copy, Plus, Layers, ListTodo,
   CheckCircle2, AlertTriangle, Clock, DollarSign, Calendar, FileText, BarChart3, BookOpen, ChevronRight,
+  History, CircleDot,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -39,6 +40,7 @@ import {
   computeStageMetrics, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
 } from "@/lib/operacaoConfig";
 import { useStages } from "@/hooks/useStages";
+import { useProjectHistory } from "@/hooks/useProjectHistory";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -214,6 +216,14 @@ export default function ProjetoDetalhe() {
     () => (journalEntries as any[]).filter(j => matchesResponsavel(respFilter, j.responsavel_id)),
     [journalEntries, respFilter]
   );
+
+  // Histórico do projeto (eventos consolidados)
+  const historyTaskIds = useMemo(() => relatedTasks.map(t => t.id), [relatedTasks]);
+  const { data: historyEvents = [] } = useProjectHistory({
+    stageIds: stageIdsForLookup,
+    taskIds: historyTaskIds,
+    enabled: true,
+  });
 
   if (!currentOp) {
     return (
@@ -491,6 +501,9 @@ export default function ProjetoDetalhe() {
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="custos">Custos</TabsTrigger>
             <TabsTrigger value="diario">Diário</TabsTrigger>
+            <TabsTrigger value="historico" className="gap-1">
+              <History className="h-3.5 w-3.5" /> Histórico
+            </TabsTrigger>
           </TabsList>
 
           {/* Resumo */}
@@ -638,35 +651,63 @@ export default function ProjetoDetalhe() {
                   <Plus className="h-3 w-3 mr-1" /> Novo Lançamento
                 </Button>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 {filteredTransactions.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">Nenhum custo vinculado.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredTransactions.map(t => (
-                      <div key={t.id} className="flex items-center justify-between border rounded-lg p-3 text-sm">
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{t.descricao || (t as any).categoria}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                            <span>{format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}</span>
-                            {(t as any).contatos?.nome && <span>• {(t as any).contatos.nome}</span>}
-                            {(t as any).responsavel_id && (
-                              <ResponsavelBadge responsavelId={(t as any).responsavel_id} size="xs" />
-                            )}
+                ) : (() => {
+                  // Agrupa por subprojeto (ou "Projeto principal" para os do nó atual)
+                  const groups = new Map<string, { label: string; items: typeof filteredTransactions; total: number }>();
+                  filteredTransactions.forEach(tr => {
+                    const opId = (tr as any).operation_id as string | null;
+                    const groupId = opId === currentOp.id || !opId ? currentOp.id : opId;
+                    const sub = allStages.find(s => s.id === groupId);
+                    const label = groupId === currentOp.id ? "Projeto principal" : (sub?.nome || "Outro");
+                    const g = groups.get(groupId) || { label, items: [], total: 0 };
+                    g.items.push(tr);
+                    if (tr.tipo === "saida") g.total += Number(tr.valor || 0);
+                    groups.set(groupId, g);
+                  });
+                  return (
+                    <div className="space-y-4">
+                      {Array.from(groups.entries()).map(([gid, g]) => (
+                        <div key={gid} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              {g.label} <span className="text-[10px]">({g.items.length})</span>
+                            </h4>
+                            <span className="text-xs font-medium text-destructive tabular-nums">
+                              −{formatCurrency(g.total)}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {g.items.map(t => (
+                              <div key={t.id} className="flex items-center justify-between border rounded-lg p-2.5 text-sm">
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{t.descricao || (t as any).categoria}</div>
+                                  <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                                    <span>{format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}</span>
+                                    {(t as any).contatos?.nome && <span>• {(t as any).contatos.nome}</span>}
+                                    {(t as any).responsavel_id && (
+                                      <ResponsavelBadge responsavelId={(t as any).responsavel_id} size="xs" />
+                                    )}
+                                  </div>
+                                </div>
+                                <div className={`tabular-nums font-semibold ${t.tipo === "saida" ? "text-destructive" : "text-success"}`}>
+                                  {t.tipo === "saida" ? "-" : "+"} {formatCurrency(Number(t.valor))}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        <div className={`tabular-nums font-semibold ${t.tipo === "saida" ? "text-destructive" : "text-success"}`}>
-                          {t.tipo === "saida" ? "-" : "+"} {formatCurrency(Number(t.valor))}
-                        </div>
+                      ))}
+                      <div className="flex justify-end pt-2 border-t">
+                        <span className="text-sm font-semibold">
+                          Total saídas: <span className="text-destructive">{formatCurrency(totalCustoF)}</span>
+                        </span>
                       </div>
-                    ))}
-                    <div className="flex justify-end pt-2 border-t mt-2">
-                      <span className="text-sm font-semibold">
-                        Total saídas: <span className="text-destructive">{formatCurrency(totalCustoF)}</span>
-                      </span>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
@@ -708,6 +749,52 @@ export default function ProjetoDetalhe() {
                       </div>
                     ))}
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Histórico */}
+          <TabsContent value="historico">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-4 w-4" /> Histórico do projeto
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {historyEvents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Nenhum evento registrado ainda.
+                  </p>
+                ) : (
+                  <ol className="relative border-l-2 border-muted pl-4 space-y-3">
+                    {historyEvents.map((e) => {
+                      const dotColor =
+                        e.kind === "stage_change" ? "bg-primary" :
+                        e.kind === "task_log" ? "bg-success" :
+                        e.kind === "stage_created" ? "bg-warning" :
+                        e.kind === "task_created" ? "bg-muted-foreground" :
+                        "bg-muted-foreground";
+                      return (
+                        <li key={e.id} className="relative">
+                          <span
+                            className={`absolute -left-[22px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${dotColor}`}
+                          />
+                          <div className="text-xs text-muted-foreground tabular-nums">
+                            {format(new Date(e.at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                          </div>
+                          <div className="text-sm font-medium">{e.title}</div>
+                          {e.refLabel && (
+                            <div className="text-xs text-muted-foreground truncate">↳ {e.refLabel}</div>
+                          )}
+                          {e.detail && (
+                            <div className="text-xs text-foreground/80 mt-0.5 truncate">{e.detail}</div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
                 )}
               </CardContent>
             </Card>
