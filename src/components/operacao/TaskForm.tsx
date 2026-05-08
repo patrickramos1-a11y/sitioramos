@@ -9,6 +9,8 @@ import { Task, TaskInsert } from "@/hooks/useTasks";
 import { Stage } from "@/hooks/useStages";
 import { TaskChecklist } from "./TaskChecklist";
 import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
+import { CollapsibleField } from "@/components/ui/collapsible-field";
+import { CheckCircle2 } from "lucide-react";
 
 const taskTypes = [
   { value: "operacional", label: "Operacional" },
