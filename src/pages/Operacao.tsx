@@ -292,12 +292,15 @@ export default function Operacao() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="timeline" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="timeline" className="gap-2">
               <BarChart3 className="h-4 w-4" />Timeline
             </TabsTrigger>
             <TabsTrigger value="lista" className="gap-2">
               <ListTodo className="h-4 w-4" />Lista
+            </TabsTrigger>
+            <TabsTrigger value="tarefas" className="gap-2">
+              <CheckSquare className="h-4 w-4" />Tarefas
             </TabsTrigger>
           </TabsList>
 
