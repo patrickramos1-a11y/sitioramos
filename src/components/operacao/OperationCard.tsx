@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getCategoryEmoji, getCategoryLabel, getResponsavelColor } from "@/lib/operacaoConfig";
 import { OperationCostBlock } from "./OperationCostBlock";
+import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeVariant: "default" | "secondary" | "outline" | "destructive" }> = {
   planejada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
