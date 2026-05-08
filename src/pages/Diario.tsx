@@ -37,6 +37,8 @@ import {
   MapPin,
   Loader2,
   ExternalLink,
+  Pencil,
+  Check as CheckIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -99,13 +101,22 @@ function fmtDur(s?: number | null) {
   return `${m}:${sec}`;
 }
 
+function defaultTitle(d = new Date()) {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `Diário ${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
+
 export default function Diario() {
   const navigate = useNavigate();
   const { online, pending } = useOfflineSync();
   const [filterReviewed, setFilterReviewed] = useState<"all" | "todo" | "done">("all");
   const [filterType, setFilterType] = useState<string>("");
   const [filterAreaId, setFilterAreaId] = useState<string>("");
-  const { data: entries = [], create, markReviewed, convertToTask, remove } = useJournalEntries(50, {
+  const { data: entries = [], create, markReviewed, convertToTask, remove, update } = useJournalEntries(50, {
     type: filterType || undefined,
     areaId: filterAreaId || undefined,
     reviewed: filterReviewed === "all" ? undefined : filterReviewed === "done",
@@ -113,6 +124,7 @@ export default function Diario() {
   const { areas = [] } = useAreas() as any;
   const { cycles = [] } = useCycles() as any;
 
+  const [title, setTitle] = useState(() => defaultTitle());
   const [text, setText] = useState("");
   const [audio, setAudio] = useState<RecordedAudio | null>(null);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -151,8 +163,10 @@ export default function Diario() {
 
   const hasContent =
     text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0;
+  const canSave = hasContent || title.trim().length > 0;
 
   const reset = () => {
+    setTitle(defaultTitle());
     setText("");
     setAudio(null);
     photos.forEach((p) => URL.revokeObjectURL(p.url));
@@ -247,7 +261,7 @@ export default function Diario() {
   };
 
   const handleSave = () => {
-    if (!hasContent) return;
+    if (!canSave) return;
     const attachments: PendingAttachment[] = [];
     if (audio) {
       attachments.push({
@@ -283,6 +297,7 @@ export default function Diario() {
     const entryPayload = {
       entry_date: new Date().toISOString().split("T")[0],
       entry_type: entryType,
+      title: title.trim() || defaultTitle(),
       description: text.trim() || null,
       area_id: areaId || null,
       cycle_id: cycleId || null,
@@ -384,6 +399,16 @@ export default function Diario() {
         >
           <div className="font-display text-[15px] font-semibold text-brand-forest">
             O que aconteceu no campo hoje?
+          </div>
+
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Título</Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título do registro"
+              className="h-9 bg-card/80 border-brand-leaf/20 focus-visible:ring-brand-leaf/40 font-medium"
+            />
           </div>
 
           <Textarea
@@ -710,7 +735,7 @@ export default function Diario() {
           {/* Salvar */}
           <Button
             type="button"
-            disabled={!hasContent || create.isPending}
+            disabled={!canSave || create.isPending}
             onClick={handleSave}
             className="w-full h-12 bg-brand-forest hover:bg-brand-forest/90 text-brand-paper font-display"
           >
@@ -786,6 +811,7 @@ export default function Diario() {
                 onDelete={() => {
                   if (confirm("Excluir este registro?")) remove.mutate(e.id);
                 }}
+                onSaveEdit={(patch) => update.mutate({ id: e.id, ...patch })}
               />
             ))}
           </div>
@@ -801,9 +827,10 @@ interface EntryCardProps {
   onConvertToTask?: () => void;
   onConvertToExpense?: () => void;
   onDelete?: () => void;
+  onSaveEdit?: (patch: { title?: string | null; description?: string | null }) => void;
 }
 
-function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense, onDelete }: EntryCardProps) {
+function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense, onDelete, onSaveEdit }: EntryCardProps) {
   const photos = entry.attachments?.filter((a) => a.kind === "photo") || [];
   const audios = entry.attachments?.filter((a) => a.kind === "audio") || [];
   const videos = entry.attachments?.filter((a) => a.kind === "video") || [];
@@ -811,30 +838,91 @@ function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense,
     !entry.reviewed && !entry.area_id && !entry.cycle_id && entry.entry_type === "observacao";
   const tipo = TIPOS.find((t) => t.value === entry.entry_type)?.label;
 
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(entry.title || "");
+  const [editDesc, setEditDesc] = useState(entry.description || "");
+
+  const startEdit = () => {
+    setEditTitle(entry.title || "");
+    setEditDesc(entry.description || "");
+    setEditing(true);
+  };
+  const saveEdit = () => {
+    onSaveEdit?.({
+      title: editTitle.trim() || null,
+      description: editDesc.trim() || null,
+    });
+    setEditing(false);
+  };
+
   return (
     <article className="rounded-xl border border-border/60 bg-card p-3 space-y-2 shadow-soft">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <Clock className="h-3 w-3" />
-          {relTime(entry.created_at)}
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground min-w-0">
+          <Clock className="h-3 w-3 shrink-0" />
+          <span className="shrink-0">{relTime(entry.created_at)}</span>
           {tipo && entry.entry_type !== "observacao" && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-brand-leaf/10 text-brand-leaf font-medium">
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-brand-leaf/10 text-brand-leaf font-medium shrink-0">
               {tipo}
             </span>
           )}
-          {entry.is_important && <Star className="h-3 w-3 fill-brand-sun text-brand-sun" />}
+          {entry.is_important && <Star className="h-3 w-3 fill-brand-sun text-brand-sun shrink-0" />}
         </div>
-        {isUnreviewed && (
-          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-brand-sun/15 text-[hsl(38_95%_38%)] font-semibold">
-            Não revisado
-          </span>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {isUnreviewed && (
+            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-brand-sun/15 text-[hsl(38_95%_38%)] font-semibold">
+              Não revisado
+            </span>
+          )}
+          {onSaveEdit && !editing && (
+            <button
+              type="button"
+              onClick={startEdit}
+              title="Editar"
+              className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {entry.description && (
-        <p className="text-sm text-foreground leading-snug whitespace-pre-wrap line-clamp-4">
-          {entry.description}
-        </p>
+      {editing ? (
+        <div className="space-y-2">
+          <Input
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            placeholder="Título"
+            className="h-9 font-medium"
+          />
+          <Textarea
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            placeholder="Descrição"
+            rows={3}
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" size="sm" onClick={saveEdit}>
+              <CheckIcon className="h-3.5 w-3.5 mr-1" /> Salvar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {entry.title && (
+            <h3 className="text-sm font-semibold text-brand-forest leading-snug">
+              {entry.title}
+            </h3>
+          )}
+          {entry.description && (
+            <p className="text-sm text-foreground leading-snug whitespace-pre-wrap line-clamp-4">
+              {entry.description}
+            </p>
+          )}
+        </>
       )}
 
       {photos.length > 0 && (
