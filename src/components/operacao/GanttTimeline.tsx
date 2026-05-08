@@ -10,7 +10,7 @@ import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
   computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, getCategoryColor,
-  getProjectVisualHsl,
+  getProjectHsl,
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,14 +19,14 @@ import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
 type ZoomLevel = "day" | "week" | "fortnight" | "month" | "bimonth" | "quarter" | "year" | "biennium";
 
-// Cor visual por projeto: usa hue da categoria quando disponível, senão hash do id.
-// Lookup map para herdar a categoria do projeto raiz mesmo em sub-itens.
+// Cor visual por projeto: SEMPRE prioriza o id (paleta hash) para garantir
+// que demandas distintas tenham cores distintas, mesmo dentro da mesma categoria.
 const projectColorFor = (
   projectId: string,
-  categoria: string | null | undefined,
+  _categoria: string | null | undefined,
   opts?: { l?: number; s?: number; a?: number },
 ) => {
-  const c = getProjectVisualHsl(projectId, categoria);
+  const c = getProjectHsl(projectId);
   const s = opts?.s ?? c.s;
   const l = opts?.l ?? c.l;
   return opts?.a !== undefined
@@ -807,87 +807,100 @@ export function GanttTimeline({
                   const today = new Date();
                   const isOverdue = status === "atrasada";
                   const isLateDone = status === "concluida_com_atraso";
-                  const isDone = status === "concluida" || isLateDone;
+                  const isDoneOnTime = status === "concluida";
+                  const isDone = isDoneOnTime || isLateDone;
+                  const isInProgress = status === "em_andamento";
 
-                  // Geometria da barra:
-                  // - Concluída no prazo: start → endReal (sem extensão)
-                  // - Concluída com atraso: barra principal start → endPrev; extensão endPrev → endReal
-                  // - Em execução atrasada: barra start → endPrev; extensão endPrev → today
-                  // - Demais: start → endPrev (planejado)
-                  const mainEnd = isLateDone
-                    ? (endPrev || endReal)
-                    : (status === "concluida" ? (endReal || endPrev) : endPrev) || endReal || endPrev;
+                  // Geometria: barra principal SEMPRE termina no fim planejado quando há um
+                  // (independente do status), exceto quando concluída no prazo (vai até endReal).
+                  const mainEnd = isDoneOnTime
+                    ? (endReal || endPrev)
+                    : (endPrev || endReal);
                   const pos = getBarPosition(start, mainEnd);
 
                   // Extensão de tempo excedido
                   const overdueExt = (() => {
-                    if (!endPrev) return null;
-                    if (isOverdue) {
-                      return {
-                        left: dayToPx(endPrev),
-                        width: Math.max(4, dayToPx(today) - dayToPx(endPrev)),
-                      };
+                    if (!endPrev || !pos) return null;
+                    if (isOverdue || isInProgress) {
+                      // só se hoje passou do fim planejado
+                      const todayPx = dayToPx(today);
+                      const endPrevPx = dayToPx(endPrev);
+                      if (todayPx > endPrevPx) {
+                        return { width: Math.max(4, todayPx - endPrevPx) };
+                      }
+                      return null;
                     }
                     if (isLateDone && endReal) {
-                      return {
-                        left: dayToPx(endPrev),
-                        width: Math.max(4, dayToPx(endReal) - dayToPx(endPrev)),
-                      };
+                      const endRealPx = dayToPx(endReal);
+                      const endPrevPx = dayToPx(endPrev);
+                      if (endRealPx > endPrevPx) {
+                        return { width: Math.max(4, endRealPx - endPrevPx) };
+                      }
                     }
                     return null;
                   })();
 
-                  // % consumido visual
-                  const progressPct = isDone ? 100 : item.metrics.percentConsumido;
-
-                  // Estilo: cor base = identidade do projeto (sempre); status muda só o tratamento.
-                  let barStyle: React.CSSProperties = {};
-                  let barClasses = "absolute rounded-md cursor-pointer transition-all hover:brightness-110 flex items-center px-1.5 text-[10px] font-medium overflow-hidden";
+                  // % preenchimento interno (cor do projeto, não do responsável)
+                  const fillPct = (() => {
+                    if (isDone) return 100;
+                    if (isInProgress || isOverdue) {
+                      if (!start) return 0;
+                      const dPlan = item.metrics.duracaoPrevista || 1;
+                      const elapsed = Math.max(0, differenceInDays(today, start));
+                      return Math.min(100, Math.round((elapsed / dPlan) * 100));
+                    }
+                    return 0;
+                  })();
 
                   const strong = projectColor(item.rootProjectId);
                   const soft = projectColor(item.rootProjectId, { l: 92, s: 45 });
                   const softer = projectColor(item.rootProjectId, { l: 96, s: 40 });
-                  const dark = projectColor(item.rootProjectId, { l: 18 });
-                  const mid = projectColor(item.rootProjectId, { l: 38 });
-                  const glow = projectColor(item.rootProjectId, { a: 0.3, l: 35 });
+                  const dark = projectColor(item.rootProjectId, { l: 22 });
+                  const mid = projectColor(item.rootProjectId, { l: 32 });
                   const isProject = item.level === 0;
                   const isSub = item.level === 1;
 
-                  if (isDone) {
-                    barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1.5px ${strong}, 0 0 8px ${glow}` };
+                  // Estilo base da barra planejada — sempre cor do projeto, status muda só tratamento
+                  let barStyle: React.CSSProperties = {};
+                  let icon: React.ReactNode = null;
+                  if (status === "cancelada") {
+                    barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6, border: "1.5px solid hsl(var(--muted-foreground) / 0.3)" };
                   } else if (status === "travada") {
                     barStyle = {
-                      backgroundColor: projectColor(item.rootProjectId, { l: 88, s: 15 }),
-                      border: `2px dashed ${projectColor(item.rootProjectId, { l: 50, s: 25 })}`,
+                      backgroundColor: projectColor(item.rootProjectId, { l: 90, s: 15 }),
+                      border: `1.5px dashed ${projectColor(item.rootProjectId, { l: 50, s: 25 })}`,
                       color: dark,
                     };
-                  } else if (status === "cancelada") {
-                    barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6 };
+                    icon = <Lock className="h-3 w-3 shrink-0" />;
                   } else if (status === "pausada") {
                     barStyle = {
-                      background: `repeating-linear-gradient(45deg, ${soft}, ${soft} 6px, ${projectColor(item.rootProjectId, { l: 86, s: 35 })} 6px, ${projectColor(item.rootProjectId, { l: 86, s: 35 })} 12px)`,
-                      border: `2px solid ${strong}`,
+                      background: `repeating-linear-gradient(45deg, ${soft} 0 6px, ${projectColor(item.rootProjectId, { l: 86, s: 35 })} 6px 12px)`,
+                      border: `1.5px solid ${strong}`,
                       color: dark,
-                      opacity: 0.85,
                     };
-                  } else if (status === "planejada") {
-                    barStyle = { backgroundColor: soft, border: `2px solid ${strong}`, color: dark };
-                  } else if (isOverdue) {
-                    barStyle = isProject
-                      ? { backgroundColor: strong, color: "white", boxShadow: `0 0 0 2px hsl(var(--destructive) / 0.5), 0 2px 6px ${glow}` }
-                      : { backgroundColor: soft, border: `2px solid ${strong}`, color: dark, boxShadow: `0 0 0 1.5px hsl(var(--destructive) / 0.45)` };
-                  } else if (isProject) {
-                    barStyle = { backgroundColor: strong, color: "white", boxShadow: `0 0 0 1px ${strong}, 0 2px 6px ${glow}` };
-                  } else if (isSub) {
-                    barStyle = { backgroundColor: soft, border: `2px solid ${strong}`, color: dark };
+                  } else if (isDone) {
+                    barStyle = { backgroundColor: strong, color: "white", border: `1.5px solid ${strong}` };
+                    icon = <CheckCircle2 className="h-3 w-3 shrink-0" />;
                   } else {
-                    barStyle = { backgroundColor: softer, border: `2px dashed ${strong}`, color: dark };
+                    // planejada / em_andamento / atrasada
+                    barStyle = { backgroundColor: soft, border: `1.5px solid ${strong}`, color: dark };
+                    if (isOverdue) icon = <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />;
+                  }
+
+                  if (isProject) {
+                    // projetos: borda mais grossa
+                    barStyle.borderWidth = "2px";
+                  } else if (item.level >= 2) {
+                    // sub-sub: tracejado
+                    if (!isDone && status !== "cancelada" && status !== "travada") {
+                      barStyle.borderStyle = "dashed";
+                    }
                   }
 
                   const baseTop = item.level >= 2 ? 7 : 5;
                   const baseHeight = ROW_HEIGHT - (item.level >= 2 ? 14 : 10);
 
-                  // Tarefas: linha simples sem barra (somente grid + linha de hoje)
+                  // Tarefas: linha simples sem barra
                   if (item.type === "task") {
                     return (
                       <div key={item.id} className="relative border-b bg-muted/5" style={{ height: ROW_HEIGHT }}>
@@ -911,18 +924,9 @@ export function GanttTimeline({
                   const dTot = item.metrics.diasTotais;
                   const dDec = item.metrics.diasDecorridos;
 
-                  const buildDurationLabel = (): string | null => {
-                    if (status === "concluida" && (dReal ?? dPrev) !== null) return `${dReal ?? dPrev}d ✓`;
-                    if (isLateDone && dPrev !== null) return `${dPrev}d +${dExc}d`;
-                    if (isOverdue && dPrev !== null) return `${dPrev}d +${dExc}d`;
-                    if (status === "em_andamento" && dPrev !== null && start) {
-                      const elapsed = Math.max(0, Math.min(dPrev, differenceInDays(today, start)));
-                      return `${elapsed}/${dPrev}d`;
-                    }
-                    if (dPrev !== null) return `${dPrev}d`;
-                    return null;
-                  };
-                  const durationLabel = buildDurationLabel();
+                  const extWidth = overdueExt?.width ?? 0;
+                  const totalBarWidth = pos ? pos.width + extWidth : 0;
+                  const isCompactRow = totalBarWidth < 140;
 
                   return (
                     <div key={item.id} className={`relative border-b ${isProject ? "bg-muted/5" : ""}`} style={{ height: ROW_HEIGHT }}>
@@ -949,135 +953,170 @@ export function GanttTimeline({
                         return null;
                       })()}
 
-                      {/* Extensão de tempo excedido — hachura na cor do projeto + borda pontilhada + chip +Nd */}
-                      {overdueExt && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div
-                              className="absolute rounded-r cursor-help"
-                              style={{
-                                top: baseTop,
-                                left: overdueExt.left,
-                                width: overdueExt.width,
-                                height: baseHeight,
-                                background: `repeating-linear-gradient(45deg, ${dark}, ${dark} 5px, ${mid} 5px, ${mid} 10px)`,
-                                borderTop: `1.5px dotted hsl(var(--destructive))`,
-                                borderBottom: `1.5px dotted hsl(var(--destructive))`,
-                              }}
-                            >
-                              {overdueExt.width > 28 && dExc > 0 && (
-                                <span
-                                  className="absolute right-0.5 top-1/2 -translate-y-1/2 px-1 py-0.5 rounded-sm text-[9px] font-bold tabular-nums shadow-sm"
-                                  style={{ backgroundColor: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}
-                                >
-                                  +{dExc}d
-                                </span>
-                              )}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs">
-                            <div className="font-semibold">Tempo excedido</div>
-                            <div>+{dExc}d além do prazo planejado</div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-
-                      {/* Barra principal */}
+                      {/* Barra unificada (planejado + extensão excedida) */}
                       {pos && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div
-                              className={barClasses + (isProject ? " shadow-sm font-semibold text-[11px]" : "")}
+                              className="absolute cursor-pointer transition-all hover:brightness-110"
                               style={{
-                                ...barStyle,
-                                top: baseTop, left: pos.left, width: pos.width, height: baseHeight,
-                                borderLeft: `3px solid ${strong}`,
+                                top: baseTop,
+                                left: pos.left,
+                                width: totalBarWidth,
+                                height: baseHeight,
                               }}
                               onClick={() => onItemClick?.(item.id, item.type)}
                             >
-                              {(status === "em_andamento" || isOverdue) && progressPct > 0 && (
-                                <div
-                                  className="absolute inset-y-0 left-0 rounded-l"
-                                  style={{ width: `${Math.min(100, progressPct)}%`, backgroundColor: respColor, opacity: 0.85 }}
-                                />
-                              )}
-                              <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0">
-                                {status === "travada" && <Lock className="h-3 w-3 shrink-0" />}
-                                {isOverdue && <AlertTriangle className="h-3 w-3 shrink-0" />}
-                                {(status === "concluida" || isLateDone) && <CheckCircle2 className="h-3 w-3 shrink-0" />}
-                                {pos.width > 50 && <span className="truncate">{item.name}</span>}
+                              {/* Segmento PLANEJADO */}
+                              <div
+                                className="absolute top-0 left-0 flex items-center px-1.5 text-[10px] font-medium overflow-hidden"
+                                style={{
+                                  ...barStyle,
+                                  width: pos.width,
+                                  height: baseHeight,
+                                  borderTopLeftRadius: 4,
+                                  borderBottomLeftRadius: 4,
+                                  borderTopRightRadius: extWidth > 0 ? 0 : 4,
+                                  borderBottomRightRadius: extWidth > 0 ? 0 : 4,
+                                  // Se tem extensão, remove a borda direita para emendar visualmente
+                                  borderRight: extWidth > 0 ? "none" : (barStyle.border as string)?.includes("solid") || (barStyle.border as string)?.includes("dashed") ? undefined : barStyle.borderRight,
+                                  fontWeight: isProject ? 600 : 500,
+                                  fontSize: isProject ? 11 : 10,
+                                }}
+                              >
+                                {/* Preenchimento interno (progresso na cor forte do projeto) */}
+                                {fillPct > 0 && !isDone && (
+                                  <div
+                                    className="absolute inset-y-0 left-0 pointer-events-none"
+                                    style={{
+                                      width: `${Math.min(100, fillPct)}%`,
+                                      background: strong,
+                                      opacity: 0.85,
+                                      borderTopLeftRadius: 3,
+                                      borderBottomLeftRadius: 3,
+                                    }}
+                                  />
+                                )}
+                                {/* Marcador do responsável (dot esquerdo) */}
+                                {item.responsavel && (
+                                  <span
+                                    className="relative z-10 inline-block h-2 w-2 rounded-full ring-1 ring-white/60 shrink-0 mr-1"
+                                    style={{ backgroundColor: respColor }}
+                                  />
+                                )}
+                                <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0" style={{ color: isDone ? "white" : (isProject ? "white" : dark) }}>
+                                  {icon}
+                                  {pos.width > 50 && <span className="truncate">{item.name}</span>}
+                                </div>
+                                {/* Chip "Nd planejado" no fim do segmento planejado */}
+                                {pos.width > 60 && dPrev !== null && (() => {
+                                  const isDarkBg = isDone;
+                                  const chipBg = isDarkBg ? "rgba(255,255,255,0.22)" : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
+                                  const chipColor = isDarkBg ? "white" : dark;
+                                  const label = isCompactRow ? `${dPrev}d` : (isDone && !isLateDone ? `${dReal ?? dPrev}d ✓` : `${dPrev}d plan`);
+                                  return (
+                                    <span
+                                      className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
+                                      style={{ backgroundColor: chipBg, color: chipColor }}
+                                    >
+                                      {label}
+                                    </span>
+                                  );
+                                })()}
+                                {pos.width > 110 && (() => {
+                                  const cl = checklistProgressByStage.get(item.id);
+                                  if (!cl || cl.total === 0) return null;
+                                  const isDarkBg = isDone;
+                                  const chipBg = isDarkBg ? "rgba(255,255,255,0.22)" : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
+                                  const chipColor = isDarkBg ? "white" : dark;
+                                  return (
+                                    <span
+                                      className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
+                                      style={{ backgroundColor: chipBg, color: chipColor }}
+                                      title={`${cl.done} de ${cl.total} subtarefas concluídas`}
+                                    >
+                                      ☑ {cl.done}/{cl.total}
+                                    </span>
+                                  );
+                                })()}
                               </div>
-                              {pos.width > 80 && durationLabel && (() => {
-                                const isDarkBg = isProject || isDone;
-                                const chipBg = isDarkBg
-                                  ? "rgba(255,255,255,0.22)"
-                                  : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
-                                const chipColor = isDarkBg ? "white" : dark;
-                                return (
-                                  <span
-                                    className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
-                                    style={{ backgroundColor: chipBg, color: chipColor }}
-                                  >
-                                    {durationLabel}
-                                  </span>
-                                );
-                              })()}
-                              {pos.width > 110 && (() => {
-                                const cl = checklistProgressByStage.get(item.id);
-                                if (!cl || cl.total === 0) return null;
-                                const isDarkBg = isProject || isDone;
-                                const chipBg = isDarkBg
-                                  ? "rgba(255,255,255,0.22)"
-                                  : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
-                                const chipColor = isDarkBg ? "white" : dark;
-                                return (
-                                  <span
-                                    className="relative z-10 ml-1 shrink-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums"
-                                    style={{ backgroundColor: chipBg, color: chipColor }}
-                                    title={`${cl.done} de ${cl.total} subtarefas concluídas`}
-                                  >
-                                    ☑ {cl.done}/{cl.total}
-                                  </span>
-                                );
-                              })()}
+
+                              {/* Segmento EXCEDIDO — emendado visualmente, mesma cor base em tom mais escuro */}
+                              {extWidth > 0 && (
+                                <div
+                                  className="absolute top-0 flex items-center justify-center px-1 overflow-hidden"
+                                  style={{
+                                    left: pos.width,
+                                    width: extWidth,
+                                    height: baseHeight,
+                                    background: `repeating-linear-gradient(45deg, ${dark} 0 5px, ${mid} 5px 10px)`,
+                                    borderTop: `1.5px solid ${strong}`,
+                                    borderRight: `1.5px solid ${strong}`,
+                                    borderBottom: `1.5px solid ${strong}`,
+                                    borderTopRightRadius: 4,
+                                    borderBottomRightRadius: 4,
+                                  }}
+                                >
+                                  {extWidth > 36 && dExc > 0 && (
+                                    <span className="text-[9px] font-bold tabular-nums text-white/95 px-1 py-0.5 rounded-sm" style={{ backgroundColor: "hsl(var(--destructive) / 0.85)" }}>
+                                      {extWidth > 80 ? `+${dExc}d excedido` : `+${dExc}d`}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Chip TOTAL flutuante na ponta direita (só quando há excedido) */}
+                              {extWidth > 0 && dTot !== null && totalBarWidth > 90 && (
+                                <span
+                                  className="absolute -top-2 right-0 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tabular-nums shadow-sm border"
+                                  style={{
+                                    backgroundColor: "hsl(var(--background))",
+                                    color: dark,
+                                    borderColor: strong,
+                                  }}
+                                >
+                                  {isCompactRow ? `${dTot}d` : `${dTot}d total`}
+                                </span>
+                              )}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-xs space-y-1 max-w-xs">
-                            <div className="font-semibold">{item.name}</div>
+                            <div className="font-semibold flex items-center gap-2">
+                              <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: strong }} />
+                              {item.name}
+                            </div>
                             {item.categoria && <div className="text-muted-foreground">📂 {getCategoryLabel(item.categoria)}</div>}
                             {item.responsavel && <div className="text-muted-foreground">👤 {item.responsavel}</div>}
                             <div>Status: <strong>{
                               status === "concluida_com_atraso" ? "Concluída com atraso"
                               : status === "em_andamento" ? "Em andamento"
                               : status === "atrasada" ? "Atrasada"
-                              : status === "concluida" ? "Concluída"
+                              : status === "concluida" ? "Concluída no prazo"
                               : status === "planejada" ? "Planejada"
                               : status === "travada" ? "Travada"
                               : status === "pausada" ? "Pausada"
                               : status
                             }</strong></div>
                             <div className="border-t pt-1 mt-1 space-y-0.5">
-                              {item.startPrev && <div>Início prev: {format(item.startPrev, "dd/MM/yy")}</div>}
+                              {item.startPrev && <div>Início previsto: {format(item.startPrev, "dd/MM/yy")}</div>}
                               {item.startReal && <div>Início real: {format(item.startReal, "dd/MM/yy")}</div>}
-                              {endPrev && <div>Fim previsto: {format(endPrev, "dd/MM/yy")}</div>}
+                              {endPrev && <div>Fim planejado: {format(endPrev, "dd/MM/yy")}</div>}
                               {endReal && <div>Fim real: {format(endReal, "dd/MM/yy")}</div>}
                             </div>
                             <div className="border-t pt-1 mt-1 space-y-0.5">
-                              {dPrev !== null && <div>Duração planejada: <strong>{dPrev}d</strong></div>}
-                              {dDec !== null && !isDone && <div>Decorridos desde início: <strong>{dDec}d</strong></div>}
-                              {dExc > 0 && <div className="text-destructive font-semibold">Excedido: +{dExc}d</div>}
-                              {dTot !== null && <div>Total existência: <strong>{dTot}d</strong></div>}
+                              {dPrev !== null && <div>Dias planejados: <strong>{dPrev}d</strong></div>}
+                              {dDec !== null && <div>Dias decorridos: <strong>{dDec}d</strong>{dPrev ? ` (${Math.round((item.metrics.percentualPlanejadoDecorrido || 0) * 100)}% do plano)` : ""}</div>}
+                              {dExc > 0 && <div className="text-destructive font-semibold">Dias excedidos: +{dExc}d</div>}
+                              {dTot !== null && <div>Dias totais: <strong>{dTot}d</strong></div>}
                               {dReal !== null && <div>Duração real: <strong>{dReal}d</strong></div>}
                             </div>
-                            {!isDone && item.metrics.diasRestantes !== null && (
-                              <div className={item.metrics.diasRestantes < 0 ? "text-destructive font-semibold" : ""}>
-                                {item.metrics.diasRestantes >= 0
-                                  ? `${item.metrics.diasRestantes}d restantes`
-                                  : `Em atraso há ${Math.abs(item.metrics.diasRestantes)}d`}
-                              </div>
-                            )}
-                            {isLateDone && <div className="text-destructive font-semibold">Concluída com {dExc}d de atraso</div>}
-                            {status === "concluida" && <div className="text-success">Concluída no prazo</div>}
+                            <div className="border-t pt-1 mt-1">
+                              {isLateDone && <span className="text-destructive font-semibold">Concluída com {dExc}d de atraso</span>}
+                              {isDoneOnTime && <span className="text-success font-semibold">Concluída no prazo</span>}
+                              {isOverdue && !isDone && <span className="text-destructive font-semibold">Atrasada há {dExc}d</span>}
+                              {isInProgress && !isOverdue && <span className="text-success">No prazo</span>}
+                              {status === "planejada" && <span className="text-muted-foreground">Aguardando início</span>}
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -1198,33 +1237,34 @@ export function GanttTimeline({
           </div>
         </div>
 
-        {/* Legenda */}
+        {/* Legenda — reflete a nova semântica visual */}
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }} />Planejada
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }} />
+            Período planejado
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)" }} />Em execução
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm overflow-hidden relative" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }}>
+              <span className="absolute inset-y-0 left-0" style={{ width: "60%", background: "hsl(200 60% 45%)", opacity: 0.85 }} />
+            </span>
+            Progresso realizado
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)", boxShadow: "0 0 0 1.5px hsl(var(--destructive) / 0.6)" }} />Atrasada
+          <span className="flex items-center gap-1.5">
+            <span className="inline-flex w-7 h-2.5 rounded-sm overflow-hidden" style={{ border: "1.5px solid hsl(200 60% 45%)" }}>
+              <span className="block h-full" style={{ width: "45%", background: "hsl(200 60% 45%)" }} />
+              <span className="block h-full" style={{ width: "55%", background: "repeating-linear-gradient(45deg, hsl(200 60% 22%) 0 4px, hsl(200 60% 32%) 4px 8px)" }} />
+            </span>
+            Tempo excedido (continuação)
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><CheckCircle2 className="h-3 w-3 text-success" />No prazo
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm" style={{ background: "hsl(145 65% 32%)" }} />
+            <CheckCircle2 className="h-3 w-3 text-success" />Concluída
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><AlertTriangle className="h-3 w-3 text-destructive" />Concluída c/ atraso
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-2.5 rounded-sm" style={{ background: "repeating-linear-gradient(45deg, hsl(200 50% 92%) 0 4px, hsl(200 50% 80%) 4px 8px)", border: "1.5px dashed hsl(200 60% 45%)" }} />
+            <Lock className="h-3 w-3" />Pausada/Travada
           </span>
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block w-4 h-2.5 rounded"
-              style={{ background: "repeating-linear-gradient(45deg, hsl(0 0% 25%), hsl(0 0% 25%) 3px, hsl(0 0% 45%) 3px, hsl(0 0% 45%) 6px)", borderTop: "1px dotted hsl(var(--destructive))", borderBottom: "1px dotted hsl(var(--destructive))" }}
-            />Tempo excedido
-          </span>
-          <span className="flex items-center gap-1">
-            <Lock className="h-3 w-3" />Travada
-          </span>
-          <span className="flex items-center gap-1 ml-auto">
+          <span className="flex items-center gap-1.5 ml-auto">
             <span className="inline-block w-0.5 h-3 bg-destructive" />Hoje
           </span>
         </div>

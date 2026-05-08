@@ -1,161 +1,126 @@
-# Revisão da Timeline / Gantt — Plano em 2 Fases
+# Refatoração visual da Timeline (Gantt) — Operação
 
-Objetivo: corrigir a lógica de cálculo de dias (planejado vs. excedido vs. total) e melhorar a diferenciação visual das barras, **sem reconstruir a timeline**. Manter estrutura, navegação, filtros, lista lateral e linha do "Hoje".
+Foco: representar a vida da demanda numa **única barra contínua** dividida em "planejado" e "excedido", preservando a cor própria de cada projeto. Sem mexer em filtros, navegação, zoom, dados ou rotas.
 
-Arquivos principais:
-- `src/lib/operacaoConfig.ts` — paleta de projetos, `computeStageMetrics`, `deriveStageStatus`.
-- `src/components/operacao/GanttTimeline.tsx` — render das barras, chips, tooltip, legenda, cadeia inline.
-
----
-
-## FASE 1 — Lógica do tempo, semântica dos dias e estados temporais
-
-Foco em **correção de cálculo e leitura semântica**. Sem grande mexida visual ainda — só o suficiente para representar planejado x excedido corretamente.
-
-### 1.1 Estender `computeStageMetrics` (operacaoConfig.ts)
-
-Adicionar campos derivados:
-- `diasExcedidos` — dias além de `data_fim_prevista` (>0 só quando ultrapassou; conta até hoje se em execução, ou até `data_fim_real` se concluído com atraso).
-- `diasTotais` — dias corridos desde o início (real ou previsto) até hoje (se em execução) ou até `data_fim_real` (se concluído).
-- `diasDecorridos` — dias entre início e hoje, sem cap em `duracaoPrevista`.
-- `concluidaComAtraso` — boolean (`data_fim_real > data_fim_prevista`).
-- Manter `duracaoPrevista`, `duracaoReal`, `percentConsumido`, `diasRestantes`.
-
-### 1.2 Refinar `deriveStageStatus`
-
-Distinguir explicitamente os 6 cenários do prompt:
-- `planejada` (não iniciou)
-- `em_andamento` (iniciou, dentro do prazo)
-- `atrasada` (iniciou, passou do `data_fim_prevista`, sem `data_fim_real`)
-- `concluida` (no prazo) — quando `data_fim_real <= data_fim_prevista`
-- `concluida_com_atraso` — novo derivado, quando `data_fim_real > data_fim_prevista`
-- `travada` / `pausada` — mantidos
-
-Trata `concluida_com_atraso` como variante visual de `concluida`, não como novo status no select de formulário.
-
-### 1.3 Corrigir geometria das barras (GanttTimeline.tsx)
-
-Hoje a barra "principal" cresce até `today` quando atrasada, escondendo o conceito de prazo. Mudança:
-
-- **Barra principal** = sempre `start → data_fim_prevista` (corpo planejado). Largura fixa do planejado.
-- **Extensão de excedido** = trecho separado de `data_fim_prevista → today` (em execução atrasada) ou `→ data_fim_real` (concluída com atraso). Visual claramente distinto (ver Fase 2).
-- Para concluída no prazo: barra principal vai de `start → data_fim_real` (sem extensão).
-- Para sem `data_fim_prevista`: fallback atual.
-
-### 1.4 Refazer chip de duração na barra
-
-Substituir o atual `37/37d` confuso por rótulo semântico compacto. Lógica:
-- Concluída no prazo → `37d ✓`
-- Concluída com atraso → `37d +5d` (planejado + excedido)
-- Em execução no prazo → `12/37d` (decorrido/planejado)
-- Em execução atrasada → `37d +18d` (planejado + dias excedidos), com chip do excedido em cor de alerta
-- Planejada → `37d` (somente planejado)
-
-Em barras estreitas (largura <80px), exibir só o excedido se >0; caso contrário, omitir.
-
-### 1.5 Tooltip enriquecido
-
-Reorganizar conteúdo do tooltip já existente para mostrar exatamente:
-- Nome, status (label humano), responsável, categoria
-- Início (real ou previsto), Fim previsto, Fim real (se houver)
-- Duração planejada (Xd)
-- Dias decorridos desde o início
-- Dias excedidos (quando >0, em destaque)
-- Dias totais de existência da demanda
-- % concluído (checklist quando houver)
-- "Em atraso há Xd" / "Concluída no prazo" / "Concluída com Xd de atraso"
-
-### 1.6 Atualizar a legenda inferior
-
-Adicionar entradas para:
-- "Tempo excedido" (faixa hachurada/outline)
-- "Concluída com atraso"
-Mantendo as demais (planejada, em execução, concluída, travada, hoje).
-
-### Critério de aceite Fase 1
-- Item "teste" com 37d planejado e prazo vencido passa a mostrar `37d` (barra) + extensão visível de `+18d` (ou Nd reais).
-- Tooltip lista planejado, decorrido, excedido, total — todos coerentes.
-- Concluídas com atraso aparecem distintas de concluídas no prazo.
+Arquivos afetados:
+- `src/components/operacao/GanttTimeline.tsx` (visual das barras + tooltip + legenda)
+- `src/lib/operacaoConfig.ts` (apenas paleta — garantir distinção de cor)
 
 ---
 
-## FASE 2 — Identidade visual e diferenciação das barras
+## Fase 1 — Continuidade visual: planejado + excedido como uma só demanda
 
-Só entra após Fase 1 estar validada. Foco em **personalidade da cor** e **separação cor-do-projeto vs. tratamento-de-status**.
+### 1.1 Geometria unificada
+Hoje a extensão de excedido é renderizada como um `<div>` separado, com bordas arredondadas próprias e fundo hachurado escuro (linhas 952–983). Isso causa o "retângulo solto".
 
-### 2.1 Nova paleta de projetos
+Mudanças em `GanttTimeline.tsx` (bloco linhas ~801–1090, e a duplicata do `inlineChain` ~1092 em diante):
 
-Em `operacaoConfig.ts` (`PROJECT_PALETTE`), substituir a paleta atual (8 tons muito próximos verde/terra) por uma paleta de **10–12 cores** com matizes bem distintas e saturação maior, mantendo aderência agro:
-- verde floresta, verde folha, azul, amarelo/dourado, laranja, marrom, verde-azulado (teal), oliva, terracota/tijolo, ameixa/violeta, ocre, cinza-azulado.
+- Renderizar **um único container "barra da demanda"** que vai de `start` até `mainEnd` (planejado) e, quando houver, **uma sub-camada interna** posicionada à direita representando o excedido (`endPrev → today` ou `endPrev → endReal`).
+- Container usa `border-radius` apenas nas pontas externas: cantos esquerdos arredondados (início real/planejado), cantos direitos arredondados na ponta final (que será o `endReal` se concluída com atraso, ou `today` se em atraso aberto).
+- A divisão entre planejado e excedido é uma **linha vertical fina** (1px, cor do projeto em tom escuro `dark`) — sem borda inteira ao redor do excedido. Isso garante "continuação" e não "barra nova".
+- Trecho excedido recebe **mesma cor do projeto, em tom mais escuro** (`dark`/`mid`) com leve textura diagonal sutil (gap maior, opacidade reduzida) — não o hachurado pesado atual.
+- Remover as bordas `dotted destructive` do excedido. O alerta vermelho passa a ser apenas o chip `+Nd` flutuante e o ícone de alerta na barra.
 
-Saturação base ~55–70%, lightness base ~35–45% (legível em fundo claro). Continuar derivando hash do `projectId`, mas garantir distribuição (ex.: lista maior reduz colisão visual).
+### 1.2 Preenchimento interno (progresso)
+Atualmente o "fill" de progresso usa `respColor` (cor do responsável) e fica dentro da barra (linhas 998–1003). Substituir por:
 
-Heurística opcional: se a operação tem `categoria` definida, derivar a cor da `hue` da categoria (já existe em `OPERATION_CATEGORIES`) em vez do hash do id — assim "Casa de Farinha", "Plantio de Abóbora" etc. ficam previsivelmente coloridos. Hash do id continua como fallback quando sem categoria.
+- Fundo da barra planejada: tom **claro** da cor do projeto (`soft`/`softer`) com **borda 1.5px sólida** na cor forte do projeto (`strong`).
+- Preenchimento de progresso: faixa interna na **cor forte do projeto** (`strong`), avançando da esquerda até:
+  - `today` se "em_andamento" dentro do prazo,
+  - `endPrev` se atrasada (preenchimento ocupa 100% da barra planejada),
+  - `endReal` se concluída no prazo,
+  - 100% se concluída.
+- Cor do responsável deixa de pintar o progresso. Continua aparecendo só como pequeno marcador/dot na ponta esquerda da barra (preservando identidade do responsável sem quebrar a cor da demanda).
 
-### 2.2 Separar "cor do projeto" de "status visual"
+### 1.3 Variação por status (sem perder a cor do projeto)
+Reescrever o switch de `barStyle` (linhas 856–885) para sempre usar `projectColor(...)`. Status muda **só o tratamento**:
 
-Regra: **cor base = identidade do projeto, sempre presente**. Status muda apenas o tratamento.
+- `planejada`: fundo `soft`, borda `strong`, sem fill interno.
+- `em_andamento`: fundo `soft`, borda `strong`, fill `strong` até hoje.
+- `atrasada`: idem em_andamento + extensão de excedido + ícone alerta + chip `+Nd`.
+- `concluida`: fundo `strong` cheio, ícone check, sem extensão.
+- `concluida_com_atraso`: fundo `strong` cheio até `endPrev`, extensão até `endReal`, chip `+Nd`.
+- `pausada`: textura listrada suave em tom `soft` + borda `strong` + ícone pause.
+- `travada`: dessaturada (s≈15) + borda tracejada + ícone Lock.
+- `cancelada`: cinza neutro com `line-through` (mantém comportamento atual).
 
-Mapeamento:
-- **Planejada**: fundo claro (`l: 92`) + borda sólida da cor forte + texto em cor escura. Aparência "leve".
-- **Em execução (no prazo)**: fundo médio da cor do projeto (`l: 45–50`) com preenchimento de progresso interno mais escuro/opaco proporcional ao % consumido.
-- **Em execução atrasada**: mesma base que "em execução", mas com **borda destacada** (ex.: ring + ícone de alerta) + extensão de excedido tratada como faixa hachurada/outline na cor do projeto em tom escuro.
-- **Concluída no prazo**: fundo sólido na cor forte + check + sombra leve (estado atual já está bom).
-- **Concluída com atraso**: sólido na cor forte + faixa de excedido visível ao final (hachurada na própria cor do projeto, não verde fixo) + ícone diferenciado (ex.: check com badge `+Nd`).
-- **Travada**: cor do projeto dessaturada com borda tracejada + ícone de cadeado (manter).
-- **Pausada**: opacidade reduzida + listras diagonais sutis.
-- **Cancelada**: cinza com strikethrough (manter).
-
-### 2.3 Tratamento da extensão de excedido
-
-Hoje a extensão usa cor verde fixa (`hsl(142 70% 22%)`), o que quebra a identidade do projeto. Mudar para:
-- Hachura (`repeating-linear-gradient`) **na cor do projeto em tom escuro** (`l: 22`) com listras na cor do projeto em tom médio (`l: 38`).
-- Borda superior/inferior pontilhada para reforçar "fora do plano".
-- Pequeno chip flutuante ao final: `+Nd` em cor de alerta (vermelho/destrutivo) sobreposto.
-
-### 2.4 Hierarquia visual por nível
-
-Manter a regra atual mas reforçar:
-- Projeto raiz (level 0): preenchido sólido, fonte 11px semibold.
-- Subprojeto (level 1): fundo claro + borda 2px sólida.
-- Sub-sub (level ≥2): fundo bem claro + borda tracejada + barra ligeiramente menor (ex.: `baseHeight - 4`).
-
-A borda lateral de 3px continua exibindo a cor forte do projeto raiz em todos os níveis (já existe).
-
-### 2.5 Chips de informação sobre a barra
-
-Padronizar os 2 chips (duração + checklist) para herdarem a cor do projeto em vez de branco translúcido fixo, garantindo contraste mínimo (texto branco quando bg escuro, texto escuro quando bg claro). Chip de excedido sempre em cor de alerta para chamar atenção.
-
-### 2.6 Acessibilidade e mobile
-
-- Garantir contraste WCAG AA do texto sobre cada cor da nova paleta (ajustar `l` se necessário).
-- Em mobile (já usa o mesmo componente), validar que as cores se mantêm distinguíveis em barras curtas. Reduzir min-width das barras para 6px e priorizar cor + ícone quando não couber texto.
-- Cadeia inline (subprojetos recolhidos) usa as mesmas regras de cor/status — atualizar o bloco `inlineChain` em paralelo.
-
-### Critério de aceite Fase 2
-- Cada projeto tem cor visivelmente distinta no Gantt; não há mais aparência monocromática.
-- Status muda o tratamento (preenchimento, borda, hachura) **sem apagar** a cor do projeto.
-- Barras atrasadas se distinguem instantaneamente de barras normais.
-- Funciona bem em desktop (>1024px) e mobile (≤414px).
-- Legenda inferior reflete a nova semântica visual.
+Projetos (`level 0`) podem ter borda mais grossa (2px) e altura levemente maior; subprojetos/sub-sub usam mesma lógica com borda mais fina ou tracejada — sem trocar a cor.
 
 ---
 
-## Detalhes técnicos (referência)
+## Fase 2 — Rótulos, tooltip, legenda e diferenciação de cor
 
-```text
-Geometria das barras (Fase 1.3)
-─────────────────────────────────────────────────────────────────
-                start            fimPrev                 today
-                  │                 │                      │
-  Planejada       ░░░░░░░░░░░░░░░░░░░  (não iniciou ainda)
-  Em andamento    ████████░░░░░░░░░░░  (progresso interno)
-  Atrasada        ███████████████████░░░░│▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│
-                                          ↑ extensão excedida (hachura)
-  Concl. atraso   ███████████████████│▒▒▒▒▒▒▒│✓
-                                       fimReal
-  Concl. no prazo ██████████✓
-                            fimReal ≤ fimPrev
-```
+### 2.1 Rótulos separados
+Substituir `buildDurationLabel` (linhas 914–925) e o render do label (linha 1010+) por **três chips posicionais**:
 
-Sem mudanças em: estrutura de árvore, `items` build, swimlanes, filtros, navegação temporal, zoom, sticky labels, conector pontilhado da cadeia inline (apenas reaproveita nova cor).
+- **Dentro/no fim da barra planejada** (alinhado à direita do trecho planejado): `37d planejado` (em barras estreitas, abreviar para `37d plan`).
+- **Dentro do trecho excedido** (centralizado, se largura ≥ 40px): `+91d excedido` (em barras estreitas, só `+91d`).
+- **Na ponta direita da demanda inteira** (chip flutuante): `128d total` (apenas quando `dTot > dPrev` e há excedido — para concluídas no prazo, mostra apenas o `dPrev d ✓`).
+
+Tipografia: `tabular-nums`, peso 600, tamanho 9–10px. Em telas estreitas/mobile, esconder o "planejado"/"excedido"/"total" e manter só números (ex.: `37d`, `+91d`, `128d`).
+
+### 2.2 Cálculos (revisar `computeStageMetrics`)
+A lógica atual já cobre o essencial. Ajustes pontuais em `src/lib/operacaoConfig.ts`:
+
+- Renomear/garantir nomes claros:
+  - `diasPlanejados` (alias de `duracaoPrevista`).
+  - `diasTotais` = `(fimReal ?? today) - start` (já existe).
+  - `diasExcedidos` = `max(0, diasTotais - diasPlanejados)` (já existe; revisar para usar diasTotais para consistência).
+  - Adicionar `percentualPlanejadoDecorrido` = `min(1, diasDecorridosDentroDoPrazo / diasPlanejados)`.
+  - Adicionar `percentualTotal` = `diasTotais / diasPlanejados`.
+- Garantir que `start` use `data_inicio_real ?? data_inicio_prevista` consistentemente (já ok).
+
+### 2.3 Tooltip enriquecido
+Substituir o tooltip atual (linhas ~978–982 e tooltip principal da barra) por um único bloco com:
+
+- Nome da demanda (negrito) + chip de status.
+- Responsável (com cor própria).
+- Início (real ou planejado).
+- Fim planejado.
+- Fim real (se houver).
+- `Dias planejados: N`
+- `Dias decorridos: N` (com `%` do planejado).
+- `Dias excedidos: N` (em vermelho, só se > 0).
+- `Dias totais: N`.
+- Linha-resumo: "No prazo" / "Atrasada há Xd" / "Concluída no prazo" / "Concluída com Xd de atraso".
+
+O tooltip do trecho excedido deixa de existir (a barra inteira é um único hover target).
+
+### 2.4 Legenda atualizada
+Reescrever a legenda (linhas ~1215–1230) com 6 entradas refletindo a nova semântica:
+
+- Período planejado (caixa `soft` + borda `strong`).
+- Progresso realizado (faixa `strong` dentro da caixa).
+- Tempo excedido (continuação em tom `dark` com textura sutil).
+- Concluída (caixa cheia `strong` + check).
+- Pausada/Travada (textura/dashed + ícone).
+- Linha de hoje (linha vermelha vertical).
+
+### 2.5 Cor única por demanda — reforço
+Hoje `getProjectVisualColor` pode usar a hue da **categoria** (linhas 121–141), o que faz vários projetos da mesma categoria ficarem com cor idêntica. Mudança em `GanttTimeline.tsx`:
+
+- `projectColorFor` deve **priorizar `getProjectColor(projectId)`** (hash do id → paleta) e usar a categoria apenas como fallback quando não houver projectId estável. Isso garante que cada demanda tenha cor distinta mesmo dentro da mesma categoria.
+- Manter a paleta de 12 cores atual (já bem distribuída).
+
+---
+
+## Critérios de aceite (validação visual)
+
+- [ ] Demanda "teste" (37d planejados, 128d totais) mostra: barra planejada terminando em `endPrev`, extensão hachurada suave até hoje, chips `37d planejado` + `+91d excedido` + `128d total`.
+- [ ] Trecho excedido **parece colado** na barra planejada (sem gap, sem cantos arredondados internos, mesma cor base).
+- [ ] Dois projetos diferentes nunca têm cor idêntica (testar com 3+ projetos da mesma categoria).
+- [ ] Concluída no prazo: barra cheia até `endReal`, sem extensão, label `Nd ✓`.
+- [ ] Concluída com atraso: barra cheia até `endPrev` + extensão até `endReal` + chips.
+- [ ] Em andamento dentro do prazo: fill `strong` até hoje, sem extensão.
+- [ ] Em andamento atrasada: fill 100% da barra planejada + extensão até hoje + alerta.
+- [ ] Tooltip mostra todos os campos da seção 2.3.
+- [ ] Legenda reflete os 6 estados.
+- [ ] Mobile (≤640px): chips colapsam para versão curta, barra mantém legibilidade.
+
+---
+
+## Detalhes técnicos
+
+- Mesmas mudanças aplicadas no bloco principal e no `inlineChain` (linhas ~1092+) para manter consistência visual em chains inline.
+- Manter `getBarPosition`, `dayToPx`, `colWidth` intactos — apenas a renderização da barra muda.
+- Sem migrações de banco. Sem mudanças em hooks ou rotas.
