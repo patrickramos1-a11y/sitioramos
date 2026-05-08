@@ -1145,13 +1145,15 @@ export function GanttTimeline({
                           (inl.derivedStatus === "atrasada" && inl.endPrev ? today : inl.endPrev);
                         const inlPos = getBarPosition(inlStart, inlEnd);
                         if (!inlPos) return null;
+                        const inlProjHsl = getProjectHsl(item.rootProjectId);
                         const inlStrong = projectColor(item.rootProjectId);
                         const inlSoft = projectColor(item.rootProjectId, { l: 92, s: 45 });
                         const inlSofter = projectColor(item.rootProjectId, { l: 96, s: 40 });
                         const inlDark = projectColor(item.rootProjectId, { l: 18 });
+                        const inlTextOnStrong = getContrastTextHsl(inlProjHsl.l);
                         let inlStyle: React.CSSProperties = {};
                         if (inl.derivedStatus === "concluida") {
-                          inlStyle = { backgroundColor: inlStrong, color: "white" };
+                          inlStyle = { backgroundColor: inlStrong, color: inlTextOnStrong };
                         } else if (inl.level === 1) {
                           inlStyle = { backgroundColor: inlSoft, border: `2px solid ${inlStrong}`, color: inlDark };
                         } else {
