@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ProjectActionsMenu } from "./ProjectActionsMenu";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
-type ZoomLevel = "day" | "week" | "month" | "year";
+type ZoomLevel = "day" | "week" | "fortnight" | "month" | "bimonth" | "quarter" | "year" | "biennium";
 
 // Paleta de cores por projeto (Sítio Ramos — verde floresta, folha, sol, terra)
 // Cada entrada é { h, s, l } base; variações são derivadas alterando lightness.
@@ -48,10 +48,14 @@ const getProjectColor = (projectId: string) => projectColor(projectId);
 
 // Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
 const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
-  day:   { columns: 60,  minColWidth: 56, label: "Dia",    shortLabel: "D" },
-  week:  { columns: 36,  minColWidth: 70, label: "Semana", shortLabel: "S" },
-  month: { columns: 24,  minColWidth: 90, label: "Mês",    shortLabel: "M" },
-  year:  { columns: 20,  minColWidth: 90, label: "Ano",    shortLabel: "A" },
+  day:       { columns: 60, minColWidth: 56, label: "Dia",       shortLabel: "D" },
+  week:      { columns: 36, minColWidth: 70, label: "Semana",    shortLabel: "S" },
+  fortnight: { columns: 24, minColWidth: 80, label: "15 dias",   shortLabel: "Q" },
+  month:     { columns: 24, minColWidth: 90, label: "Mês",       shortLabel: "M" },
+  bimonth:   { columns: 18, minColWidth: 90, label: "Bimestre",  shortLabel: "B" },
+  quarter:   { columns: 16, minColWidth: 90, label: "Trimestre", shortLabel: "T" },
+  year:      { columns: 20, minColWidth: 90, label: "Ano",       shortLabel: "A" },
+  biennium:  { columns: 12, minColWidth: 100, label: "2 anos",   shortLabel: "2A" },
 };
 
 interface GanttItem {
@@ -402,6 +406,13 @@ export function GanttTimeline({
         end = addWeeks(start, cfg.columns);
         break;
       }
+      case "fortnight": {
+        start = startOfDay(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addDays(start, i * 15))
+          .map(d => ({ label: format(d, "dd/MM", { locale: ptBR }), date: d }));
+        end = addDays(start, cfg.columns * 15);
+        break;
+      }
       case "month": {
         start = startOfMonth(anchorDate);
         cols = Array.from({ length: cfg.columns }, (_, i) => addMonths(start, i))
@@ -409,11 +420,32 @@ export function GanttTimeline({
         end = addMonths(start, cfg.columns);
         break;
       }
+      case "bimonth": {
+        start = startOfMonth(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addMonths(start, i * 2))
+          .map(d => ({ label: format(d, "MMM/yy", { locale: ptBR }), date: d }));
+        end = addMonths(start, cfg.columns * 2);
+        break;
+      }
+      case "quarter": {
+        start = startOfMonth(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addMonths(start, i * 3))
+          .map(d => ({ label: format(d, "MMM/yy", { locale: ptBR }), date: d }));
+        end = addMonths(start, cfg.columns * 3);
+        break;
+      }
       case "year": {
         start = startOfYear(anchorDate);
         cols = Array.from({ length: cfg.columns }, (_, i) => addYears(start, i))
           .map(d => ({ label: format(d, "yyyy", { locale: ptBR }), date: d }));
         end = addYears(start, cfg.columns);
+        break;
+      }
+      case "biennium": {
+        start = startOfYear(anchorDate);
+        cols = Array.from({ length: cfg.columns }, (_, i) => addYears(start, i * 2))
+          .map(d => ({ label: format(d, "yyyy", { locale: ptBR }), date: d }));
+        end = addYears(start, cfg.columns * 2);
         break;
       }
     }
@@ -434,14 +466,18 @@ export function GanttTimeline({
     return { left, width: Math.max(8, width) };
   };
 
-  // Navegação por 1 unidade (dia, semana, mês ou ano) — desloca a janela
+  // Navegação por 1 coluna por clique (passo único conforme o zoom)
   const shiftWindow = (direction: 1 | -1) => {
     setAnchorDate(prev => {
       switch (zoom) {
-        case "day": return addDays(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
-        case "week": return addWeeks(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
-        case "month": return addMonths(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
-        case "year": return addYears(prev, direction * Math.max(1, Math.floor(columns.length / 2)));
+        case "day":       return addDays(prev, direction);
+        case "week":      return addWeeks(prev, direction);
+        case "fortnight": return addDays(prev, direction * 15);
+        case "month":     return addMonths(prev, direction);
+        case "bimonth":   return addMonths(prev, direction * 2);
+        case "quarter":   return addMonths(prev, direction * 3);
+        case "year":      return addYears(prev, direction);
+        case "biennium":  return addYears(prev, direction * 2);
       }
     });
   };
@@ -451,10 +487,14 @@ export function GanttTimeline({
     const today = startOfDay(new Date());
     const half = Math.floor(ZOOM_CONFIG[zoom].columns / 2);
     switch (zoom) {
-      case "day": setAnchorDate(addDays(today, -half)); break;
-      case "week": setAnchorDate(startOfWeek(addWeeks(today, -half), { weekStartsOn: 1 })); break;
-      case "month": setAnchorDate(startOfMonth(addMonths(today, -half))); break;
-      case "year": setAnchorDate(startOfYear(addYears(today, -half))); break;
+      case "day":       setAnchorDate(addDays(today, -half)); break;
+      case "week":      setAnchorDate(startOfWeek(addWeeks(today, -half), { weekStartsOn: 1 })); break;
+      case "fortnight": setAnchorDate(startOfDay(addDays(today, -half * 15))); break;
+      case "month":     setAnchorDate(startOfMonth(addMonths(today, -half))); break;
+      case "bimonth":   setAnchorDate(startOfMonth(addMonths(today, -half * 2))); break;
+      case "quarter":   setAnchorDate(startOfMonth(addMonths(today, -half * 3))); break;
+      case "year":      setAnchorDate(startOfYear(addYears(today, -half))); break;
+      case "biennium":  setAnchorDate(startOfYear(addYears(today, -half * 2))); break;
     }
     // após re-render, rolar viewport
     requestAnimationFrame(() => {
@@ -579,11 +619,14 @@ export function GanttTimeline({
             </div>
 
             <span className="text-xs text-muted-foreground mr-1">Zoom:</span>
-            {(["day", "week", "month", "year"] as ZoomLevel[]).map(z => (
-              <Button key={z} variant={zoom === z ? "default" : "outline"} size="sm" className="h-7 text-xs" onClick={() => setZoom(z)}>
-                {ZOOM_CONFIG[z].label}
-              </Button>
-            ))}
+            <Select value={zoom} onValueChange={(v) => setZoom(v as ZoomLevel)}>
+              <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(["day", "week", "fortnight", "month", "bimonth", "quarter", "year", "biennium"] as ZoomLevel[]).map(z => (
+                  <SelectItem key={z} value={z} className="text-xs">{ZOOM_CONFIG[z].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
