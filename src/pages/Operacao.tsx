@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoView";
+import { ResponsavelFilter, matchesResponsavel, type ResponsavelFilterValue } from "@/components/responsaveis/ResponsavelFilter";
 
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -38,6 +39,7 @@ export default function Operacao() {
   const [filterArea, setFilterArea] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCategoria, setFilterCategoria] = useState<string>("all");
+  const [filterResp, setFilterResp] = useState<ResponsavelFilterValue>("all");
 
   const operationFilters = useMemo(() => ({
     areaId: filterArea !== "all" ? filterArea : undefined,
@@ -46,13 +48,35 @@ export default function Operacao() {
 
   const { operations: rawOperations, createOperation, updateOperation, deleteOperation, duplicateOperation } = useOperations(operationFilters);
 
-  // Filtro de categoria aplicado em memória
+  // Filtro de categoria + responsável aplicado em memória.
+  // Para responsável: mantém o projeto se o próprio projeto OU qualquer subprojeto/filho casar.
   const operations = useMemo(() => {
-    if (filterCategoria === "all") return rawOperations;
-    return rawOperations.filter(op => op.categoria === filterCategoria);
-  }, [rawOperations, filterCategoria]);
+    let result = rawOperations;
+    if (filterCategoria !== "all") {
+      result = result.filter(op => op.categoria === filterCategoria);
+    }
+    if (filterResp !== "all") {
+      result = result
+        .map(op => {
+          const opMatches = matchesResponsavel(filterResp, (op as any).responsavel_id);
+          const filteredChildren = (op.children || []).filter(c =>
+            matchesResponsavel(filterResp, (c as any).responsavel_id)
+          );
+          if (opMatches || filteredChildren.length > 0) {
+            return { ...op, children: opMatches ? op.children : filteredChildren };
+          }
+          return null;
+        })
+        .filter(Boolean) as typeof rawOperations;
+    }
+    return result;
+  }, [rawOperations, filterCategoria, filterResp]);
 
-  const { tasks, createTask, updateTask, deleteTask } = useTasks({ areaId: operationFilters.areaId || undefined });
+  const { tasks: rawTasks, createTask, updateTask, deleteTask } = useTasks({ areaId: operationFilters.areaId || undefined });
+  const tasks = useMemo(
+    () => (filterResp === "all" ? rawTasks : rawTasks.filter(t => matchesResponsavel(filterResp, (t as any).responsavel_id))),
+    [rawTasks, filterResp]
+  );
 
   // Form state
   const [opFormOpen, setOpFormOpen] = useState(false);
@@ -363,7 +387,10 @@ export default function Operacao() {
           </div>
         </div>
 
-        {/* Filters (desktop) */}
+        {/* Filtro por Responsável (desktop + mobile) */}
+        <div className="bg-card border border-border rounded-md px-2.5 py-2 overflow-x-auto -mx-1 px-1 md:mx-0 md:px-2.5">
+          <ResponsavelFilter value={filterResp} onChange={setFilterResp} showLabel />
+        </div>
         <div className="hidden md:flex items-center gap-2 md:gap-3 flex-wrap">
           <Select value={filterArea} onValueChange={setFilterArea}>
             <SelectTrigger className="flex-1 min-w-[140px] sm:flex-initial sm:w-44">

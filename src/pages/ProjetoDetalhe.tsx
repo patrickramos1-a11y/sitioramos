@@ -33,6 +33,7 @@ import { SimpleTaskForm } from "@/components/operacao/SimpleTaskForm";
 import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
+import { ResponsavelFilter, matchesResponsavel, type ResponsavelFilterValue } from "@/components/responsaveis/ResponsavelFilter";
 
 import {
   computeStageMetrics, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
@@ -182,6 +183,38 @@ export default function ProjetoDetalhe() {
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // Responsável filter (interno ao projeto)
+  const [respFilter, setRespFilter] = useState<ResponsavelFilterValue>("all");
+
+  // Timeline contextual: precisa estar antes de qualquer early-return para preservar ordem dos hooks
+  const timelineOps: Operation[] = useMemo(() => {
+    if (!currentOp) return [];
+    const matchingRoot = rawOperations.find(o => o.id === currentOp.id);
+    if (matchingRoot) return [matchingRoot];
+    const descendants = Array.from(allDescendantIds)
+      .map(d => allStages.find(s => s.id === d))
+      .filter(Boolean) as Operation[];
+    return [{ ...currentOp, children: descendants }];
+  }, [currentOp, rawOperations, allDescendantIds, allStages]);
+
+  // Filtrados por responsável
+  const filteredSubChildren = useMemo(
+    () => directChildren.filter(s => matchesResponsavel(respFilter, (s as any).responsavel_id)),
+    [directChildren, respFilter]
+  );
+  const filteredTasks = useMemo(
+    () => relatedTasks.filter(t => matchesResponsavel(respFilter, (t as any).responsavel_id)),
+    [relatedTasks, respFilter]
+  );
+  const filteredTransactions = useMemo(
+    () => projectTransactions.filter(t => matchesResponsavel(respFilter, (t as any).responsavel_id)),
+    [projectTransactions, respFilter]
+  );
+  const filteredJournal = useMemo(
+    () => (journalEntries as any[]).filter(j => matchesResponsavel(respFilter, j.responsavel_id)),
+    [journalEntries, respFilter]
+  );
+
   if (!currentOp) {
     return (
       <AppLayout>
@@ -198,8 +231,8 @@ export default function ProjetoDetalhe() {
   const isSubproject = !!currentOp.parent_id;
   const sb = statusBadge[derivedStatus] || statusBadge.planejada;
 
-  // Subprojetos como cards (filhos diretos do nó atual)
-  const subCards = directChildren.map(sub => {
+  // Subprojetos como cards (filhos diretos do nó atual, já filtrados por responsável)
+  const subCards = filteredSubChildren.map(sub => {
     const subTasks = allTasks.filter(t => t.stage_id === sub.id);
     const subDone = subTasks.filter(t => t.status === "concluida").length;
     const subPct = subTasks.length > 0 ? Math.round((subDone / subTasks.length) * 100) : 0;
@@ -220,20 +253,19 @@ export default function ProjetoDetalhe() {
     return { sub, subTasks, subDone, subPct, subSt, subM, subSb };
   });
 
-  // Para a Timeline contextual: mostra somente o projeto atual + descendentes
-  const timelineOps: Operation[] = useMemo(() => {
-    if (!currentOp) return [];
-    // Reutilizamos a estrutura do `operations` (com children) mas filtrada
-    const matchingRoot = rawOperations.find(o => o.id === currentOp.id);
-    if (matchingRoot) return [matchingRoot];
-    // Quando é subprojeto, montamos um root virtual incluindo seus descendentes
-    const descendants = Array.from(allDescendantIds)
-      .map(d => allStages.find(s => s.id === d))
-      .filter(Boolean) as Operation[];
-    return [{ ...currentOp, children: descendants }];
-  }, [currentOp, rawOperations, allDescendantIds, allStages]);
+  // Recalcular métricas/contagens com base no filtro
+  const tasksConcluidasF = filteredTasks.filter(t => t.status === "concluida").length;
+  const tasksPendentesF = filteredTasks.filter(t => t.status === "pendente" || t.status === "em_andamento").length;
+  const tasksAtrasadasF = filteredTasks.filter(t => {
+    if (t.status === "concluida" || t.status === "cancelada") return false;
+    return t.data_prazo && new Date(t.data_prazo) < new Date();
+  }).length;
+  const totalCustoF = filteredTransactions.filter(t => t.tipo === "saida").reduce((sum, t) => sum + Number(t.valor || 0), 0);
+  const progressoGeralF = filteredTasks.length > 0
+    ? Math.round((tasksConcluidasF / filteredTasks.length) * 100)
+    : (currentOp?.progresso_percentual ?? 0);
 
-  const timelineTasks = relatedTasks;
+  const timelineTasks = filteredTasks;
 
   // Handlers
   const handleNewSubproject = () => {
@@ -383,21 +415,33 @@ export default function ProjetoDetalhe() {
           </CardHeader>
         </Card>
 
+        {/* Filtro por responsável */}
+        <Card>
+          <CardContent className="p-3">
+            <ResponsavelFilter value={respFilter} onChange={setRespFilter} showLabel />
+            {respFilter !== "all" && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Mostrando apenas itens deste projeto vinculados ao responsável selecionado.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Cards de resumo */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KpiCard icon={<Layers className="h-4 w-4" />} label="Subprojetos" value={directChildren.length} />
-          <KpiCard icon={<ListTodo className="h-4 w-4" />} label="Tarefas" value={relatedTasks.length} sub={`${tasksConcluidas} concluídas`} />
+          <KpiCard icon={<Layers className="h-4 w-4" />} label="Subprojetos" value={filteredSubChildren.length} />
+          <KpiCard icon={<ListTodo className="h-4 w-4" />} label="Tarefas" value={filteredTasks.length} sub={`${tasksConcluidasF} concluídas`} />
           <KpiCard
             icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
             label="Atrasadas"
-            value={tasksAtrasadas}
-            tone={tasksAtrasadas > 0 ? "destructive" : undefined}
+            value={tasksAtrasadasF}
+            tone={tasksAtrasadasF > 0 ? "destructive" : undefined}
           />
-          <KpiCard icon={<Clock className="h-4 w-4" />} label="Pendentes" value={tasksPendentes} />
+          <KpiCard icon={<Clock className="h-4 w-4" />} label="Pendentes" value={tasksPendentesF} />
           <KpiCard
             icon={<DollarSign className="h-4 w-4" />}
             label="Custo total"
-            value={formatCurrency(totalCusto)}
+            value={formatCurrency(totalCustoF)}
           />
           {metrics?.duracaoPrevista !== null && metrics?.duracaoPrevista !== undefined && (
             <KpiCard icon={<Calendar className="h-4 w-4" />} label="Dias planejados" value={`${metrics.duracaoPrevista}d`} />
@@ -413,7 +457,7 @@ export default function ProjetoDetalhe() {
               tone="destructive"
             />
           )}
-          <KpiCard icon={<BarChart3 className="h-4 w-4" />} label="Progresso" value={`${progressoGeral}%`} />
+          <KpiCard icon={<BarChart3 className="h-4 w-4" />} label="Progresso" value={`${progressoGeralF}%`} />
         </div>
 
         {/* Ações rápidas */}
@@ -442,8 +486,8 @@ export default function ProjetoDetalhe() {
         <Tabs defaultValue="resumo" className="space-y-4">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
-            <TabsTrigger value="subprojetos">Subprojetos ({directChildren.length})</TabsTrigger>
-            <TabsTrigger value="tarefas">Tarefas ({relatedTasks.length})</TabsTrigger>
+            <TabsTrigger value="subprojetos">Subprojetos ({filteredSubChildren.length})</TabsTrigger>
+            <TabsTrigger value="tarefas">Tarefas ({filteredTasks.length})</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="custos">Custos</TabsTrigger>
             <TabsTrigger value="diario">Diário</TabsTrigger>
@@ -463,7 +507,11 @@ export default function ProjetoDetalhe() {
                   <Detail label="Fim real" value={currentOp.data_fim_real ? format(new Date(currentOp.data_fim_real), "dd/MM/yy", { locale: ptBR }) : "—"} />
                   <Detail label="Área" value={areaInfo?.nome || "—"} />
                   <Detail label="Ciclo" value={(cycleInfo as any)?.cultura || "—"} />
-                  <Detail label="Responsável" value={currentOp.responsavel || "—"} />
+                  <Detail label="Responsável" value={
+                    currentOp.responsavel_id
+                      ? <ResponsavelBadge responsavelId={currentOp.responsavel_id} />
+                      : (currentOp.responsavel || "—")
+                  } />
                   <Detail label="Categoria" value={currentOp.categoria ? getCategoryLabel(currentOp.categoria) : "—"} />
                 </div>
                 {currentOp.observacoes && (
@@ -496,9 +544,15 @@ export default function ProjetoDetalhe() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <CardTitle className="text-base truncate">{sub.nome}</CardTitle>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             <Badge variant={subSb.variant} className="text-[10px]">{subSb.label}</Badge>
-                            {sub.responsavel && <span className="text-[11px] text-muted-foreground">👤 {sub.responsavel}</span>}
+                            {(sub as any).responsavel_id ? (
+                              <ResponsavelBadge responsavelId={(sub as any).responsavel_id} size="xs" />
+                            ) : sub.responsavel ? (
+                              <span className="text-[11px] text-muted-foreground">👤 {sub.responsavel}</span>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] py-0 h-4">Sem responsável</Badge>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -534,7 +588,7 @@ export default function ProjetoDetalhe() {
             <Card>
               <CardContent className="pt-6">
                 <TasksBoard
-                  tasks={relatedTasks}
+                  tasks={filteredTasks}
                   operations={timelineOps}
                   onCreate={handleNewTask}
                   onEdit={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
@@ -585,17 +639,20 @@ export default function ProjetoDetalhe() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {projectTransactions.length === 0 ? (
+                {filteredTransactions.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">Nenhum custo vinculado.</p>
                 ) : (
                   <div className="space-y-2">
-                    {projectTransactions.map(t => (
+                    {filteredTransactions.map(t => (
                       <div key={t.id} className="flex items-center justify-between border rounded-lg p-3 text-sm">
                         <div className="min-w-0">
                           <div className="font-medium truncate">{t.descricao || (t as any).categoria}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}
-                            {(t as any).contatos?.nome && <> • {(t as any).contatos.nome}</>}
+                          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span>{format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}</span>
+                            {(t as any).contatos?.nome && <span>• {(t as any).contatos.nome}</span>}
+                            {(t as any).responsavel_id && (
+                              <ResponsavelBadge responsavelId={(t as any).responsavel_id} size="xs" />
+                            )}
                           </div>
                         </div>
                         <div className={`tabular-nums font-semibold ${t.tipo === "saida" ? "text-destructive" : "text-success"}`}>
@@ -605,7 +662,7 @@ export default function ProjetoDetalhe() {
                     ))}
                     <div className="flex justify-end pt-2 border-t mt-2">
                       <span className="text-sm font-semibold">
-                        Total saídas: <span className="text-destructive">{formatCurrency(totalCusto)}</span>
+                        Total saídas: <span className="text-destructive">{formatCurrency(totalCustoF)}</span>
                       </span>
                     </div>
                   </div>
@@ -632,15 +689,16 @@ export default function ProjetoDetalhe() {
                   <p className="text-sm text-muted-foreground py-6 text-center">
                     Vincule uma área ou ciclo ao projeto para listar registros.
                   </p>
-                ) : journalEntries.length === 0 ? (
+                ) : filteredJournal.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">Nenhum registro encontrado.</p>
                 ) : (
                   <div className="space-y-2">
-                    {journalEntries.slice(0, 20).map((e: any) => (
+                    {filteredJournal.slice(0, 20).map((e: any) => (
                       <div key={e.id} className="border rounded-lg p-3 text-sm">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium truncate">{e.title || e.entry_type}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground flex items-center gap-2">
+                            {e.responsavel_id && <ResponsavelBadge responsavelId={e.responsavel_id} size="xs" />}
                             {format(new Date(e.entry_date), "dd/MM/yy", { locale: ptBR })}
                           </span>
                         </div>

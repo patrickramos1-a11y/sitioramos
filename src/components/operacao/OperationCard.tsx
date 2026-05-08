@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getCategoryEmoji, getCategoryLabel, getResponsavelColor } from "@/lib/operacaoConfig";
 import { OperationCostBlock } from "./OperationCostBlock";
+import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeVariant: "default" | "secondary" | "outline" | "destructive" }> = {
   planejada: { label: "Planejada", icon: Circle, color: "text-muted-foreground", badgeVariant: "outline" },
@@ -145,7 +146,11 @@ export function OperationCard({
             {operation.data_fim_prevista && (
               <span>Prev: {format(new Date(operation.data_fim_prevista), "dd/MM/yy", { locale: ptBR })}</span>
             )}
-            {operation.responsavel && <span>👤 {operation.responsavel}</span>}
+            {(operation as any).responsavel_id ? (
+              <ResponsavelBadge responsavelId={(operation as any).responsavel_id} size="xs" />
+            ) : operation.responsavel ? (
+              <span>👤 {operation.responsavel}</span>
+            ) : null}
             {totalCusto > 0 && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(totalCusto)}</span>}
             {tasksTotal > 0 && <span>☑ {tasksConcluidas}/{tasksTotal} subtarefas</span>}
           </div>
@@ -179,6 +184,9 @@ export function OperationCard({
                           <SubIcon className={`h-3.5 w-3.5 ${subSc.color}`} />
                           <span className="text-sm font-medium truncate">{sub.nome}</span>
                           <Badge variant={subSc.badgeVariant} className="text-[10px]">{subSc.label}</Badge>
+                          {(sub as any).responsavel_id && (
+                            <ResponsavelBadge responsavelId={(sub as any).responsavel_id} size="xs" />
+                          )}
                           {subTasks.length > 0 && (
                             <span className="text-[10px] text-muted-foreground tabular-nums">
                               ☑ {subDone}/{subTasks.length} ({subPct}%)
@@ -290,13 +298,15 @@ function ChecklistRow({
       >
         {task.titulo}
       </button>
-      {task.responsavel && (
+      {(task as any).responsavel_id ? (
+        <ResponsavelBadge responsavelId={(task as any).responsavel_id} size="xs" showName={false} />
+      ) : task.responsavel ? (
         <span
           className="inline-block h-2 w-2 rounded-full shrink-0"
           style={{ backgroundColor: getResponsavelColor(task.responsavel) }}
           title={task.responsavel}
         />
-      )}
+      ) : null}
       {task.data_prazo && (
         <span className={`text-[10px] tabular-nums shrink-0 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
           {format(new Date(task.data_prazo), "dd/MM", { locale: ptBR })}
