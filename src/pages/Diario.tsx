@@ -124,7 +124,8 @@ export default function Diario() {
   const { areas = [] } = useAreas() as any;
   const { cycles = [] } = useCycles() as any;
 
-  const [title, setTitle] = useState(() => defaultTitle());
+  const [title, setTitle] = useState("");
+  const [titlePlaceholder] = useState(() => defaultTitle());
   const [text, setText] = useState("");
   const [audio, setAudio] = useState<RecordedAudio | null>(null);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -163,10 +164,10 @@ export default function Diario() {
 
   const hasContent =
     text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0;
-  const canSave = hasContent || title.trim().length > 0;
+  const canSave = hasContent;
 
   const reset = () => {
-    setTitle(defaultTitle());
+    setTitle("");
     setText("");
     setAudio(null);
     photos.forEach((p) => URL.revokeObjectURL(p.url));
@@ -297,7 +298,7 @@ export default function Diario() {
     const entryPayload = {
       entry_date: new Date().toISOString().split("T")[0],
       entry_type: entryType,
-      title: title.trim() || defaultTitle(),
+      title: title.trim() || titlePlaceholder,
       description: text.trim() || null,
       area_id: areaId || null,
       cycle_id: cycleId || null,
@@ -406,8 +407,9 @@ export default function Diario() {
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título do registro"
-              className="h-9 bg-card/80 border-brand-leaf/20 focus-visible:ring-brand-leaf/40 font-medium"
+              onFocus={(e) => e.currentTarget.select()}
+              placeholder={titlePlaceholder}
+              className="h-9 bg-card/80 border-brand-leaf/20 focus-visible:ring-brand-leaf/40 font-medium placeholder:text-muted-foreground/60 placeholder:italic"
             />
           </div>
 
