@@ -10,11 +10,25 @@ interface QueuedAttachment {
   height?: number;
 }
 
+export interface QueuedJournalPoint {
+  nome: string;
+  observacao: string | null;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  captured_at: string;
+  ordem: number;
+  manual: boolean;
+  geometry_type: string;
+  coordinates: any | null;
+}
+
 export interface QueuedJournalEntry {
   id: string;
   createdAt: number;
   entry: Record<string, any>;
   attachments: QueuedAttachment[];
+  points?: QueuedJournalPoint[];
 }
 
 interface OfflineDB extends DBSchema {
