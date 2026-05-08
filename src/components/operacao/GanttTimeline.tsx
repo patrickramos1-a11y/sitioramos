@@ -618,15 +618,20 @@ export function GanttTimeline({
               </Button>
             </div>
 
-            <span className="text-xs text-muted-foreground mr-1">Zoom:</span>
-            <Select value={zoom} onValueChange={(v) => setZoom(v as ZoomLevel)}>
-              <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(["day", "week", "fortnight", "month", "bimonth", "quarter", "year", "biennium"] as ZoomLevel[]).map(z => (
-                  <SelectItem key={z} value={z} className="text-xs">{ZOOM_CONFIG[z].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-1 flex-wrap bg-muted/40 rounded-md p-0.5">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground px-1.5">Zoom</span>
+              {(["day", "week", "fortnight", "month", "bimonth", "quarter", "year", "biennium"] as ZoomLevel[]).map(z => (
+                <Button
+                  key={z}
+                  variant={zoom === z ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => setZoom(z)}
+                >
+                  {ZOOM_CONFIG[z].label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
