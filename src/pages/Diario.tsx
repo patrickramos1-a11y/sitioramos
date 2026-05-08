@@ -44,6 +44,11 @@ import { useNavigate } from "react-router-dom";
 import { enqueueJournalEntry } from "@/lib/offlineQueue";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { Wifi, WifiOff, CloudUpload } from "lucide-react";
+import {
+  JournalPointsManager,
+  JournalPointsCollapsible,
+} from "@/components/diario/JournalPointsManager";
+import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
 
 const NONE = "__none__";
 
