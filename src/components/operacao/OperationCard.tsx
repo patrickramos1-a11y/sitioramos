@@ -88,7 +88,12 @@ export function OperationCard({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Icon className={`h-4 w-4 ${sc.color}`} />
-                    <CardTitle className="text-base">{operation.nome}</CardTitle>
+                    <CardTitle
+                      className="text-base hover:underline cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/operacao/projetos/${operation.id}`); }}
+                    >
+                      {operation.nome}
+                    </CardTitle>
                   </div>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge variant={sc.badgeVariant} className="text-xs">{sc.label}</Badge>
