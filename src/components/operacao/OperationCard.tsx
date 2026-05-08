@@ -298,13 +298,15 @@ function ChecklistRow({
       >
         {task.titulo}
       </button>
-      {task.responsavel && (
+      {(task as any).responsavel_id ? (
+        <ResponsavelBadge responsavelId={(task as any).responsavel_id} size="xs" showName={false} />
+      ) : task.responsavel ? (
         <span
           className="inline-block h-2 w-2 rounded-full shrink-0"
           style={{ backgroundColor: getResponsavelColor(task.responsavel) }}
           title={task.responsavel}
         />
-      )}
+      ) : null}
       {task.data_prazo && (
         <span className={`text-[10px] tabular-nums shrink-0 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
           {format(new Date(task.data_prazo), "dd/MM", { locale: ptBR })}
