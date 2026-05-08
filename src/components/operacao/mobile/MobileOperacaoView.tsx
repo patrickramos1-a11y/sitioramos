@@ -278,6 +278,7 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
           <SegBtn active={view === "cards"} onClick={() => setView("cards")} icon={LayoutGrid} label="Cards" />
           <SegBtn active={view === "agenda"} onClick={() => setView("agenda")} icon={CalendarDays} label="Agenda" />
           <SegBtn active={view === "gantt"} onClick={() => setView("gantt")} icon={BarChart3} label="Gantt" />
+          <SegBtn active={view === "tarefas"} onClick={() => setView("tarefas")} icon={CheckSquare} label="Tarefas" />
         </div>
       </div>
 
