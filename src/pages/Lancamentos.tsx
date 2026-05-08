@@ -37,6 +37,8 @@ export default function Lancamentos() {
 
   const { areas } = useAreas();
   const { operations } = useOperations();
+  const { cycles } = useCycles();
+  const { data: responsaveis = [] } = useResponsaveis();
   const { transactions, createTransaction, deleteTransaction } = useCashTransactions({
     areaId: areaFilter !== "all" ? areaFilter : undefined,
     operationId: operationFilter !== "all" ? operationFilter : undefined,
