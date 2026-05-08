@@ -121,16 +121,23 @@ export function OperationCard({
                 <DropdownMenuItem onClick={() => onAddSubOperation(operation.id)}><Layers className="mr-2 h-3 w-3" />Novo Subprojeto</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onAddTask(operation.id)}><ListTodo className="mr-2 h-3 w-3" />Nova Subtarefa</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {operation.status !== "em_andamento" && (
+                {operation.status !== "em_andamento" && operation.status !== "concluida" && (
                   <DropdownMenuItem onClick={() => onStatusChange(operation, "em_andamento")}>
                     <PlayCircle className="mr-2 h-3 w-3" />Iniciar
                   </DropdownMenuItem>
                 )}
                 {operation.status === "em_andamento" && (
-                  <>
-                    <DropdownMenuItem onClick={() => onStatusChange(operation, "pausada")}><PauseCircle className="mr-2 h-3 w-3" />Pausar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onStatusChange(operation, "concluida")}><CheckCircle2 className="mr-2 h-3 w-3" />Concluir</DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem onClick={() => onStatusChange(operation, "pausada")}><PauseCircle className="mr-2 h-3 w-3" />Pausar</DropdownMenuItem>
+                )}
+                {operation.status !== "concluida" && (
+                  <DropdownMenuItem onClick={() => onStatusChange(operation, "concluida")} className="text-success focus:text-success">
+                    <CheckCircle2 className="mr-2 h-3 w-3" />Concluir projeto
+                  </DropdownMenuItem>
+                )}
+                {operation.status === "concluida" && (
+                  <DropdownMenuItem onClick={() => onStatusChange(operation, "em_andamento")}>
+                    <PlayCircle className="mr-2 h-3 w-3" />Reabrir
+                  </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onDelete(operation)} className="text-destructive"><Trash2 className="mr-2 h-3 w-3" />Excluir</DropdownMenuItem>

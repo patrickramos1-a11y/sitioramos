@@ -10,7 +10,7 @@ import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
   computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, getCategoryColor,
-  getProjectHsl,
+  getProjectHsl, getContrastTextHsl,
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -852,6 +852,7 @@ export function GanttTimeline({
                     return 0;
                   })();
 
+                  const projHsl = getProjectHsl(item.rootProjectId);
                   const strong = projectColor(item.rootProjectId);
                   const soft = projectColor(item.rootProjectId, { l: 92, s: 45 });
                   const softer = projectColor(item.rootProjectId, { l: 96, s: 40 });
@@ -860,17 +861,24 @@ export function GanttTimeline({
                   const isProject = item.level === 0;
                   const isSub = item.level === 1;
 
+                  // Texto sempre calculado pelo contraste do fundo da barra
+                  const textOnStrong = getContrastTextHsl(projHsl.l); // fundo = strong (l da paleta)
+                  const textOnSoft = getContrastTextHsl(92);          // fundo = soft (claro) → escuro
+
                   // Estilo base da barra planejada — sempre cor do projeto, status muda só tratamento
                   let barStyle: React.CSSProperties = {};
+                  let barTextColor = textOnSoft;
                   let icon: React.ReactNode = null;
                   if (status === "cancelada") {
                     barStyle = { backgroundColor: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", textDecoration: "line-through", opacity: 0.6, border: "1.5px solid hsl(var(--muted-foreground) / 0.3)" };
+                    barTextColor = "hsl(var(--muted-foreground))";
                   } else if (status === "travada") {
                     barStyle = {
                       backgroundColor: projectColor(item.rootProjectId, { l: 90, s: 15 }),
                       border: `1.5px dashed ${projectColor(item.rootProjectId, { l: 50, s: 25 })}`,
                       color: dark,
                     };
+                    barTextColor = dark;
                     icon = <Lock className="h-3 w-3 shrink-0" />;
                   } else if (status === "pausada") {
                     barStyle = {
@@ -878,12 +886,15 @@ export function GanttTimeline({
                       border: `1.5px solid ${strong}`,
                       color: dark,
                     };
+                    barTextColor = dark;
                   } else if (isDone) {
-                    barStyle = { backgroundColor: strong, color: "white", border: `1.5px solid ${strong}` };
+                    barStyle = { backgroundColor: strong, color: textOnStrong, border: `1.5px solid ${strong}` };
+                    barTextColor = textOnStrong;
                     icon = <CheckCircle2 className="h-3 w-3 shrink-0" />;
                   } else {
-                    // planejada / em_andamento / atrasada
-                    barStyle = { backgroundColor: soft, border: `1.5px solid ${strong}`, color: dark };
+                    // planejada / em_andamento / atrasada — fundo claro (soft)
+                    barStyle = { backgroundColor: soft, border: `1.5px solid ${strong}`, color: textOnSoft };
+                    barTextColor = textOnSoft;
                     if (isOverdue) icon = <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />;
                   }
 
@@ -1004,13 +1015,13 @@ export function GanttTimeline({
                                     style={{ backgroundColor: respColor }}
                                   />
                                 )}
-                                <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0" style={{ color: isDone ? "white" : (isProject ? "white" : dark) }}>
+                                <div className="relative z-10 flex items-center gap-1 truncate flex-1 min-w-0" style={{ color: barTextColor, textShadow: barTextColor === "hsl(0 0% 100%)" ? "0 1px 2px rgba(0,0,0,0.25)" : "none" }}>
                                   {icon}
                                   {pos.width > 50 && <span className="truncate">{item.name}</span>}
                                 </div>
                                 {/* Chip "Nd planejado" no fim do segmento planejado */}
                                 {pos.width > 60 && dPrev !== null && (() => {
-                                  const isDarkBg = isDone;
+                                  const isDarkBg = barTextColor === "hsl(0 0% 100%)";
                                   const chipBg = isDarkBg ? "rgba(255,255,255,0.22)" : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
                                   const chipColor = isDarkBg ? "white" : dark;
                                   const label = isCompactRow ? `${dPrev}d` : (isDone && !isLateDone ? `${dReal ?? dPrev}d ✓` : `${dPrev}d plan`);
@@ -1026,7 +1037,7 @@ export function GanttTimeline({
                                 {pos.width > 110 && (() => {
                                   const cl = checklistProgressByStage.get(item.id);
                                   if (!cl || cl.total === 0) return null;
-                                  const isDarkBg = isDone;
+                                  const isDarkBg = barTextColor === "hsl(0 0% 100%)";
                                   const chipBg = isDarkBg ? "rgba(255,255,255,0.22)" : projectColor(item.rootProjectId, { a: 0.18, l: 35 });
                                   const chipColor = isDarkBg ? "white" : dark;
                                   return (
@@ -1134,13 +1145,15 @@ export function GanttTimeline({
                           (inl.derivedStatus === "atrasada" && inl.endPrev ? today : inl.endPrev);
                         const inlPos = getBarPosition(inlStart, inlEnd);
                         if (!inlPos) return null;
+                        const inlProjHsl = getProjectHsl(item.rootProjectId);
                         const inlStrong = projectColor(item.rootProjectId);
                         const inlSoft = projectColor(item.rootProjectId, { l: 92, s: 45 });
                         const inlSofter = projectColor(item.rootProjectId, { l: 96, s: 40 });
                         const inlDark = projectColor(item.rootProjectId, { l: 18 });
+                        const inlTextOnStrong = getContrastTextHsl(inlProjHsl.l);
                         let inlStyle: React.CSSProperties = {};
                         if (inl.derivedStatus === "concluida") {
-                          inlStyle = { backgroundColor: inlStrong, color: "white" };
+                          inlStyle = { backgroundColor: inlStrong, color: inlTextOnStrong };
                         } else if (inl.level === 1) {
                           inlStyle = { backgroundColor: inlSoft, border: `2px solid ${inlStrong}`, color: inlDark };
                         } else {

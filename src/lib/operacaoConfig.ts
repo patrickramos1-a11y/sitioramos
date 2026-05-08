@@ -109,6 +109,15 @@ export function getProjectHsl(projectId: string) {
   for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
   return PROJECT_PALETTE[h % PROJECT_PALETTE.length];
 }
+/** Texto legível ("light" ou "dark") sobre fundo HSL pela luminosidade L. */
+export function getReadableTextOn(l: number): "light" | "dark" {
+  return l < 55 ? "light" : "dark";
+}
+/** Retorna a cor hex/hsl ideal de texto para um fundo HSL. */
+export function getContrastTextHsl(l: number): string {
+  return l < 55 ? "hsl(0 0% 100%)" : "hsl(220 25% 18%)";
+}
+
 export function getProjectColor(projectId: string, opts?: { l?: number; s?: number; a?: number }) {
   const c = getProjectHsl(projectId);
   const s = opts?.s ?? c.s;

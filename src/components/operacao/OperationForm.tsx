@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Operation, OperationInsert } from "@/hooks/useOperations";
 import { OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, addDaysISO, getCategoryColor } from "@/lib/operacaoConfig";
-import { CalendarDays, Link2, RotateCcw } from "lucide-react";
+import { CalendarDays, Link2, RotateCcw, CheckCircle2 } from "lucide-react";
 import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
+import { CollapsibleField } from "@/components/ui/collapsible-field";
 
 const NONE = "__none__";
 const todayISO = () => new Date().toISOString().split("T")[0];
@@ -398,18 +399,60 @@ export function OperationForm({
 
             {/* Início Real e Fim Real ocultos — preenchidos via ações no Gantt */}
 
-            <div className="col-span-2">
-              <Label>Descrição</Label>
-              <Textarea value={formData.descricao} onChange={e => setFormData(p => ({ ...p, descricao: e.target.value }))} rows={2} />
-            </div>
-            <div className="col-span-2">
-              <Label>Observações</Label>
-              <Textarea value={formData.observacoes} onChange={e => setFormData(p => ({ ...p, observacoes: e.target.value }))} rows={2} />
+            <div className="col-span-2 space-y-2">
+              <CollapsibleField label="Descrição" value={formData.descricao}>
+                <Textarea value={formData.descricao} onChange={e => setFormData(p => ({ ...p, descricao: e.target.value }))} rows={2} placeholder="Detalhe o projeto" />
+              </CollapsibleField>
+              <CollapsibleField label="Observações" value={formData.observacoes}>
+                <Textarea value={formData.observacoes} onChange={e => setFormData(p => ({ ...p, observacoes: e.target.value }))} rows={2} placeholder="Notas internas" />
+              </CollapsibleField>
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar"}</Button>
+          <div className="flex flex-wrap justify-between gap-2 pt-2">
+            {operation && operation.status !== "concluida" && (
+              <Button
+                type="button"
+                variant="outline"
+                className="text-success border-success/40 hover:bg-success/10"
+                onClick={() => {
+                  if (!operation) return;
+                  // Sinaliza conclusão via campos do form; o handler externo cuida da data real
+                  setFormData(p => ({ ...p, status: "concluida", data_fim_real: p.data_fim_real || todayISO() }));
+                  // Submete imediatamente
+                  setTimeout(() => {
+                    onSubmit({
+                      ...({} as any),
+                      id: operation.id,
+                      nome: formData.nome,
+                      status: "concluida",
+                      data_fim_real: todayISO(),
+                    } as any);
+                  }, 0);
+                }}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1" /> Concluir
+              </Button>
+            )}
+            {operation && operation.status === "concluida" && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  onSubmit({
+                    id: operation.id,
+                    nome: formData.nome,
+                    status: "em_andamento",
+                    data_fim_real: null,
+                  } as any);
+                }}
+              >
+                Reabrir
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar"}</Button>
+            </div>
           </div>
         </form>
       </DialogContent>
