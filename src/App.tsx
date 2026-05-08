@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +7,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { idbPersister } from "@/lib/queryPersist";
+import { startVersionCheck } from "@/lib/versionCheck";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Areas from "./pages/Areas";
@@ -34,7 +36,11 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    startVersionCheck();
+  }, []);
+  return (
   <PersistQueryClientProvider
     client={queryClient}
     persistOptions={{
@@ -68,6 +74,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </PersistQueryClientProvider>
-);
+  );
+};
 
 export default App;
