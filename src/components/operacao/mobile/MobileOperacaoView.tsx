@@ -136,16 +136,16 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
   };
 
   return (
-    <div className="space-y-3">
-      {/* Filter trigger + active chips */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <div className="space-y-2">
+      {/* Linha 1: Filtros + Segmented (compactos) */}
+      <div className="flex items-center gap-1.5">
         <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="shrink-0 h-9 gap-1.5">
+            <Button variant="outline" size="sm" className="shrink-0 h-8 px-2.5 gap-1">
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Filtros
+              <span className="text-xs">Filtros</span>
               {activeFilterCount > 0 && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{activeFilterCount}</Badge>
+                <Badge variant="secondary" className="h-4 px-1 text-[9px] ml-0.5">{activeFilterCount}</Badge>
               )}
             </Button>
           </SheetTrigger>
@@ -268,33 +268,37 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
           </SheetContent>
         </Sheet>
 
-        {/* Active filter chips */}
-        {filters.status !== "all" && (
-          <FilterChip label={STATUS_STYLE[filters.status]?.label || filters.status} onRemove={() => removeChip("status")} />
-        )}
-        {Array.from(filters.responsavelIds).map(id => {
-          const r = responsaveis.find(x => x.id === id);
-          if (!r) return null;
-          return <FilterChip key={id} label={r.apelido || r.nome} color={r.cor} onRemove={() => removeChip("responsavelIds", id)} />;
-        })}
-        {Array.from(filters.areaIds).map(id => {
-          const a = areas.find(x => x.id === id);
-          if (!a) return null;
-          return <FilterChip key={id} label={a.nome} onRemove={() => removeChip("areaIds", id)} />;
-        })}
-        {Array.from(filters.categorias).map(v => {
-          const c = OPERATION_CATEGORIES.find(x => x.value === v);
-          if (!c) return null;
-          return <FilterChip key={v} label={`${c.emoji} ${c.label}`} onRemove={() => removeChip("categorias", v)} />;
-        })}
+        {/* Segmented compacto (icon-only) */}
+        <div className="flex-1 flex items-center justify-end gap-0.5 p-0.5 bg-muted rounded-md">
+          <SegBtn active={view === "cards"} onClick={() => setView("cards")} icon={LayoutGrid} label="Cards" />
+          <SegBtn active={view === "agenda"} onClick={() => setView("agenda")} icon={CalendarDays} label="Agenda" />
+          <SegBtn active={view === "gantt"} onClick={() => setView("gantt")} icon={BarChart3} label="Gantt" />
+        </div>
       </div>
 
-      {/* Segmented view switcher */}
-      <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg">
-        <SegBtn active={view === "cards"} onClick={() => setView("cards")} icon={LayoutGrid} label="Cards" />
-        <SegBtn active={view === "agenda"} onClick={() => setView("agenda")} icon={CalendarDays} label="Agenda" />
-        <SegBtn active={view === "gantt"} onClick={() => setView("gantt")} icon={BarChart3} label="Gantt" />
-      </div>
+      {/* Linha 2: chips ativos (só aparece se houver) */}
+      {activeFilterCount > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+          {filters.status !== "all" && (
+            <FilterChip label={STATUS_STYLE[filters.status]?.label || filters.status} onRemove={() => removeChip("status")} />
+          )}
+          {Array.from(filters.responsavelIds).map(id => {
+            const r = responsaveis.find(x => x.id === id);
+            if (!r) return null;
+            return <FilterChip key={id} label={r.apelido || r.nome} color={r.cor} onRemove={() => removeChip("responsavelIds", id)} />;
+          })}
+          {Array.from(filters.areaIds).map(id => {
+            const a = areas.find(x => x.id === id);
+            if (!a) return null;
+            return <FilterChip key={id} label={a.nome} onRemove={() => removeChip("areaIds", id)} />;
+          })}
+          {Array.from(filters.categorias).map(v => {
+            const c = OPERATION_CATEGORIES.find(x => x.value === v);
+            if (!c) return null;
+            return <FilterChip key={v} label={`${c.emoji} ${c.label}`} onRemove={() => removeChip("categorias", v)} />;
+          })}
+        </div>
+      )}
 
       {/* View content */}
       {filteredOps.length === 0 ? (
