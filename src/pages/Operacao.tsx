@@ -408,6 +408,11 @@ export default function Operacao() {
         onOpenChange={(v) => { setTaskFormOpen(v); if (!v) setEditingTask(null); }}
         task={editingTask}
         defaultStageId={taskDefaultStageId}
+        parentOptions={operations.map(o => ({
+          id: o.id,
+          nome: o.nome,
+          children: (o.children || []).map(c => ({ id: c.id, nome: c.nome })),
+        }))}
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
