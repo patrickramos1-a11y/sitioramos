@@ -146,7 +146,11 @@ export function OperationCard({
             {operation.data_fim_prevista && (
               <span>Prev: {format(new Date(operation.data_fim_prevista), "dd/MM/yy", { locale: ptBR })}</span>
             )}
-            {operation.responsavel && <span>👤 {operation.responsavel}</span>}
+            {(operation as any).responsavel_id ? (
+              <ResponsavelBadge responsavelId={(operation as any).responsavel_id} size="xs" />
+            ) : operation.responsavel ? (
+              <span>👤 {operation.responsavel}</span>
+            ) : null}
             {totalCusto > 0 && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(totalCusto)}</span>}
             {tasksTotal > 0 && <span>☑ {tasksConcluidas}/{tasksTotal} subtarefas</span>}
           </div>
