@@ -396,6 +396,32 @@ export default function ProjetoDetalhe() {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {currentOp.status !== "concluida" ? (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-success hover:bg-success/90 text-success-foreground"
+                    onClick={() => {
+                      const pending = relatedTasks.filter(t => t.status !== "concluida" && t.status !== "cancelada").length;
+                      if (pending > 0 && !confirm(`Este ${currentOp.parent_id ? "subprojeto" : "projeto"} ainda possui ${pending} tarefa(s) pendente(s). Deseja concluir mesmo assim?`)) return;
+                      updateOperation.mutate({
+                        id: currentOp.id,
+                        status: "concluida",
+                        data_fim_real: new Date().toISOString().split("T")[0],
+                      } as any);
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Concluir {currentOp.parent_id ? "subprojeto" : "projeto"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateOperation.mutate({ id: currentOp.id, status: "em_andamento", data_fim_real: null } as any)}
+                  >
+                    Reabrir
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -414,6 +440,22 @@ export default function ProjetoDetalhe() {
                     <DropdownMenuItem onClick={handleDuplicate}>
                       <Copy className="mr-2 h-3.5 w-3.5" /> Duplicar
                     </DropdownMenuItem>
+                    {currentOp.status !== "concluida" ? (
+                      <DropdownMenuItem
+                        className="text-success focus:text-success"
+                        onClick={() => updateOperation.mutate({
+                          id: currentOp.id,
+                          status: "concluida",
+                          data_fim_real: new Date().toISOString().split("T")[0],
+                        } as any)}
+                      >
+                        <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Concluir
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => updateOperation.mutate({ id: currentOp.id, status: "em_andamento", data_fim_real: null } as any)}>
+                        <CircleDot className="mr-2 h-3.5 w-3.5" /> Reabrir
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive">
                       <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir
