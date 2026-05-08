@@ -307,7 +307,16 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
       )}
 
       {/* View content */}
-      {filteredOps.length === 0 ? (
+      {view === "tarefas" ? (
+        <TasksBoard
+          tasks={tasks}
+          operations={operations}
+          onCreate={onCreateTask}
+          onEdit={onEditTask}
+          onDelete={onDeleteTask}
+          onToggleComplete={onToggleTaskComplete}
+        />
+      ) : filteredOps.length === 0 ? (
         <EmptyState />
       ) : view === "cards" ? (
         <CardsView operations={filteredOps} tasks={tasks} onItemClick={onItemClick} onAddSubproject={onAddSubproject} onAddTask={onAddTask} />
