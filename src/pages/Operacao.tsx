@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoView";
+import { ResponsavelFilter, matchesResponsavel, type ResponsavelFilterValue } from "@/components/responsaveis/ResponsavelFilter";
 
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
