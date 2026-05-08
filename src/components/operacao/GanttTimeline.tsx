@@ -619,11 +619,14 @@ export function GanttTimeline({
             </div>
 
             <span className="text-xs text-muted-foreground mr-1">Zoom:</span>
-            {(["day", "week", "month", "year"] as ZoomLevel[]).map(z => (
-              <Button key={z} variant={zoom === z ? "default" : "outline"} size="sm" className="h-7 text-xs" onClick={() => setZoom(z)}>
-                {ZOOM_CONFIG[z].label}
-              </Button>
-            ))}
+            <Select value={zoom} onValueChange={(v) => setZoom(v as ZoomLevel)}>
+              <SelectTrigger className="h-7 text-xs w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(["day", "week", "fortnight", "month", "bimonth", "quarter", "year", "biennium"] as ZoomLevel[]).map(z => (
+                  <SelectItem key={z} value={z} className="text-xs">{ZOOM_CONFIG[z].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
