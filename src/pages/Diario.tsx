@@ -164,9 +164,13 @@ export default function Diario() {
     v.preload = "metadata";
     v.src = url;
     v.onloadedmetadata = () => {
+      if (v.duration && v.duration > 60) {
+        URL.revokeObjectURL(url);
+        toast.error("Vídeo acima do limite de 60 segundos.");
+        return;
+      }
       setVideo({ blob: f, url, duration: v.duration });
     };
-    setVideo({ blob: f, url });
   };
 
   const removePhoto = (i: number) => {
