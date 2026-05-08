@@ -735,7 +735,7 @@ export default function Diario() {
           {/* Salvar */}
           <Button
             type="button"
-            disabled={!hasContent || create.isPending}
+            disabled={!canSave || create.isPending}
             onClick={handleSave}
             className="w-full h-12 bg-brand-forest hover:bg-brand-forest/90 text-brand-paper font-display"
           >
