@@ -636,7 +636,15 @@ export default function Diario() {
   );
 }
 
-function EntryCard({ entry }: { entry: JournalEntry }) {
+interface EntryCardProps {
+  entry: JournalEntry;
+  onMarkReviewed?: () => void;
+  onConvertToTask?: () => void;
+  onConvertToExpense?: () => void;
+  onDelete?: () => void;
+}
+
+function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense, onDelete }: EntryCardProps) {
   const photos = entry.attachments?.filter((a) => a.kind === "photo") || [];
   const audios = entry.attachments?.filter((a) => a.kind === "audio") || [];
   const videos = entry.attachments?.filter((a) => a.kind === "video") || [];
@@ -688,22 +696,66 @@ function EntryCard({ entry }: { entry: JournalEntry }) {
         <video key={v.id} controls src={v.url} className="w-full max-h-48 rounded-md bg-black" />
       ))}
 
-      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-        {audios.length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <Mic className="h-3 w-3" /> {fmtDur(audios[0].duration_seconds)}
-          </span>
-        )}
-        {photos.length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <ImageIcon className="h-3 w-3" /> {photos.length}
-          </span>
-        )}
-        {videos.length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <PlayCircle className="h-3 w-3" /> vídeo
-          </span>
-        )}
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          {audios.length > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Mic className="h-3 w-3" /> {fmtDur(audios[0].duration_seconds)}
+            </span>
+          )}
+          {photos.length > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <ImageIcon className="h-3 w-3" /> {photos.length}
+            </span>
+          )}
+          {videos.length > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <PlayCircle className="h-3 w-3" /> vídeo
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5">
+          {!entry.reviewed && onMarkReviewed && (
+            <button
+              type="button"
+              onClick={onMarkReviewed}
+              title="Marcar como revisado"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-brand-leaf hover:bg-brand-leaf/10"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onConvertToTask && (
+            <button
+              type="button"
+              onClick={onConvertToTask}
+              title="Converter em tarefa"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-brand-forest hover:bg-brand-forest/10"
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onConvertToExpense && (
+            <button
+              type="button"
+              onClick={onConvertToExpense}
+              title="Lançar como despesa"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-[hsl(15_55%_45%)] hover:bg-[hsl(15_55%_45%)]/10"
+            >
+              <Receipt className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Excluir"
+              className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );
