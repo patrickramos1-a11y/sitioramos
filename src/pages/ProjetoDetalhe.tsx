@@ -125,7 +125,7 @@ export default function ProjetoDetalhe() {
   );
 
   // Diário: filtra por área + ciclo do projeto (entradas vinculadas)
-  const { entries: journalEntries = [] } = useJournalEntries(50, {
+  const { data: journalEntries = [] } = useJournalEntries(50, {
     areaId: currentOp?.area_id || undefined,
     cycleId: currentOp?.cycle_id || undefined,
   }) as any;
