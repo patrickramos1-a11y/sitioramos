@@ -150,31 +150,40 @@ export function MobileHome() {
               {/* halo difuso */}
               <span
                 aria-hidden
-                className={cn(
-                  "absolute -top-10 -right-10 h-32 w-32 rounded-full blur-2xl opacity-70",
-                  a.glow,
-                )}
+                className={cn("absolute inset-0 pointer-events-none", a.glow)}
               />
-              {/* ilustração */}
-              <img
-                src={a.image}
-                alt=""
+              {/* curva sutil de horizonte */}
+              <span
                 aria-hidden
-                loading="lazy"
-                width={512}
-                height={512}
-                className="absolute -right-3 -top-2 h-[58%] w-auto object-contain drop-shadow-[0_6px_10px_rgba(0,0,0,0.18)] pointer-events-none select-none"
+                className="absolute inset-x-0 bottom-0 h-16 pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(120% 100% at 50% 100%, rgba(255,255,255,0.10), transparent 60%)",
+                }}
+              />
+              {/* ícone */}
+              <div
+                className={cn(
+                  "absolute top-3 left-3 h-11 w-11 rounded-2xl flex items-center justify-center",
+                  a.iconBg,
+                )}
+              >
+                <a.Icon stroke={a.iconStroke} accent={a.iconAccent} size={28} />
+              </div>
+              {/* seta */}
+              <ArrowUpRight
+                className={cn("absolute bottom-3 right-3 h-4 w-4", a.arrowColor)}
+                strokeWidth={2}
               />
               {/* conteúdo inferior */}
-              <div className="absolute inset-x-0 bottom-0 p-3">
-                <div className="font-display text-[15px] font-semibold leading-tight">
+              <div className="absolute inset-x-0 bottom-0 p-3 pr-9">
+                <div className={cn("font-display text-[15px] font-semibold leading-tight tracking-[-0.01em]", a.textColor)}>
                   {a.label}
                 </div>
-                <div className="text-[10.5px] opacity-85 leading-snug mt-0.5 line-clamp-2">
+                <div className={cn("text-[10.5px] leading-snug mt-0.5 line-clamp-2", a.subtitleColor)}>
                   {a.description}
                 </div>
               </div>
-            </div>
           );
           return a.to ? (
             <Link key={a.label} to={a.to} className="block h-full">
