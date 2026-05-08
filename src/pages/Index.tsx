@@ -1,10 +1,13 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./Dashboard";
+import { MobileHome } from "@/components/home/MobileHome";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
+  const isMobile = useIsMobile();
   return (
     <AppLayout>
-      <Dashboard />
+      {isMobile ? <MobileHome /> : <Dashboard />}
     </AppLayout>
   );
 };
