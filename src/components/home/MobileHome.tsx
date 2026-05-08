@@ -1,22 +1,29 @@
 import { Link } from "react-router-dom";
-import { Sprout, Wallet, ClipboardList, MapPin } from "lucide-react";
+import { Sprout, Wallet, ClipboardList, MapPin, ArrowUpRight } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useTasks } from "@/hooks/useTasks";
 import { cn } from "@/lib/utils";
-import imgProjeto from "@/assets/home/action-projeto.png";
-import imgTarefa from "@/assets/home/action-tarefa.png";
-import imgDespesa from "@/assets/home/action-despesa.png";
-import imgDiario from "@/assets/home/action-diario.png";
+import {
+  SproutHorizonIcon,
+  FieldChecklistIcon,
+  ReceiptSeedIcon,
+  FieldNotebookIcon,
+} from "./ActionIcons";
 
 type Action = {
   label: string;
   description: string;
-  image: string;
+  Icon: React.ComponentType<{ stroke?: string; accent?: string; size?: number; className?: string }>;
+  iconStroke: string;
+  iconAccent: string;
+  iconBg: string;
   to?: string;
   onClick?: () => void;
   cardBg: string;
   textColor: string;
+  subtitleColor: string;
   glow: string;
+  arrowColor: string;
 };
 
 function formatCurrency(n: number) {
@@ -43,38 +50,58 @@ export function MobileHome() {
     {
       label: "Novo Projeto",
       description: "Planejar etapa produtiva.",
-      image: imgProjeto,
+      Icon: SproutHorizonIcon,
+      iconStroke: "#FFFFFF",
+      iconAccent: "#F5B400",
+      iconBg: "bg-white/12",
       to: "/operacao?new=projeto",
-      cardBg: "bg-gradient-to-br from-brand-forest to-[hsl(142_55%_22%)]",
-      textColor: "text-brand-paper",
-      glow: "bg-brand-sun/30",
+      cardBg: "bg-[linear-gradient(145deg,#0D331F_0%,#145B34_58%,#0B2A1A_100%)]",
+      textColor: "text-white",
+      subtitleColor: "text-white/82",
+      glow: "bg-[radial-gradient(circle_at_28%_18%,rgba(245,180,0,0.30),transparent_40%)]",
+      arrowColor: "text-white/72",
     },
     {
       label: "Nova Tarefa",
       description: "Registrar ação rápida.",
-      image: imgTarefa,
+      Icon: FieldChecklistIcon,
+      iconStroke: "#0D331F",
+      iconAccent: "#1E7A34",
+      iconBg: "bg-[hsl(142_60%_15%)]/10",
       to: "/operacao?new=tarefa",
-      cardBg: "bg-gradient-to-br from-[hsl(43_100%_62%)] to-[hsl(38_95%_48%)]",
+      cardBg: "bg-[linear-gradient(145deg,#F8C438_0%,#F5B400_48%,#E69A00_100%)]",
       textColor: "text-brand-forest",
-      glow: "bg-white/40",
+      subtitleColor: "text-brand-forest/75",
+      glow: "bg-[radial-gradient(circle_at_78%_18%,rgba(255,255,255,0.45),transparent_38%)]",
+      arrowColor: "text-brand-forest/70",
     },
     {
       label: "Nova Despesa",
       description: "Lançar custo ou compra.",
-      image: imgDespesa,
+      Icon: ReceiptSeedIcon,
+      iconStroke: "#C85B32",
+      iconAccent: "#0D331F",
+      iconBg: "bg-[hsl(15_55%_50%)]/10",
       to: "/lancamentos?new=1",
-      cardBg: "bg-gradient-to-br from-[hsl(28_55%_92%)] to-[hsl(20_45%_78%)]",
+      cardBg: "bg-[linear-gradient(145deg,#F3E4DA_0%,#EACDBF_58%,#E4B9A6_100%)]",
       textColor: "text-brand-forest",
-      glow: "bg-[hsl(12_70%_55%)]/25",
+      subtitleColor: "text-brand-forest/72",
+      glow: "bg-[radial-gradient(circle_at_22%_16%,rgba(255,255,255,0.55),transparent_40%)]",
+      arrowColor: "text-brand-forest/60",
     },
     {
       label: "Diário de Campo",
       description: "Anotar ocorrência do dia.",
-      image: imgDiario,
+      Icon: FieldNotebookIcon,
+      iconStroke: "#0D331F",
+      iconAccent: "#1E7A34",
+      iconBg: "bg-[hsl(142_60%_15%)]/10",
       to: "/diario",
-      cardBg: "bg-gradient-to-br from-[hsl(82_38%_86%)] to-[hsl(95_30%_64%)]",
+      cardBg: "bg-[linear-gradient(145deg,#E9F1DF_0%,#BFD8AE_58%,#93BB7F_100%)]",
       textColor: "text-brand-forest",
-      glow: "bg-brand-leaf/30",
+      subtitleColor: "text-brand-forest/74",
+      glow: "bg-[radial-gradient(circle_at_72%_18%,rgba(255,255,255,0.45),transparent_40%)]",
+      arrowColor: "text-brand-forest/65",
     },
   ];
 
@@ -123,27 +150,37 @@ export function MobileHome() {
               {/* halo difuso */}
               <span
                 aria-hidden
-                className={cn(
-                  "absolute -top-10 -right-10 h-32 w-32 rounded-full blur-2xl opacity-70",
-                  a.glow,
-                )}
+                className={cn("absolute inset-0 pointer-events-none", a.glow)}
               />
-              {/* ilustração */}
-              <img
-                src={a.image}
-                alt=""
+              {/* curva sutil de horizonte */}
+              <span
                 aria-hidden
-                loading="lazy"
-                width={512}
-                height={512}
-                className="absolute -right-3 -top-2 h-[58%] w-auto object-contain drop-shadow-[0_6px_10px_rgba(0,0,0,0.18)] pointer-events-none select-none"
+                className="absolute inset-x-0 bottom-0 h-16 pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(120% 100% at 50% 100%, rgba(255,255,255,0.10), transparent 60%)",
+                }}
+              />
+              {/* ícone */}
+              <div
+                className={cn(
+                  "absolute top-3 left-3 h-11 w-11 rounded-2xl flex items-center justify-center",
+                  a.iconBg,
+                )}
+              >
+                <a.Icon stroke={a.iconStroke} accent={a.iconAccent} size={28} />
+              </div>
+              {/* seta */}
+              <ArrowUpRight
+                className={cn("absolute bottom-3 right-3 h-4 w-4", a.arrowColor)}
+                strokeWidth={2}
               />
               {/* conteúdo inferior */}
-              <div className="absolute inset-x-0 bottom-0 p-3">
-                <div className="font-display text-[15px] font-semibold leading-tight">
+              <div className="absolute inset-x-0 bottom-0 p-3 pr-9">
+                <div className={cn("font-display text-[15px] font-semibold leading-tight tracking-[-0.01em]", a.textColor)}>
                   {a.label}
                 </div>
-                <div className="text-[10.5px] opacity-85 leading-snug mt-0.5 line-clamp-2">
+                <div className={cn("text-[10.5px] leading-snug mt-0.5 line-clamp-2", a.subtitleColor)}>
                   {a.description}
                 </div>
               </div>
