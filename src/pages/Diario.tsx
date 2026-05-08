@@ -865,6 +865,17 @@ function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense,
               <PlayCircle className="h-3 w-3" /> vídeo
             </span>
           )}
+          {entry.latitude != null && entry.longitude != null && (
+            <a
+              href={`https://www.google.com/maps?q=${entry.latitude},${entry.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-brand-leaf hover:underline"
+              title="Abrir no mapa"
+            >
+              <MapPin className="h-3 w-3" /> mapa
+            </a>
+          )}
         </div>
         <div className="flex items-center gap-0.5">
           {!entry.reviewed && onMarkReviewed && (
