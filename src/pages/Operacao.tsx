@@ -195,54 +195,31 @@ export default function Operacao() {
             <p className="text-muted-foreground">Projetos com etapas, dependências e linha do tempo</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-            <Button onClick={() => setQuickOpen(true)} variant="default" className="flex-1 sm:flex-initial bg-primary/90 hover:bg-primary">
-              <Zap className="h-4 w-4 mr-1" />Criação rápida
-            </Button>
-            <Button onClick={openNewOperation} variant="outline" className="flex-1 sm:flex-initial">
+            <Button onClick={openNewOperation} variant="default" className="flex-1 sm:flex-initial">
               <Plus className="h-4 w-4 mr-1" />Novo Projeto
             </Button>
-            {/* Novo Subprojeto: escolhe projeto pai */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex-1 sm:flex-initial" disabled={operations.length === 0}>
-                  <FolderPlus className="h-4 w-4 mr-1" />Novo Subprojeto
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 max-h-80 overflow-y-auto bg-popover z-50">
-                <DropdownMenuLabel className="text-xs">Adicionar subprojeto em…</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {operations.map(op => (
-                  <DropdownMenuItem key={op.id} onClick={() => openNewChild(op.id, "subprojeto")}>
-                    {op.nome}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {/* Nova Subtarefa: escolhe projeto/subprojeto pai */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex-1 sm:flex-initial" disabled={operations.length === 0}>
-                  <CheckSquare className="h-4 w-4 mr-1" />Nova Subtarefa
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 max-h-80 overflow-y-auto bg-popover z-50">
-                <DropdownMenuLabel className="text-xs">Adicionar subtarefa em…</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {operations.flatMap(op => {
-                  const rows = [
-                    <DropdownMenuItem key={op.id} onClick={() => openNewTask(op.id)} className="font-medium">
-                      📁 {op.nome}
-                    </DropdownMenuItem>,
-                    ...((op.children || []).map(sub => (
-                      <DropdownMenuItem key={sub.id} onClick={() => openNewTask(sub.id)} className="pl-6 text-xs">
-                        ↳ {sub.nome}
-                      </DropdownMenuItem>
-                    ))),
-                  ];
-                  return rows;
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              onClick={() => {
+                setEditingOp(null);
+                setParentIdForNew(null);
+                setDefaultNivelTipo("subprojeto");
+                setFormContext({ areaId: defaultAreaId, cycleId: defaultCycleId, talhaoId: null });
+                setOpFormOpen(true);
+              }}
+              variant="outline"
+              className="flex-1 sm:flex-initial"
+              disabled={operations.length === 0}
+            >
+              <FolderPlus className="h-4 w-4 mr-1" />Novo Subprojeto
+            </Button>
+            <Button
+              onClick={() => { setEditingTask(null); setTaskDefaultStageId(""); setTaskFormOpen(true); }}
+              variant="outline"
+              className="flex-1 sm:flex-initial"
+              disabled={operations.length === 0}
+            >
+              <CheckSquare className="h-4 w-4 mr-1" />Nova Subtarefa
+            </Button>
           </div>
         </div>
 
