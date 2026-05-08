@@ -1,29 +1,24 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  FolderKanban,
-  CheckSquare,
-  Receipt,
-  NotebookPen,
-  Sprout,
-  Wallet,
-  ClipboardList,
-  MapPin,
-} from "lucide-react";
+import { Sprout, Wallet, ClipboardList, MapPin } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useTasks } from "@/hooks/useTasks";
 import { JournalEntryForm } from "@/components/diario/JournalEntryForm";
 import { cn } from "@/lib/utils";
+import imgProjeto from "@/assets/home/action-projeto.png";
+import imgTarefa from "@/assets/home/action-tarefa.png";
+import imgDespesa from "@/assets/home/action-despesa.png";
+import imgDiario from "@/assets/home/action-diario.png";
 
 type Action = {
   label: string;
   description: string;
-  icon: any;
+  image: string;
   to?: string;
   onClick?: () => void;
   cardBg: string;
-  iconBg: string;
   textColor: string;
+  glow: string;
 };
 
 function formatCurrency(n: number) {
@@ -50,38 +45,38 @@ export function MobileHome() {
     {
       label: "Novo Projeto",
       description: "Planejar etapa produtiva.",
-      icon: FolderKanban,
+      image: imgProjeto,
       to: "/operacao?new=projeto",
       cardBg: "bg-gradient-to-br from-brand-forest to-[hsl(142_55%_22%)]",
-      iconBg: "bg-brand-paper/15",
       textColor: "text-brand-paper",
+      glow: "bg-brand-sun/30",
     },
     {
       label: "Nova Tarefa",
       description: "Registrar ação rápida.",
-      icon: CheckSquare,
+      image: imgTarefa,
       to: "/operacao?new=tarefa",
-      cardBg: "bg-gradient-to-br from-[hsl(43_100%_58%)] to-[hsl(38_95%_46%)]",
-      iconBg: "bg-brand-forest/15",
+      cardBg: "bg-gradient-to-br from-[hsl(43_100%_62%)] to-[hsl(38_95%_48%)]",
       textColor: "text-brand-forest",
+      glow: "bg-white/40",
     },
     {
       label: "Nova Despesa",
       description: "Lançar custo ou compra.",
-      icon: Receipt,
+      image: imgDespesa,
       to: "/lancamentos?new=1",
-      cardBg: "bg-gradient-to-br from-[hsl(28_50%_94%)] to-[hsl(28_40%_84%)]",
-      iconBg: "bg-[hsl(12_70%_42%)]/15",
+      cardBg: "bg-gradient-to-br from-[hsl(28_55%_92%)] to-[hsl(20_45%_78%)]",
       textColor: "text-brand-forest",
+      glow: "bg-[hsl(12_70%_55%)]/25",
     },
     {
       label: "Diário de Campo",
       description: "Anotar ocorrência do dia.",
-      icon: NotebookPen,
+      image: imgDiario,
       onClick: () => setDiarioOpen(true),
-      cardBg: "bg-gradient-to-br from-[hsl(82_35%_88%)] to-[hsl(85_30%_72%)]",
-      iconBg: "bg-brand-leaf/20",
+      cardBg: "bg-gradient-to-br from-[hsl(82_38%_86%)] to-[hsl(95_30%_64%)]",
       textColor: "text-brand-forest",
+      glow: "bg-brand-leaf/30",
     },
   ];
 
