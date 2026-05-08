@@ -827,9 +827,10 @@ interface EntryCardProps {
   onConvertToTask?: () => void;
   onConvertToExpense?: () => void;
   onDelete?: () => void;
+  onSaveEdit?: (patch: { title?: string | null; description?: string | null }) => void;
 }
 
-function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense, onDelete }: EntryCardProps) {
+function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense, onDelete, onSaveEdit }: EntryCardProps) {
   const photos = entry.attachments?.filter((a) => a.kind === "photo") || [];
   const audios = entry.attachments?.filter((a) => a.kind === "audio") || [];
   const videos = entry.attachments?.filter((a) => a.kind === "video") || [];
@@ -837,30 +838,91 @@ function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense,
     !entry.reviewed && !entry.area_id && !entry.cycle_id && entry.entry_type === "observacao";
   const tipo = TIPOS.find((t) => t.value === entry.entry_type)?.label;
 
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(entry.title || "");
+  const [editDesc, setEditDesc] = useState(entry.description || "");
+
+  const startEdit = () => {
+    setEditTitle(entry.title || "");
+    setEditDesc(entry.description || "");
+    setEditing(true);
+  };
+  const saveEdit = () => {
+    onSaveEdit?.({
+      title: editTitle.trim() || null,
+      description: editDesc.trim() || null,
+    });
+    setEditing(false);
+  };
+
   return (
     <article className="rounded-xl border border-border/60 bg-card p-3 space-y-2 shadow-soft">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <Clock className="h-3 w-3" />
-          {relTime(entry.created_at)}
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground min-w-0">
+          <Clock className="h-3 w-3 shrink-0" />
+          <span className="shrink-0">{relTime(entry.created_at)}</span>
           {tipo && entry.entry_type !== "observacao" && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-brand-leaf/10 text-brand-leaf font-medium">
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-brand-leaf/10 text-brand-leaf font-medium shrink-0">
               {tipo}
             </span>
           )}
-          {entry.is_important && <Star className="h-3 w-3 fill-brand-sun text-brand-sun" />}
+          {entry.is_important && <Star className="h-3 w-3 fill-brand-sun text-brand-sun shrink-0" />}
         </div>
-        {isUnreviewed && (
-          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-brand-sun/15 text-[hsl(38_95%_38%)] font-semibold">
-            Não revisado
-          </span>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {isUnreviewed && (
+            <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-brand-sun/15 text-[hsl(38_95%_38%)] font-semibold">
+              Não revisado
+            </span>
+          )}
+          {onSaveEdit && !editing && (
+            <button
+              type="button"
+              onClick={startEdit}
+              title="Editar"
+              className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {entry.description && (
-        <p className="text-sm text-foreground leading-snug whitespace-pre-wrap line-clamp-4">
-          {entry.description}
-        </p>
+      {editing ? (
+        <div className="space-y-2">
+          <Input
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            placeholder="Título"
+            className="h-9 font-medium"
+          />
+          <Textarea
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            placeholder="Descrição"
+            rows={3}
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" size="sm" onClick={saveEdit}>
+              <CheckIcon className="h-3.5 w-3.5 mr-1" /> Salvar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {entry.title && (
+            <h3 className="text-sm font-semibold text-brand-forest leading-snug">
+              {entry.title}
+            </h3>
+          )}
+          {entry.description && (
+            <p className="text-sm text-foreground leading-snug whitespace-pre-wrap line-clamp-4">
+              {entry.description}
+            </p>
+          )}
+        </>
       )}
 
       {photos.length > 0 && (
