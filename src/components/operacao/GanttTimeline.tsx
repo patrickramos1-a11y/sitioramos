@@ -10,7 +10,7 @@ import { ptBR } from "date-fns/locale";
 import {
   getResponsavelColor, getCategoryEmoji, getCategoryLabel, deriveStageStatus,
   computeStageMetrics, OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, getCategoryColor,
-  getProjectHsl,
+  getProjectHsl, getContrastTextHsl,
 } from "@/lib/operacaoConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
