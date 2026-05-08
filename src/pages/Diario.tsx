@@ -121,7 +121,9 @@ export default function Diario() {
   const [important, setImportant] = useState(false);
 
   const photoInput = useRef<HTMLInputElement>(null);
+  const photoLibInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
+  const videoLibInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
