@@ -61,6 +61,29 @@ export default function Operacao() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "operation" | "task"; id: string } | null>(null);
 
+  // Auto-open from ?new= query param (mobile home shortcuts)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const n = searchParams.get("new");
+    if (n === "projeto") {
+      setEditingOp(null);
+      setParentIdForNew(null);
+      setDefaultNivelTipo("projeto");
+      setOpFormOpen(true);
+      const np = new URLSearchParams(searchParams);
+      np.delete("new");
+      setSearchParams(np, { replace: true });
+    } else if (n === "tarefa") {
+      setEditingTask(null);
+      setTaskDefaultStageId("");
+      setTaskFormOpen(true);
+      const np = new URLSearchParams(searchParams);
+      np.delete("new");
+      setSearchParams(np, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Default area/cycle for new operations
   const defaultAreaId = filterArea !== "all" ? filterArea : areas[0]?.id || "";
   const defaultCycleId = cycles.find(c => c.area_id === defaultAreaId)?.id || cycles[0]?.id || "";
