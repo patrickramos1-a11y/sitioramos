@@ -554,6 +554,53 @@ export type Database = {
           },
         ]
       }
+      journal_attachments: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          entry_id: string
+          height: number | null
+          id: string
+          kind: string
+          mime_type: string | null
+          size_bytes: number | null
+          storage_path: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          entry_id: string
+          height?: number | null
+          id?: string
+          kind: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          entry_id?: string
+          height?: number | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_attachments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           area_id: string | null
@@ -563,10 +610,15 @@ export type Database = {
           entry_date: string
           entry_type: string
           id: string
+          is_important: boolean
           notes: string | null
           responsavel_id: string | null
-          title: string
+          reviewed: boolean
+          status: string
+          tags: string[]
+          title: string | null
           updated_at: string
+          weather: string | null
         }
         Insert: {
           area_id?: string | null
@@ -576,10 +628,15 @@ export type Database = {
           entry_date?: string
           entry_type?: string
           id?: string
+          is_important?: boolean
           notes?: string | null
           responsavel_id?: string | null
-          title: string
+          reviewed?: boolean
+          status?: string
+          tags?: string[]
+          title?: string | null
           updated_at?: string
+          weather?: string | null
         }
         Update: {
           area_id?: string | null
@@ -589,10 +646,15 @@ export type Database = {
           entry_date?: string
           entry_type?: string
           id?: string
+          is_important?: boolean
           notes?: string | null
           responsavel_id?: string | null
-          title?: string
+          reviewed?: boolean
+          status?: string
+          tags?: string[]
+          title?: string | null
           updated_at?: string
+          weather?: string | null
         }
         Relationships: [
           {
