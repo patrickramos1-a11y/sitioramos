@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,6 +112,17 @@ export default function Lancamentos() {
     });
     setFormOpen(true);
   };
+
+  // Auto-open from ?new=1 (mobile home shortcut)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      openNewForm();
+      const np = new URLSearchParams(searchParams);
+      np.delete("new");
+      setSearchParams(np, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = () => {
     if (!form.valor || !form.categoria) return;

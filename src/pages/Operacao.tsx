@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,29 @@ export default function Operacao() {
   const [taskDefaultStageId, setTaskDefaultStageId] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "operation" | "task"; id: string } | null>(null);
+
+  // Auto-open from ?new= query param (mobile home shortcuts)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const n = searchParams.get("new");
+    if (n === "projeto") {
+      setEditingOp(null);
+      setParentIdForNew(null);
+      setDefaultNivelTipo("projeto");
+      setOpFormOpen(true);
+      const np = new URLSearchParams(searchParams);
+      np.delete("new");
+      setSearchParams(np, { replace: true });
+    } else if (n === "tarefa") {
+      setEditingTask(null);
+      setTaskDefaultStageId("");
+      setTaskFormOpen(true);
+      const np = new URLSearchParams(searchParams);
+      np.delete("new");
+      setSearchParams(np, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Default area/cycle for new operations
   const defaultAreaId = filterArea !== "all" ? filterArea : areas[0]?.id || "";
