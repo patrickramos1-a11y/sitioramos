@@ -266,6 +266,15 @@ export function OperationCard({
                           <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" onClick={() => onAddTask(sub.id)}>
                             <Plus className="h-3 w-3 mr-1" />Subtarefa
                           </Button>
+                          {subDoneState ? (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" title="Reabrir subprojeto" onClick={() => onStatusChange(sub as any, "em_andamento")}>
+                              <PlayCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-success" title="Concluir subprojeto" onClick={() => onStatusChange(sub as any, "concluida")}>
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(sub)}>
                             <Pencil className="h-3 w-3" />
                           </Button>
