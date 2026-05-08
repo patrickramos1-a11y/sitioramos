@@ -501,6 +501,9 @@ export default function ProjetoDetalhe() {
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="custos">Custos</TabsTrigger>
             <TabsTrigger value="diario">Diário</TabsTrigger>
+            <TabsTrigger value="historico" className="gap-1">
+              <History className="h-3.5 w-3.5" /> Histórico
+            </TabsTrigger>
           </TabsList>
 
           {/* Resumo */}
