@@ -220,7 +220,20 @@ export function computeStageMetrics(stage: {
     ? Math.max(0, Math.round(((fimReal ?? today).getTime() - start.getTime()) / 86400000))
     : null;
 
+  // Recalcula excedidos a partir de diasTotais para consistência
+  if (duracaoPrevista !== null && diasTotais !== null) {
+    diasExcedidos = Math.max(0, diasTotais - duracaoPrevista);
+  }
+
   const concluidaComAtraso = !!(fimReal && fimPrev && fimReal.getTime() > fimPrev.getTime());
+
+  // Percentuais semânticos
+  const percentualPlanejadoDecorrido = duracaoPrevista && diasDecorridos !== null
+    ? Math.min(1, Math.max(0, diasDecorridos / duracaoPrevista))
+    : 0;
+  const percentualTotal = duracaoPrevista && diasTotais !== null
+    ? diasTotais / duracaoPrevista
+    : 0;
 
   return {
     percentConsumido,
@@ -228,11 +241,14 @@ export function computeStageMetrics(stage: {
     diasAtraso,
     duracaoReal,
     duracaoPrevista,
+    diasPlanejados: duracaoPrevista,
     diferencaPlanExec,
     diasDecorridos,
     diasExcedidos,
     diasTotais,
     concluidaComAtraso,
+    percentualPlanejadoDecorrido,
+    percentualTotal,
   };
 }
 
