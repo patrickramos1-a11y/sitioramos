@@ -162,6 +162,12 @@ export function OperationForm({
       const novo = { ...p, data_inicio_prevista: v };
       const d = Number(p.duracao_prevista_dias);
       if (v && d > 0) novo.data_fim_prevista = addDaysISO(v, d - 1);
+      // Sugestão automática de status para itens novos:
+      // - data inicial <= hoje => "em_andamento"
+      // - data inicial futura => "planejada"
+      if (!operation && (p.status === "planejada" || p.status === "em_andamento")) {
+        novo.status = v && v <= todayISO() ? "em_andamento" : "planejada";
+      }
       return novo;
     });
   };
