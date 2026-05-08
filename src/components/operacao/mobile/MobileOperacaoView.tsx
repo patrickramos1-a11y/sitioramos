@@ -20,7 +20,7 @@ import { useResponsaveis } from "@/hooks/useResponsaveis";
 import { format, isToday, startOfMonth, addMonths, addDays, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { TasksBoard } from "@/components/operacao/TasksBoard";
+import { MobileTasksView } from "@/components/operacao/mobile/MobileTasksView";
 
 type ViewMode = "cards" | "agenda" | "gantt" | "tarefas";
 
@@ -308,7 +308,7 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
 
       {/* View content */}
       {view === "tarefas" ? (
-        <TasksBoard
+        <MobileTasksView
           tasks={tasks}
           operations={operations}
           onCreate={onCreateTask}
@@ -337,12 +337,12 @@ function SegBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCli
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "flex items-center justify-center gap-1 px-2.5 h-7 rounded text-[11px] font-medium transition-all",
+        "flex flex-1 items-center justify-center gap-1 px-1.5 h-7 rounded text-[11px] font-medium transition-all min-w-0",
         active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
     >
-      <Icon className="h-3.5 w-3.5" />
-      <span>{label}</span>
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      {active && <span className="truncate">{label}</span>}
     </button>
   );
 }
