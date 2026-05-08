@@ -437,26 +437,7 @@ export default function Operacao() {
         onSubmit={handleTaskSubmit}
         isSubmitting={createTask.isPending || updateTask.isPending}
       />
-  // Auto-open from ?new= query param (mobile home shortcuts)
-  const [searchParams, setSearchParams] = useSearchParams();
-  useEffect(() => {
-    const n = searchParams.get("new");
-    if (n === "projeto") {
-      setEditingOp(null);
-      setParentIdForNew(null);
-      setDefaultNivelTipo("projeto");
-      setOpFormOpen(true);
-      searchParams.delete("new");
-      setSearchParams(searchParams, { replace: true });
-    } else if (n === "tarefa") {
-      setEditingTask(null);
-      setTaskDefaultStageId("");
-      setTaskFormOpen(true);
-      searchParams.delete("new");
-      setSearchParams(searchParams, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
 
       {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
