@@ -40,7 +40,7 @@ function formatCurrency(n: number) {
 
 export function MobileHome() {
   const { data: stats } = useDashboardStats();
-  const { data: tasks } = useTasks();
+  const { tasks } = useTasks();
 
   const tarefasPendentes = (tasks || []).filter((t: any) => t.status !== "concluida" && t.status !== "concluido").length;
   const areaManejo = stats?.territorial.areaProdutiva ?? 0;
