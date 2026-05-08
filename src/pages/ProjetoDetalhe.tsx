@@ -544,9 +544,15 @@ export default function ProjetoDetalhe() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <CardTitle className="text-base truncate">{sub.nome}</CardTitle>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             <Badge variant={subSb.variant} className="text-[10px]">{subSb.label}</Badge>
-                            {sub.responsavel && <span className="text-[11px] text-muted-foreground">👤 {sub.responsavel}</span>}
+                            {(sub as any).responsavel_id ? (
+                              <ResponsavelBadge responsavelId={(sub as any).responsavel_id} size="xs" />
+                            ) : sub.responsavel ? (
+                              <span className="text-[11px] text-muted-foreground">👤 {sub.responsavel}</span>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] py-0 h-4">Sem responsável</Badge>
+                            )}
                           </div>
                         </div>
                       </div>
