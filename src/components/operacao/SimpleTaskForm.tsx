@@ -233,21 +233,37 @@ export function SimpleTaskForm({
           </div>
 
           {/* Observações */}
-          <div>
-            <Label>Observações</Label>
+          <CollapsibleField label="Observações" value={observacoes}>
             <Textarea
               value={observacoes}
               onChange={e => setObservacoes(e.target.value)}
               placeholder="Notas, links de anexos, etc."
               rows={2}
             />
-          </div>
+          </CollapsibleField>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting || !titulo.trim() || !stageId}>
-              {isSubmitting ? "Salvando..." : "Salvar"}
-            </Button>
+          <div className="flex flex-wrap justify-between gap-2">
+            {task && task.status !== "concluida" && (
+              <Button
+                type="button"
+                variant="outline"
+                className="text-success border-success/40 hover:bg-success/10"
+                onClick={() => onSubmit({
+                  id: task.id,
+                  titulo: titulo.trim() || task.titulo,
+                  status: "concluida",
+                  data_conclusao: new Date().toISOString().split("T")[0],
+                } as any)}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1" /> Concluir
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting || !titulo.trim() || !stageId}>
+                {isSubmitting ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
