@@ -257,22 +257,6 @@ export function OperationForm({
               />
             </div>
 
-            <div className="col-span-2">
-              <Label>Nível</Label>
-              <Select value={formData.nivel_tipo} onValueChange={v => setFormData(p => ({ ...p, nivel_tipo: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {NIVEL_TIPOS.map(n => (
-                    <SelectItem key={n.value} value={n.value}>
-                      <div className="flex flex-col">
-                        <span>{n.label}</span>
-                        <span className="text-[10px] text-muted-foreground">{n.desc}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Nível e Categoria ficam ocultos — definidos pelo contexto */}
 
