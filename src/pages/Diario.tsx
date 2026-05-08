@@ -170,6 +170,7 @@ export default function Diario() {
     setResponsavelId("");
     setMoreOpen(false);
     setCoords(null);
+    setDraftPoints([]);
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
