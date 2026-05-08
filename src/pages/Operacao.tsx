@@ -16,6 +16,7 @@ import { GanttTimeline } from "@/components/operacao/GanttTimeline";
 import { OperationForm } from "@/components/operacao/OperationForm";
 import { OperationCard } from "@/components/operacao/OperationCard";
 import { SimpleTaskForm } from "@/components/operacao/SimpleTaskForm";
+import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
