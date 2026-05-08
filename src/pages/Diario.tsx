@@ -811,6 +811,7 @@ export default function Diario() {
                 onDelete={() => {
                   if (confirm("Excluir este registro?")) remove.mutate(e.id);
                 }}
+                onSaveEdit={(patch) => update.mutate({ id: e.id, ...patch })}
               />
             ))}
           </div>
