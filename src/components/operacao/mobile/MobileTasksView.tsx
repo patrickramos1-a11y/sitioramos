@@ -78,6 +78,7 @@ function formatPrazo(d: string | null) {
 
 export function MobileTasksView({ tasks, operations, onCreate, onEdit, onDelete, onToggleComplete }: Props) {
   const { data: responsaveis = [] } = useResponsaveis();
+  const { updateTask } = useTasks();
 
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
