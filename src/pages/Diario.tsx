@@ -124,6 +124,7 @@ export default function Diario() {
   const { areas = [] } = useAreas() as any;
   const { cycles = [] } = useCycles() as any;
 
+  const [title, setTitle] = useState(() => defaultTitle());
   const [text, setText] = useState("");
   const [audio, setAudio] = useState<RecordedAudio | null>(null);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
