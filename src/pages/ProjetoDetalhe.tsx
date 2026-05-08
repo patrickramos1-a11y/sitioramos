@@ -639,17 +639,20 @@ export default function ProjetoDetalhe() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {projectTransactions.length === 0 ? (
+                {filteredTransactions.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">Nenhum custo vinculado.</p>
                 ) : (
                   <div className="space-y-2">
-                    {projectTransactions.map(t => (
+                    {filteredTransactions.map(t => (
                       <div key={t.id} className="flex items-center justify-between border rounded-lg p-3 text-sm">
                         <div className="min-w-0">
                           <div className="font-medium truncate">{t.descricao || (t as any).categoria}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}
-                            {(t as any).contatos?.nome && <> • {(t as any).contatos.nome}</>}
+                          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span>{format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}</span>
+                            {(t as any).contatos?.nome && <span>• {(t as any).contatos.nome}</span>}
+                            {(t as any).responsavel_id && (
+                              <ResponsavelBadge responsavelId={(t as any).responsavel_id} size="xs" />
+                            )}
                           </div>
                         </div>
                         <div className={`tabular-nums font-semibold ${t.tipo === "saida" ? "text-destructive" : "text-success"}`}>
@@ -659,7 +662,7 @@ export default function ProjetoDetalhe() {
                     ))}
                     <div className="flex justify-end pt-2 border-t mt-2">
                       <span className="text-sm font-semibold">
-                        Total saídas: <span className="text-destructive">{formatCurrency(totalCusto)}</span>
+                        Total saídas: <span className="text-destructive">{formatCurrency(totalCustoF)}</span>
                       </span>
                     </div>
                   </div>
