@@ -87,6 +87,31 @@ export function getResponsavelTextColor(): string {
   return "white";
 }
 
+// Paleta de cores por projeto (Sítio Ramos — verde floresta, folha, sol, terra)
+const PROJECT_PALETTE: Array<{ h: number; s: number; l: number }> = [
+  { h: 145, s: 60, l: 22 },
+  { h: 138, s: 55, l: 32 },
+  { h: 43,  s: 88, l: 42 },
+  { h: 20,  s: 55, l: 38 },
+  { h: 95,  s: 45, l: 32 },
+  { h: 15,  s: 65, l: 42 },
+  { h: 200, s: 50, l: 32 },
+  { h: 280, s: 35, l: 38 },
+];
+export function getProjectHsl(projectId: string) {
+  let h = 0;
+  for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
+  return PROJECT_PALETTE[h % PROJECT_PALETTE.length];
+}
+export function getProjectColor(projectId: string, opts?: { l?: number; s?: number; a?: number }) {
+  const c = getProjectHsl(projectId);
+  const s = opts?.s ?? c.s;
+  const l = opts?.l ?? c.l;
+  return opts?.a !== undefined
+    ? `hsl(${c.h} ${s}% ${l}% / ${opts.a})`
+    : `hsl(${c.h} ${s}% ${l}%)`;
+}
+
 // Status derivado (computed) com base em datas e dependência
 export interface DerivedStatusInput {
   status: string;

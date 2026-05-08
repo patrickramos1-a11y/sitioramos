@@ -1,125 +1,129 @@
-# Plano — Diário de Campo (Captura Rápida)
 
-Objetivo: transformar o Diário de Campo num caderno digital minimalista que prioriza captura rápida no mobile (texto/áudio/foto/vídeo), deixando organização e classificação para depois.
+# Mobile da Operação — Visualização e filtros
 
-Princípio: **registre agora, organize depois.** Salvar em <20s, sem campos obrigatórios além de 1 conteúdo.
-
----
-
-## Fase 1 — Fundação de dados e armazenamento
-
-Preparar schema e storage para suportar mídias e classificação posterior.
-
-**Schema (`journal_entries`)**
-- Tornar `title` opcional (NULL).
-- Adicionar `status` (informativo/atencao/pendente/resolvido/importante; default `informativo`).
-- Adicionar `reviewed` (boolean, default false) — controla "Não revisado / Revisado".
-- Adicionar `tags` (text[]).
-- Adicionar `weather` (text), `is_important` (bool).
-- Manter `area_id`, `cycle_id`, `responsavel_id`, `entry_type`, `description`, `notes`.
-
-**Nova tabela `journal_attachments`**
-- `id`, `entry_id` (FK), `kind` (audio/photo/video), `storage_path`, `mime_type`, `duration_seconds` (audio/vídeo), `size_bytes`, `width`/`height` (foto), `created_at`.
-
-**Storage bucket `journal-media`** (público para leitura, qualquer um pode upload — coerente com o padrão atual do projeto).
-
-**Regra de "Não revisado"**: derivada — qualquer registro sem `area_id` E sem `cycle_id` E sem `entry_type` (ou usando default `observacao`) é tratado como não revisado na UI; flag `reviewed` permite marcar manualmente.
+Objetivo: no mobile (<768px), substituir a Gantt densa atual por um modo híbrido com 3 visões alternáveis, filtros em bottom sheet com chips e cartões muito reconhecíveis (cor do projeto + emoji da categoria + avatar do responsável). Desktop continua como está.
 
 ---
 
-## Fase 2 — Tela de captura rápida (mobile)
+## 1. Estrutura nova da página (mobile)
 
-Substituir o `JournalEntryForm` (modal) por uma página dedicada `/diario` (e atalho a partir do botão "Diário de Campo" na home).
-
-**Estrutura**
 ```text
-[Header compacto]  Diário de Campo · "Registre o dia a dia do sítio."
-
-[Card de captura]
-  "O que aconteceu no campo hoje?"
-  ┌───────────────────────────────────┐
-  │ Escreva uma observação rápida...  │  (textarea auto-grow)
-  └───────────────────────────────────┘
-  [🎤 Áudio]  [📷 Foto]  [🎬 Vídeo]
-
-  ⌄ Adicionar detalhes      [Salvar Registro]
-
-[Últimos registros]   (timeline compacta, 5 mais recentes)
+┌─────────────────────────────┐
+│ KPIs (2 col, já existem)    │
+├─────────────────────────────┤
+│ [Filtros ▾]  3 ativos · ✕   │  ← botão único + chips de filtros ativos
+├─────────────────────────────┤
+│ [ Cards | Agenda | Gantt ]  │  ← segmented control (3 visões)
+├─────────────────────────────┤
+│                             │
+│        Conteúdo da          │
+│        visão escolhida      │
+│                             │
+└─────────────────────────────┘
 ```
 
-**Comportamento**
-- Botão "Salvar" só habilita se houver pelo menos 1 conteúdo (texto OU áudio OU foto OU vídeo).
-- Data/hora automática; usuário automático (quando autenticado).
-- "Adicionar detalhes" é um `Collapsible` com Tipo, Área, Projeto/Ciclo, Status.
-- Dentro dos detalhes, link "Mais opções" abre Responsável, Observações, Clima, Tags, "Marcar como importante", Vincular tarefa/despesa (placeholders prontos para evoluir).
-- Após salvar: limpar formulário, manter foco no textarea, exibir toast e atualizar timeline sem reload.
+A aba "Tarefas" atual continua existindo, mas no mobile vira um item dentro do menu de filtros / ou uma 4ª opção do segmented (manter "Tarefas" como tab separada de nível superior também funciona — proponho manter as Tabs existentes "Timeline / Lista / Tarefas" só no desktop, e no mobile usar o segmented novo).
 
 ---
 
-## Fase 3 — Captura de mídia
+## 2. Visão A — Cards de Projeto (default mobile)
 
-Implementar os três fluxos de mídia, todos opcionais e independentes.
+Lista vertical de cartões grandes, um por projeto raiz. Cada cartão:
 
-**Áudio** (`MediaRecorder` API)
-- Toque em 🎤 → abre painel inline com cronômetro, Pausar/Parar, preview (`<audio>`), Excluir, Confirmar.
-- Salva como `webm/opus`; upload no `journal-media/audios/<entryId>/...`.
-- Permite salvar registro só com áudio.
-
-**Foto**
-- `<input type="file" accept="image/*" capture="environment" multiple>`.
-- Mostra grid de miniaturas com botão remover.
-- Upload em `journal-media/photos/<entryId>/...`.
-
-**Vídeo**
-- `<input type="file" accept="video/*" capture="environment">`.
-- Mostra miniatura (frame inicial via `<video preload=metadata>`).
-- Limite sugerido de duração 60s (validação client-side); compressão fica como evolução futura.
-
-**Fluxo de salvamento**
-1. Insere `journal_entries` (rascunho com texto e metadados).
-2. Faz upload de cada anexo no Storage.
-3. Insere linhas em `journal_attachments`.
-4. Em caso de falha de upload, marca o entry com `notes` indicando "anexo pendente" para retry posterior.
+- Faixa lateral colorida (4px) com a cor do projeto (paleta já existe em `GanttTimeline.tsx`).
+- Linha 1: emoji da categoria (grande, ~24px) + nome do projeto + menu `⋯`.
+- Linha 2: avatar circular do responsável (com `ResponsavelBadge`) + nome curto.
+- Linha 3: barra de progresso fina (% calculado a partir de tarefas concluídas / total) + status pill colorida.
+- Linha 4: período "12 mai – 30 jun" + chip de área (📍 Talhão 3) + custo total compacto.
+- Toque: expande inline mostrando subprojetos como mini-chips horizontais roláveis (cada chip = nome + status dot). Toque longo no cartão = abrir form de edição.
 
 ---
 
-## Fase 4 — Timeline e ganchos para gestão posterior
+## 3. Visão B — Agenda (timeline vertical)
 
-**Timeline (mobile, abaixo do card)**
-- Card por registro: data/hora relativa, tipo (chip), trecho do texto, ícones de anexos (🎤 com duração, 📷 com contagem, 🎬), badge "Não revisado" quando aplicável.
-- Tap no card abre detalhe simples (visualizar texto + mídias; ações: revisar, editar tipo/área/projeto, excluir).
+Feed cronológico agrupado por mês, depois por semana. Cada item:
 
-**Hooks de gestão (estrutura, sem tela completa de gestão desktop)**
-- `useJournalEntries` ganha filtros opcionais (data, tipo, área, projeto, reviewed).
-- Ações utilitárias: `markReviewed`, `convertToTask` (cria `operational_tasks` ligada ao entry), `convertToExpense` (abre fluxo de Lançamentos pré-preenchido).
-- Desktop herda a mesma página com layout em duas colunas (captura à esquerda, lista filtrável à direita) — implementação mínima nesta fase, evolução futura para tela de gestão dedicada.
+- Coluna esquerda fina: dia + mês (estilo "12 MAI").
+- Cartão à direita com cor do projeto na borda esquerda, emoji categoria, nome da etapa, responsável (avatar pequeno) e status.
+- Marcadores especiais: "Hoje" (linha destacada), "Atrasado" (badge vermelho).
+- Ordenação: por `data_inicio_prevista` (ou `data_fim_prevista` quando concluída).
+- Inclui projetos, subprojetos e tarefas com data definida.
+
+---
+
+## 4. Visão C — Gantt mini (1 linha por projeto)
+
+Versão compactada da Gantt atual:
+
+- Apenas raízes (projetos), nunca expande no mobile.
+- 1 barra por projeto, altura 40px, cor do projeto, emoji da categoria à esquerda + nome truncado.
+- Zoom limitado a `month / quarter / year` (sem dia/semana — não fazem sentido em 380px).
+- Header de meses sticky no topo. Scroll horizontal preservado.
+- Toque na barra → abre bottom sheet com lista de subprojetos/tarefas (reaproveita `OperationCard`).
+- Reaproveita boa parte da lógica de `GanttTimeline.tsx`, com flag `compact` que: força nivel raiz, esconde swimlanes, esconde checklist progress inline, usa altura menor.
+
+---
+
+## 5. Filtros em bottom sheet único
+
+Substitui no mobile os 3 selects atuais (Área/Status/Categoria) e o `LayersPanel` da Gantt:
+
+- Trigger: botão "Filtros" no topo (com badge de contagem) + chips ativos abaixo (clicáveis pra remover).
+- Sheet inferior (shadcn `Sheet side="bottom"`) com seções colapsáveis:
+  1. **Status** — segmented (Todos / Em andamento / Atrasadas / Pendentes / Concluídas).
+  2. **Responsável** — grid de avatares clicáveis (multi-select).
+  3. **Área** — lista com checkbox.
+  4. **Categoria** — chips com emoji.
+  5. **Camadas** (só na visão Gantt mini) — toggles para ocultar áreas/projetos/responsáveis.
+- Botões fixos no rodapé do sheet: "Limpar tudo" + "Aplicar".
+- Estado de filtros vive na página `Operacao.tsx` e é compartilhado entre as 3 visões.
+
+---
+
+## 6. Identidade visual (aplicada nas 3 visões)
+
+- **Cor do projeto**: usa `getProjectHsl/projectColor` que já existe em `GanttTimeline.tsx` — extrair pra `src/lib/operacaoConfig.ts` para reuso.
+- **Emoji da categoria**: `getCategoryEmoji` já existe.
+- **Avatar do responsável**: `ResponsavelBadge` em modo `size="sm"` com inicial ou ícone, usando `cor` do `responsaveis`.
+- Garantir contraste WCAG no texto sobre as cores do projeto (texto branco em fundos escuros, escuro em claros).
 
 ---
 
 ## Detalhes técnicos
 
-- **Migrações**: 1 migração para alterar `journal_entries` + criar `journal_attachments` + criar bucket `journal-media` + policies públicas (alinhado ao padrão do projeto).
-- **Hooks novos**: `useJournalAttachments`, `useAudioRecorder` (encapsula `MediaRecorder`).
-- **Componentes novos**:
-  - `src/pages/Diario.tsx` (rota `/diario`).
-  - `src/components/diario/QuickCapture.tsx` (card principal).
-  - `src/components/diario/AudioRecorder.tsx`.
-  - `src/components/diario/PhotoPicker.tsx`.
-  - `src/components/diario/VideoPicker.tsx`.
-  - `src/components/diario/DetailsCollapsible.tsx`.
-  - `src/components/diario/EntryTimeline.tsx` + `EntryCard.tsx`.
-- **Remoção**: `JournalEntryForm` (modal) deixa de ser usado na home — botão "Diário de Campo" passa a navegar para `/diario`.
-- **Storage upload**: usar `supabase.storage.from('journal-media').upload(...)` direto do cliente; URLs públicas via `getPublicUrl`.
-- **Permissões do navegador**: pedir permissão de microfone só ao tocar em 🎤; mostrar fallback amigável se negada.
-- **Tema**: paleta verde floresta/folha + amarelo sol + bege; cards arredondados (`rounded-2xl`); microinterações suaves (`active:scale-[0.98]`); aparência de caderno (papel off-white, leve textura via gradient).
+**Arquivos novos:**
+- `src/components/operacao/mobile/MobileOperacaoView.tsx` — orquestra segmented + filtros + visões.
+- `src/components/operacao/mobile/ProjectCard.tsx` — visão Cards.
+- `src/components/operacao/mobile/AgendaTimeline.tsx` — visão Agenda.
+- `src/components/operacao/mobile/MiniGantt.tsx` — Gantt simplificada (pode importar helpers de `GanttTimeline.tsx`).
+- `src/components/operacao/mobile/OperationFiltersSheet.tsx` — bottom sheet com filtros + camadas.
+- `src/components/operacao/mobile/ActiveFilterChips.tsx` — barra de chips removíveis.
+
+**Arquivos modificados:**
+- `src/pages/Operacao.tsx` — usar `useIsMobile()` para renderizar `MobileOperacaoView` no mobile e manter o layout atual no desktop. Levantar estado de filtros para uso compartilhado.
+- `src/lib/operacaoConfig.ts` — exportar `getProjectColor` (mover de GanttTimeline).
+- `src/components/operacao/GanttTimeline.tsx` — extrair os helpers de cor; nenhuma mudança de comportamento.
+
+**Sem mudanças no banco de dados.** Tudo é UI sobre dados já existentes.
+
+**Breakpoint:** `useIsMobile()` (já existe, breakpoint 768px).
 
 ---
 
-## Entregas por fase (para execução incremental)
+## Critério de aceite
 
-1. **Fase 1**: migração de schema + bucket + atualização do hook `useJournalEntries`.
-2. **Fase 2**: nova página `/diario` com captura de texto + Adicionar detalhes + Salvar (sem mídias ainda) + timeline básica.
-3. **Fase 3**: Áudio → Foto → Vídeo (nessa ordem), cada um habilitado e testado isoladamente.
-4. **Fase 4**: ações de revisão, conversão para tarefa/despesa, layout desktop em duas colunas.
+1. Em 402px de largura, ao abrir Operação:
+   - Vejo KPIs, botão Filtros + chips ativos, segmented Cards/Agenda/Gantt.
+   - Default = Cards. Cada cartão mostra cor + emoji + avatar com clareza, sem precisar dar zoom.
+2. Toco em "Filtros" → bottom sheet sobe com seções organizadas; filtros aplicados aparecem como chips removíveis.
+3. Troco para Agenda → vejo timeline vertical agrupada por mês.
+4. Troco para Gantt → vejo 1 barra por projeto, scroll horizontal suave, sem barras minúsculas ilegíveis.
+5. Desktop (≥768px) permanece idêntico ao atual.
 
-Critério de aceite final: usuário abre o app no mobile, toca em "Diário de Campo", grava um áudio de 10s e salva — sem digitar nada — em menos de 20 segundos.
+---
+
+## Fora de escopo (pode entrar depois)
+
+- Drag & drop de tarefas entre dias na Agenda.
+- Modo landscape específico para Gantt completa no mobile.
+- Sincronia de zoom entre Agenda e Gantt mini.

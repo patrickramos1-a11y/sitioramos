@@ -21,10 +21,13 @@ import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoView";
 
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 export default function Operacao() {
+  const isMobile = useIsMobile();
   const { areas } = useAreas();
   const { cycles } = useCycles();
   const { stages } = useStages();
@@ -277,8 +280,8 @@ export default function Operacao() {
           </Card>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+        {/* Filters (desktop) */}
+        <div className="hidden md:flex items-center gap-2 md:gap-3 flex-wrap">
           <Select value={filterArea} onValueChange={setFilterArea}>
             <SelectTrigger className="flex-1 min-w-[140px] sm:flex-initial sm:w-44">
               <SelectValue placeholder="Todas as áreas" />
@@ -315,8 +318,18 @@ export default function Operacao() {
           </Select>
         </div>
 
-        {/* Main Tabs */}
-        <Tabs defaultValue="timeline" className="space-y-4">
+        {/* Mobile: hybrid view (Cards / Agenda / Gantt mini) */}
+        {isMobile ? (
+          <MobileOperacaoView
+            operations={operations}
+            tasks={allTasks}
+            areas={areas.map(a => ({ id: a.id, nome: a.nome }))}
+            onItemClick={handleGanttItemClick}
+            onAddSubproject={(id) => openNewChild(id, "subprojeto")}
+            onAddTask={openNewTask}
+          />
+        ) : (
+          <Tabs defaultValue="timeline" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="timeline" className="gap-2">
               <BarChart3 className="h-4 w-4" />Timeline
@@ -408,6 +421,7 @@ export default function Operacao() {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
       </div>
 
       {/* Operation Form */}
