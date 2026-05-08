@@ -753,6 +753,52 @@ export default function ProjetoDetalhe() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Histórico */}
+          <TabsContent value="historico">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-4 w-4" /> Histórico do projeto
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {historyEvents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Nenhum evento registrado ainda.
+                  </p>
+                ) : (
+                  <ol className="relative border-l-2 border-muted pl-4 space-y-3">
+                    {historyEvents.map((e) => {
+                      const dotColor =
+                        e.kind === "stage_change" ? "bg-primary" :
+                        e.kind === "task_log" ? "bg-success" :
+                        e.kind === "stage_created" ? "bg-warning" :
+                        e.kind === "task_created" ? "bg-muted-foreground" :
+                        "bg-muted-foreground";
+                      return (
+                        <li key={e.id} className="relative">
+                          <span
+                            className={`absolute -left-[22px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${dotColor}`}
+                          />
+                          <div className="text-xs text-muted-foreground tabular-nums">
+                            {format(new Date(e.at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                          </div>
+                          <div className="text-sm font-medium">{e.title}</div>
+                          {e.refLabel && (
+                            <div className="text-xs text-muted-foreground truncate">↳ {e.refLabel}</div>
+                          )}
+                          {e.detail && (
+                            <div className="text-xs text-foreground/80 mt-0.5 truncate">{e.detail}</div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
