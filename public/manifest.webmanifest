@@ -1,0 +1,16 @@
+{
+  "name": "Sítio Ramos",
+  "short_name": "Sítio Ramos",
+  "description": "Gestão agrícola — Sítio Ramos",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F3E9",
+  "theme_color": "#0D331F",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
