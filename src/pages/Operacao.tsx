@@ -27,6 +27,7 @@ import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoV
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 export default function Operacao() {
+  const isMobile = useIsMobile();
   const { areas } = useAreas();
   const { cycles } = useCycles();
   const { stages } = useStages();
