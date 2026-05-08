@@ -122,6 +122,8 @@ export default function Diario() {
   const [weather, setWeather] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [important, setImportant] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [locating, setLocating] = useState(false);
 
   const photoInput = useRef<HTMLInputElement>(null);
   const photoLibInput = useRef<HTMLInputElement>(null);
