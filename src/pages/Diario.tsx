@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
