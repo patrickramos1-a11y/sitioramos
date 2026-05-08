@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ProjectActionsMenu } from "./ProjectActionsMenu";
 import { ResponsavelBadge } from "@/components/responsaveis/ResponsavelBadge";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
-type ZoomLevel = "day" | "week" | "month" | "year";
+type ZoomLevel = "day" | "week" | "fortnight" | "month" | "bimonth" | "quarter" | "year" | "biennium";
 
 // Paleta de cores por projeto (Sítio Ramos — verde floresta, folha, sol, terra)
 // Cada entrada é { h, s, l } base; variações são derivadas alterando lightness.
@@ -48,10 +48,14 @@ const getProjectColor = (projectId: string) => projectColor(projectId);
 
 // Janela de colunas + largura mínima por coluna (timeline escapa do container e ganha scroll horizontal)
 const ZOOM_CONFIG: Record<ZoomLevel, { columns: number; minColWidth: number; label: string; shortLabel: string }> = {
-  day:   { columns: 60,  minColWidth: 56, label: "Dia",    shortLabel: "D" },
-  week:  { columns: 36,  minColWidth: 70, label: "Semana", shortLabel: "S" },
-  month: { columns: 24,  minColWidth: 90, label: "Mês",    shortLabel: "M" },
-  year:  { columns: 20,  minColWidth: 90, label: "Ano",    shortLabel: "A" },
+  day:       { columns: 60, minColWidth: 56, label: "Dia",       shortLabel: "D" },
+  week:      { columns: 36, minColWidth: 70, label: "Semana",    shortLabel: "S" },
+  fortnight: { columns: 24, minColWidth: 80, label: "15 dias",   shortLabel: "Q" },
+  month:     { columns: 24, minColWidth: 90, label: "Mês",       shortLabel: "M" },
+  bimonth:   { columns: 18, minColWidth: 90, label: "Bimestre",  shortLabel: "B" },
+  quarter:   { columns: 16, minColWidth: 90, label: "Trimestre", shortLabel: "T" },
+  year:      { columns: 20, minColWidth: 90, label: "Ano",       shortLabel: "A" },
+  biennium:  { columns: 12, minColWidth: 100, label: "2 anos",   shortLabel: "2A" },
 };
 
 interface GanttItem {
