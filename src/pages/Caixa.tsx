@@ -462,7 +462,57 @@ export default function Caixa() {
                     </Button>
                   </div>
                 ) : (
-                  <Table>
+                  <>
+                    {/* Mobile list */}
+                    <ul className="md:hidden divide-y -mx-6 -mb-6">
+                      {filteredCosts.map((cost: any) => {
+                        const typeConfig = costTypeConfig[cost.tipo];
+                        const Icon = typeConfig?.icon || DollarSign;
+                        return (
+                          <li key={cost.id} className="p-3 flex gap-3 active:bg-muted/40">
+                            <div className={`rounded-xl p-2.5 h-fit ${typeConfig?.bgColor || 'bg-muted'}`}>
+                              <Icon className={`h-5 w-5 ${typeConfig?.color || 'text-muted-foreground'}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm truncate">{typeConfig?.label || cost.tipo}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{cost.descricao || "Sem descrição"}</p>
+                                </div>
+                                <div className="text-sm font-semibold whitespace-nowrap text-destructive">
+                                  -{formatCurrency(Number(cost.valor))}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11px] text-muted-foreground">
+                                <span>{format(new Date(cost.data), "dd/MM/yy", { locale: ptBR })}</span>
+                                {cost.areas?.nome && (<><span>•</span><span className="truncate max-w-[100px]">{cost.areas.nome}</span></>)}
+                                <span>•</span>
+                                <span>{cost.forma_pagamento === "dinheiro" ? "💰" : "🏦"}</span>
+                              </div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setEditingCost(cost); setCostFormOpen(true); }}>
+                                  <Pencil className="mr-2 h-4 w-4" />Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDeleteClick(cost.id, "cost", cost)} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block">
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Data</TableHead>
@@ -527,6 +577,8 @@ export default function Caixa() {
                       })}
                     </TableBody>
                   </Table>
+                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -558,7 +610,57 @@ export default function Caixa() {
                     </Button>
                   </div>
                 ) : (
-                  <Table>
+                  <>
+                    {/* Mobile list */}
+                    <ul className="md:hidden divide-y -mx-6 -mb-6">
+                      {filteredInvestments.map((investment: any) => {
+                        const typeConfig = investmentTypeConfig[investment.tipo];
+                        const Icon = typeConfig?.icon || FileText;
+                        return (
+                          <li key={investment.id} className="p-3 flex gap-3 active:bg-muted/40">
+                            <div className={`rounded-xl p-2.5 h-fit ${typeConfig?.bgColor || 'bg-muted'}`}>
+                              <Icon className={`h-5 w-5 ${typeConfig?.color || 'text-muted-foreground'}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm truncate">{typeConfig?.label || investment.tipo}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{investment.descricao || "Sem descrição"}</p>
+                                </div>
+                                <div className="text-sm font-semibold whitespace-nowrap text-destructive">
+                                  -{formatCurrency(Number(investment.valor))}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11px] text-muted-foreground">
+                                <span>{format(new Date(investment.data), "dd/MM/yy", { locale: ptBR })}</span>
+                                <span>•</span>
+                                <span className="truncate max-w-[120px]">{investment.areas?.nome || "Geral"}</span>
+                                {investment.rateado && (<><span>•</span><span>Rateado</span></>)}
+                              </div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setEditingInvestment(investment); setInvestmentFormOpen(true); }}>
+                                  <Pencil className="mr-2 h-4 w-4" />Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDeleteClick(investment.id, "investment", investment)} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block">
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Data</TableHead>
@@ -621,6 +723,8 @@ export default function Caixa() {
                       })}
                     </TableBody>
                   </Table>
+                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -652,7 +756,57 @@ export default function Caixa() {
                     </Button>
                   </div>
                 ) : (
-                  <Table>
+                  <>
+                    {/* Mobile list */}
+                    <ul className="md:hidden divide-y -mx-6 -mb-6">
+                      {filteredRevenues.map((revenue: any) => {
+                        const total = Number(revenue.quantidade) * Number(revenue.preco_unitario);
+                        return (
+                          <li key={revenue.id} className="p-3 flex gap-3 active:bg-muted/40">
+                            <div className="rounded-xl p-2.5 h-fit bg-success/10">
+                              <TrendingUp className="h-5 w-5 text-success" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm truncate">🌱 {revenue.produto}</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {Number(revenue.quantidade).toLocaleString("pt-BR")} {unidadeLabels[revenue.unidade]} × {formatCurrency(Number(revenue.preco_unitario))}
+                                  </p>
+                                </div>
+                                <div className="text-sm font-semibold whitespace-nowrap text-success">
+                                  +{formatCurrency(total)}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[11px] text-muted-foreground">
+                                <span>{format(new Date(revenue.data), "dd/MM/yy", { locale: ptBR })}</span>
+                                {revenue.areas?.nome && (<><span>•</span><span className="truncate max-w-[100px]">{revenue.areas.nome}</span></>)}
+                                {revenue.cliente && (<><span>•</span><span className="truncate max-w-[100px]">{revenue.cliente}</span></>)}
+                              </div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setEditingRevenue(revenue); setRevenueFormOpen(true); }}>
+                                  <Pencil className="mr-2 h-4 w-4" />Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDeleteClick(revenue.id, "revenue", revenue)} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block">
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Data</TableHead>
@@ -712,6 +866,8 @@ export default function Caixa() {
                       })}
                     </TableBody>
                   </Table>
+                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>
