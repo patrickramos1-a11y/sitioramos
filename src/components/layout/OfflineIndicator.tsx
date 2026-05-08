@@ -36,12 +36,25 @@ export function OfflineIndicator({ compact = false }: { compact?: boolean }) {
   if (online && pending === 0) {
     if (compact) return null;
     return (
-      <span
-        className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-leaf/10 text-brand-leaf"
-        title="Conectado"
-      >
-        <Wifi className="h-3 w-3" />
-      </span>
+      <div className="inline-flex items-center gap-1.5">
+        <span
+          className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-leaf/10 text-brand-leaf"
+          title="Conectado"
+        >
+          <Wifi className="h-3 w-3" />
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            toast.info("Atualizando app…");
+            void hardReload();
+          }}
+          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-foreground/70 hover:bg-muted/80"
+          title="Atualizar app (limpa cache e recarrega)"
+        >
+          <RotateCw className="h-3 w-3" />
+        </button>
+      </div>
     );
   }
 
