@@ -21,6 +21,8 @@ import { TasksBoard } from "@/components/operacao/TasksBoard";
 import { useStages } from "@/hooks/useStages";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OPERATION_CATEGORIES } from "@/lib/operacaoConfig";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileOperacaoView } from "@/components/operacao/mobile/MobileOperacaoView";
 
 const formatCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
