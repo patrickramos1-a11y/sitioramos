@@ -1,59 +1,59 @@
-## Objetivo
+## Refatoração da página de Lançamentos
 
-Adicionar uma nova **aba "Tarefas"** dentro da página `/operacao` (junto com Timeline e Lista) para visualizar e gerenciar **todas** as tarefas em um só lugar, sem precisar abrir cada projeto.
+Hoje o formulário sobe de baixo (Sheet bottom) e mistura todos os vínculos no mesmo nível, sem hierarquia. Vamos reorganizar.
 
----
+### 1. Trocar o Sheet por um Dialog centrado
+- Substituir `Sheet side="bottom"` por `Dialog` (modal centralizado, com largura ~`max-w-lg`).
+- Título: **"Lançamento"** (sem o "Novo").
+- Botão da página continua "Novo lançamento" no header — só o título da janela muda.
 
-## Estrutura
+### 2. Vínculos hierárquicos (cascata)
 
-### Nova aba `Tarefas` em `Operacao.tsx`
-Junto a `Timeline` e `Lista`, adiciona-se uma terceira: `Tarefas` (ícone `CheckSquare`).
+Reorganizar os campos do formulário nesta ordem:
 
-### Conteúdo da aba
+```text
+Data * | Valor *
+Categoria *
+Tipo de custo (se categoria = custo_operacional)
+─────────────────────────────────────────────
+Responsável                                ← NOVO
+─────────────────────────────────────────────
+Área
+  └─ Ciclo (aparece só quando Área selecionada)
+─────────────────────────────────────────────
+Projeto                                    ← só projetos raiz
+  └─ Subprojeto (aparece só quando Projeto selecionado)
+─────────────────────────────────────────────
+Descrição
+Observações
+```
 
-**1. Barra de filtros rápidos (topo)**
-- Busca por texto (título/descrição).
-- Status: Todas / Pendentes / Em andamento / Concluídas / Atrasadas.
-- Prioridade: Todas / Baixa / Média / Alta / Crítica.
-- Responsável: select de responsáveis cadastrados.
-- Projeto/Subprojeto: select hierárquico (reaproveita o padrão da janela de Tarefa).
-- Prazo: Hoje / Esta semana / Este mês / Sem prazo / Atrasadas.
-- Botão "+ Tarefa" abre o `SimpleTaskForm`.
+**Regras de vínculo:**
+- **Área → Ciclo**: ao escolher uma Área, mostrar select de Ciclos filtrados por `cycles.area_id = areaSelecionada`. Se a Área não tiver ciclos, esconder o campo.
+- **Projeto → Subprojeto**: o select "Operação vinculada" passa a chamar **"Projeto"** e lista somente operações raiz (`parent_id = null` / nível projeto). Após escolher, aparece **"Subprojeto"** com filhos do projeto escolhido (vindos de `op.children`). Ambos opcionais.
+- **Responsável**: novo select usando `useResponsaveis()`, salvando em `responsavel_id` do `cash_transactions`.
 
-**2. KPIs compactos (chips horizontais)**
-- Total · Pendentes · Em andamento · Atrasadas · Concluídas hoje.
+**Dedução automática de área**:
+- Se o usuário escolher um **Ciclo**, o `area_id` é preenchido a partir do ciclo (regra: ciclo já valida a área).
+- Se escolher um **Subprojeto** com `area_id` próprio, sugerir/preencher Área se ainda vazia.
 
-**3. Visualização — agrupamento configurável**
-Toggle no topo: `Por projeto` (padrão) | `Por prazo` | `Por responsável` | `Lista plana`.
+### 3. Campos persistidos em `cash_transactions`
+Já existem na tabela — sem migração:
+- `area_id`, `cycle_id`, `operation_id` (= projeto OU subprojeto), `responsavel_id`.
 
-Cada item da tarefa mostra (linha compacta, mobile-first):
-- Checkbox de concluído (toggle direto).
-- Título + (se houver) descrição truncada.
-- Chip do projeto › subprojeto (clicável → leva ao card na aba Lista).
-- Chip do responsável (cor).
-- Chip de prazo (vermelho se atrasada, âmbar se hoje/amanhã).
-- Bandeira de prioridade.
-- Menu `⋮`: Editar / Duplicar / Excluir.
+Quando o usuário escolher Subprojeto, gravamos `operation_id = subprojetoId` (o subprojeto já carrega referência ao pai pela árvore). Quando só Projeto, `operation_id = projetoId`.
 
-**4. Estado vazio**
-Mensagem amigável + botão "Criar primeira tarefa".
+### 4. Pequenos ajustes de UX
+- Remover a palavra "Novo" do título do modal (fica "Lançamento").
+- Manter validação: Data, Valor e Categoria obrigatórios.
+- Resetar campos dependentes quando o pai muda (ex.: trocar Área limpa Ciclo; trocar Projeto limpa Subprojeto).
+- Manter o reset do `form` ao abrir.
 
----
+### Arquivos afetados
+- `src/pages/Lancamentos.tsx` — única alteração estrutural.
+- Hooks já existentes reutilizados: `useAreas`, `useOperations`, `useResponsaveis`, `useCashTransactions`, e um novo uso de `useCycles` (já existe no projeto).
 
-## Detalhes técnicos
-
-- Arquivo novo: `src/components/operacao/TasksBoard.tsx` — componente que recebe `tasks`, `operations`, `responsaveis` e callbacks (`onEdit`, `onDelete`, `onToggleComplete`, `onCreate`).
-- Edição em `src/pages/Operacao.tsx`:
-  - Adiciona `TabsTrigger` "Tarefas" e `TabsContent` que renderiza `TasksBoard`.
-  - Reutiliza `allTasks`, `operations`, `handleTaskStatusChange`, `setEditingTask/setTaskFormOpen`, `setDeleteTarget`.
-- Reaproveita o `SimpleTaskForm` já existente (com seletor de pai). Não precisa de nova janela.
-- Sem migração de banco. Sem alteração no hook `useTasks`.
-- Filtros e agrupamento ficam em estado local do `TasksBoard` (sem URL params nesta rodada).
-
----
-
-## Fora de escopo (próximas rodadas)
-- Drag & drop entre projetos.
-- Edição em massa.
-- Exportação CSV.
-- Visão calendário/Kanban.
+### Fora de escopo
+- Edição inline de lançamento existente (continua só criar/excluir).
+- Mudanças na listagem/filtros e KPIs.
+- Migrações de banco.
