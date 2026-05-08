@@ -193,6 +193,9 @@ export function OperationForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const isSub = formData.nivel_tipo === "subprojeto";
+    const effectiveParent = parentId || formData.linked_project_id || operation?.parent_id || null;
+    if (isSub && !effectiveParent) return;
     onSubmit({
       nome: formData.nome,
       tipo: formData.tipo,
@@ -224,6 +227,9 @@ export function OperationForm({
     : `Novo ${formData.nivel_tipo === "projeto" ? "Projeto" : "Subprojeto"}`);
 
   const projectsForLink = (allProjects || []).filter(p => p.id !== operation?.id);
+  const isSubproject = formData.nivel_tipo === "subprojeto";
+  // Apenas projetos top-level (sem " › " na string de caminho hierárquico)
+  const topLevelProjects = projectsForLink.filter(p => !p.nome.includes("›"));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -254,37 +260,10 @@ export function OperationForm({
               />
             </div>
 
-            <div className="col-span-2">
-              <Label>Nível</Label>
-              <Select value={formData.nivel_tipo} onValueChange={v => setFormData(p => ({ ...p, nivel_tipo: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {NIVEL_TIPOS.map(n => (
-                    <SelectItem key={n.value} value={n.value}>
-                      <div className="flex flex-col">
-                        <span>{n.label}</span>
-                        <span className="text-[10px] text-muted-foreground">{n.desc}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div className="col-span-2">
-              <Label>Categoria</Label>
-              <Select value={formData.categoria || NONE} onValueChange={v => setFormData(p => ({ ...p, categoria: v === NONE ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>— Sem categoria —</SelectItem>
-                  {OPERATION_CATEGORIES.map(c => (
-                    <SelectItem key={c.value} value={c.value}>{c.emoji} {c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Nível e Categoria ficam ocultos — definidos pelo contexto */}
 
-            {!isChild && areas && areas.length > 0 && (
+            {!isSubproject && areas && areas.length > 0 && (
               <div>
                 <Label>Área (opcional)</Label>
                 <Select value={formData.area_id || NONE} onValueChange={v => setFormData(p => ({ ...p, area_id: v === NONE ? "" : v, cycle_id: "" }))}>
@@ -297,7 +276,7 @@ export function OperationForm({
               </div>
             )}
 
-            {!isChild && availableCycles.length > 0 && (
+            {!isSubproject && availableCycles.length > 0 && (
               <div>
                 <Label>Ciclo (opcional)</Label>
                 <Select value={formData.cycle_id || NONE} onValueChange={v => setFormData(p => ({ ...p, cycle_id: v === NONE ? "" : v }))}>
@@ -310,8 +289,6 @@ export function OperationForm({
               </div>
             )}
 
-            {/* Tipo, Status, Prioridade e Ordem ocultos — usam valores padrão */}
-
             <div className="col-span-2">
               <ResponsavelSelect
                 label="Responsável"
@@ -320,15 +297,19 @@ export function OperationForm({
               />
             </div>
 
-            {/* Vínculo com outro projeto */}
-            {projectsForLink.length > 0 && (
+            {/* Projeto pai (obrigatório para subprojeto) */}
+            {isSubproject && (
               <div className="col-span-2">
-                <Label className="flex items-center gap-1"><Link2 className="h-3.5 w-3.5" /> Vincular a outro projeto</Label>
-                <Select value={formData.linked_project_id || NONE} onValueChange={v => setFormData(p => ({ ...p, linked_project_id: v === NONE ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Sem vínculo" /></SelectTrigger>
+                <Label className="flex items-center gap-1"><Link2 className="h-3.5 w-3.5" /> Projeto pai *</Label>
+                <Select
+                  value={formData.linked_project_id || (parentId || "") || NONE}
+                  onValueChange={v => setFormData(p => ({ ...p, linked_project_id: v === NONE ? "" : v }))}
+                  disabled={Boolean(parentId)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Escolha o projeto" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>— Sem vínculo —</SelectItem>
-                    {projectsForLink.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                    <SelectItem value={NONE}>— Selecione —</SelectItem>
+                    {topLevelProjects.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
