@@ -174,15 +174,14 @@ export function SimpleTaskForm({
                 required
               />
             </div>
-            <div>
-              <Label>Descrição</Label>
+            <CollapsibleField label="Descrição" value={descricao}>
               <Textarea
                 value={descricao}
                 onChange={e => setDescricao(e.target.value)}
                 rows={2}
                 placeholder="Detalhe a tarefa, se necessário"
               />
-            </div>
+            </CollapsibleField>
           </div>
 
           {/* Responsável + Prioridade */}
