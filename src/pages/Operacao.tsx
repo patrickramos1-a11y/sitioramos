@@ -6,10 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, Activity, AlertTriangle, Clock, CheckCircle2,
-  BarChart3, ListTodo, DollarSign, Zap, FolderPlus, CheckSquare
+  BarChart3, ListTodo, DollarSign, FolderPlus, CheckSquare
 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { QuickOperationSheet } from "@/components/operacao/QuickOperationSheet";
 import { useOperations, Operation, OperationInsert } from "@/hooks/useOperations";
 import { useTasks, Task, TaskInsert } from "@/hooks/useTasks";
 import { useAreas } from "@/hooks/useAreas";
