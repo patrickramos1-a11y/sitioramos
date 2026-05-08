@@ -408,6 +408,10 @@ export default function Operacao() {
             onItemClick={handleGanttItemClick}
             onAddSubproject={(id) => openNewChild(id, "subprojeto")}
             onAddTask={openNewTask}
+            onCreateTask={() => { setEditingTask(null); setTaskDefaultStageId(""); setTaskFormOpen(true); }}
+            onEditTask={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
+            onDeleteTask={(t) => { setDeleteTarget({ type: "task", id: t.id }); setDeleteDialogOpen(true); }}
+            onToggleTaskComplete={(t) => handleTaskStatusChange(t, t.status === "concluida" ? "pendente" : "concluida")}
           />
         ) : (
           <Tabs defaultValue="timeline" className="space-y-4">

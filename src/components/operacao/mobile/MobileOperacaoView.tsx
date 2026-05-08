@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  SlidersHorizontal, X, LayoutGrid, CalendarDays, BarChart3,
+  SlidersHorizontal, X, LayoutGrid, CalendarDays, BarChart3, CheckSquare,
   ChevronRight, ChevronDown, Clock, AlertTriangle, CheckCircle2, Circle, Pause,
   Rows3, Columns3, Grid2x2,
 } from "lucide-react";
@@ -20,8 +20,9 @@ import { useResponsaveis } from "@/hooks/useResponsaveis";
 import { format, isToday, startOfMonth, addMonths, addDays, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { TasksBoard } from "@/components/operacao/TasksBoard";
 
-type ViewMode = "cards" | "agenda" | "gantt";
+type ViewMode = "cards" | "agenda" | "gantt" | "tarefas";
 
 interface Props {
   operations: Operation[];
@@ -30,6 +31,10 @@ interface Props {
   onItemClick: (id: string, type: "operation" | "sub-operation" | "task") => void;
   onAddSubproject: (parentId: string) => void;
   onAddTask: (stageId: string) => void;
+  onCreateTask: () => void;
+  onEditTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
+  onToggleTaskComplete: (task: Task) => void;
 }
 
 interface Filters {
@@ -76,7 +81,7 @@ function fmtRange(start?: string | null, end?: string | null) {
   return `${s} – ${e}`;
 }
 
-export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAddSubproject, onAddTask }: Props) {
+export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAddSubproject, onAddTask, onCreateTask, onEditTask, onDeleteTask, onToggleTaskComplete }: Props) {
   const [view, setView] = useState<ViewMode>("cards");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({
@@ -273,6 +278,7 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
           <SegBtn active={view === "cards"} onClick={() => setView("cards")} icon={LayoutGrid} label="Cards" />
           <SegBtn active={view === "agenda"} onClick={() => setView("agenda")} icon={CalendarDays} label="Agenda" />
           <SegBtn active={view === "gantt"} onClick={() => setView("gantt")} icon={BarChart3} label="Gantt" />
+          <SegBtn active={view === "tarefas"} onClick={() => setView("tarefas")} icon={CheckSquare} label="Tarefas" />
         </div>
       </div>
 
@@ -301,7 +307,16 @@ export function MobileOperacaoView({ operations, tasks, areas, onItemClick, onAd
       )}
 
       {/* View content */}
-      {filteredOps.length === 0 ? (
+      {view === "tarefas" ? (
+        <TasksBoard
+          tasks={tasks}
+          operations={operations}
+          onCreate={onCreateTask}
+          onEdit={onEditTask}
+          onDelete={onDeleteTask}
+          onToggleComplete={onToggleTaskComplete}
+        />
+      ) : filteredOps.length === 0 ? (
         <EmptyState />
       ) : view === "cards" ? (
         <CardsView operations={filteredOps} tasks={tasks} onItemClick={onItemClick} onAddSubproject={onAddSubproject} onAddTask={onAddTask} />
