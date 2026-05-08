@@ -855,6 +855,17 @@ function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense,
         <video key={v.id} controls src={v.url} className="w-full max-h-48 rounded-md bg-black" />
       ))}
 
+      <JournalPointsCollapsible
+        entryId={entry.id}
+        entryMeta={{
+          id: entry.id,
+          title: entry.title,
+          description: entry.description,
+          entry_date: entry.entry_date,
+        }}
+      />
+
+
       <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           {audios.length > 0 && (
