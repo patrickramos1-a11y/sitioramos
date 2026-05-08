@@ -554,6 +554,70 @@ export type Database = {
           },
         ]
       }
+      journal_entries: {
+        Row: {
+          area_id: string | null
+          created_at: string
+          cycle_id: string | null
+          description: string | null
+          entry_date: string
+          entry_type: string
+          id: string
+          notes: string | null
+          responsavel_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          notes?: string | null
+          responsavel_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          notes?: string | null
+          responsavel_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "responsaveis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loans: {
         Row: {
           area_id: string | null
