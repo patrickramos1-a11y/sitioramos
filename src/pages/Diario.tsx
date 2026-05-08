@@ -558,24 +558,79 @@ export default function Diario() {
             <Save className="h-4 w-4 mr-2" />
             {create.isPending ? "Salvando..." : "Salvar Registro"}
           </Button>
-        </section>
+          </section>
+        </div>
 
-        {/* Últimos registros */}
-        <section className="space-y-2">
-          <h2 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-brand-forest/70 px-1">
-            Últimos registros
-          </h2>
+        {/* Coluna direita — timeline com filtros */}
+        <div className="mt-4 md:mt-0 space-y-3">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <h2 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-brand-forest/70">
+              Registros recentes
+            </h2>
+            <span className="text-[10px] text-muted-foreground">{entries.length}</span>
+          </div>
+
+          {/* Filtros simples */}
+          <div className="flex flex-wrap gap-1.5 px-1">
+            {(["all", "todo", "done"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setFilterReviewed(opt)}
+                className={cn(
+                  "text-[10px] px-2.5 py-1 rounded-full border transition",
+                  filterReviewed === opt
+                    ? "bg-brand-forest text-brand-paper border-brand-forest"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted/50",
+                )}
+              >
+                {opt === "all" ? "Todos" : opt === "todo" ? "A revisar" : "Revisados"}
+              </button>
+            ))}
+            <Select value={filterType || NONE} onValueChange={(v) => setFilterType(v === NONE ? "" : v)}>
+              <SelectTrigger className="h-7 text-[10px] w-auto px-2 gap-1">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Todos os tipos</SelectItem>
+                {TIPOS.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterAreaId || NONE} onValueChange={(v) => setFilterAreaId(v === NONE ? "" : v)}>
+              <SelectTrigger className="h-7 text-[10px] w-auto px-2 gap-1">
+                <SelectValue placeholder="Área" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Todas as áreas</SelectItem>
+                {areas.map((a: any) => (
+                  <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {entries.length === 0 && (
-            <div className="text-xs text-muted-foreground px-1 py-4 text-center">
-              Nenhum registro ainda. Capture o primeiro acima.
+            <div className="text-xs text-muted-foreground px-1 py-6 text-center">
+              Nenhum registro encontrado.
             </div>
           )}
           <div className="space-y-2">
             {entries.map((e) => (
-              <EntryCard key={e.id} entry={e} />
+              <EntryCard
+                key={e.id}
+                entry={e}
+                onMarkReviewed={() => markReviewed.mutate({ id: e.id })}
+                onConvertToTask={() => convertToTask.mutate(e)}
+                onConvertToExpense={() => handleConvertToExpense(e)}
+                onDelete={() => {
+                  if (confirm("Excluir este registro?")) remove.mutate(e.id);
+                }}
+              />
             ))}
           </div>
-        </section>
+        </div>
       </div>
     </AppLayout>
   );
