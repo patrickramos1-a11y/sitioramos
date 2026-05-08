@@ -57,6 +57,7 @@ export function OperationCard({
   onAddSubOperation, onAddTask, onEditTask, onDeleteTask,
   onTaskStatusChange, onStatusChange,
 }: OperationCardProps) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const sc = statusConfig[operation.status] || statusConfig.nao_iniciada;
   const Icon = sc.icon;
