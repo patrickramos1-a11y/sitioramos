@@ -538,7 +538,7 @@ export default function Operacao() {
                   ? `${pathOf(node.parent_id)} › ${node.nome}`
                   : node.nome;
               };
-              return all.map(s => ({ id: s.id, nome: pathOf(s.id) }));
+              return all.map(s => ({ id: s.id, nome: pathOf(s.id), responsavel_id: (s as any).responsavel_id || null }));
             })()}
             onSubmit={handleOpSubmit}
             isSubmitting={createOperation.isPending || updateOperation.isPending}
