@@ -3,16 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Search, Plus, SlidersHorizontal, X, MoreVertical,
-  CalendarDays, Flag, AlertTriangle, Folder, User, Inbox,
+  CalendarDays, CalendarPlus, Flag, AlertTriangle, Folder, User, Inbox,
 } from "lucide-react";
-import type { Task } from "@/hooks/useTasks";
+import { useTasks, type Task } from "@/hooks/useTasks";
 import type { Operation } from "@/hooks/useOperations";
 import { useResponsaveis } from "@/hooks/useResponsaveis";
 import { cn } from "@/lib/utils";
