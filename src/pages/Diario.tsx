@@ -29,9 +29,14 @@ import {
   NotebookPen,
   Clock,
   Tag,
+  CheckCircle2,
+  ListChecks,
+  Receipt,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const NONE = "__none__";
 
