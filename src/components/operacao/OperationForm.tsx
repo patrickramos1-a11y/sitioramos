@@ -56,7 +56,7 @@ interface OperationFormProps {
   cycles?: { id: string; cultura: string; area_id: string }[];
   siblingStages?: { id: string; nome: string }[];
   /** Lista de projetos para vincular */
-  allProjects?: { id: string; nome: string }[];
+  allProjects?: { id: string; nome: string; responsavel_id?: string | null }[];
   onSubmit: (data: OperationInsert & { nivel_tipo?: string; linked_project_id?: string | null }) => void;
   isSubmitting: boolean;
   title?: string;
