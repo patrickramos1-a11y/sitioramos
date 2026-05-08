@@ -1201,18 +1201,24 @@ export function GanttTimeline({
         {/* Legenda */}
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded border-2 border-dashed" style={{ borderColor: "hsl(142 40% 65%)", background: "hsl(142 40% 95%)" }} />Planejado
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 50% 92%)", border: "1.5px solid hsl(200 60% 45%)" }} />Planejada
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 50% 92%)", border: "1.5px solid hsl(142 55% 55%)" }} />Em execução
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)" }} />Em execução
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(142 60% 38%)" }} />Concluído
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(200 60% 45%)", boxShadow: "0 0 0 1.5px hsl(var(--destructive) / 0.6)" }} />Atrasada
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><CheckCircle2 className="h-3 w-3 text-success" />No prazo
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-4 h-2.5 rounded" style={{ background: "hsl(145 65% 32%)" }} /><AlertTriangle className="h-3 w-3 text-destructive" />Concluída c/ atraso
           </span>
           <span className="flex items-center gap-1">
             <span
               className="inline-block w-4 h-2.5 rounded"
-              style={{ background: "repeating-linear-gradient(45deg, hsl(142 70% 22%), hsl(142 70% 22%) 3px, hsl(142 60% 32%) 3px, hsl(142 60% 32%) 6px)" }}
+              style={{ background: "repeating-linear-gradient(45deg, hsl(0 0% 25%), hsl(0 0% 25%) 3px, hsl(0 0% 45%) 3px, hsl(0 0% 45%) 6px)", borderTop: "1px dotted hsl(var(--destructive))", borderBottom: "1px dotted hsl(var(--destructive))" }}
             />Tempo excedido
           </span>
           <span className="flex items-center gap-1">
