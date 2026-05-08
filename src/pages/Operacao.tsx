@@ -366,6 +366,22 @@ export default function Operacao() {
               )}
             </div>
           </TabsContent>
+
+          {/* Tarefas Tab */}
+          <TabsContent value="tarefas">
+            <Card>
+              <CardContent className="pt-6">
+                <TasksBoard
+                  tasks={allTasks}
+                  operations={operations}
+                  onCreate={() => { setEditingTask(null); setTaskDefaultStageId(""); setTaskFormOpen(true); }}
+                  onEdit={(t) => { setEditingTask(t); setTaskFormOpen(true); }}
+                  onDelete={(t) => { setDeleteTarget({ type: "task", id: t.id }); setDeleteDialogOpen(true); }}
+                  onToggleComplete={(t) => handleTaskStatusChange(t, t.status === "concluida" ? "pendente" : "concluida")}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
