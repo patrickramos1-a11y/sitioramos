@@ -1,29 +1,24 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  FolderKanban,
-  CheckSquare,
-  Receipt,
-  NotebookPen,
-  Sprout,
-  Wallet,
-  ClipboardList,
-  MapPin,
-} from "lucide-react";
+import { Sprout, Wallet, ClipboardList, MapPin } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useTasks } from "@/hooks/useTasks";
 import { JournalEntryForm } from "@/components/diario/JournalEntryForm";
 import { cn } from "@/lib/utils";
+import imgProjeto from "@/assets/home/action-projeto.png";
+import imgTarefa from "@/assets/home/action-tarefa.png";
+import imgDespesa from "@/assets/home/action-despesa.png";
+import imgDiario from "@/assets/home/action-diario.png";
 
 type Action = {
   label: string;
   description: string;
-  icon: any;
+  image: string;
   to?: string;
   onClick?: () => void;
   cardBg: string;
-  iconBg: string;
   textColor: string;
+  glow: string;
 };
 
 function formatCurrency(n: number) {
@@ -50,38 +45,38 @@ export function MobileHome() {
     {
       label: "Novo Projeto",
       description: "Planejar etapa produtiva.",
-      icon: FolderKanban,
+      image: imgProjeto,
       to: "/operacao?new=projeto",
       cardBg: "bg-gradient-to-br from-brand-forest to-[hsl(142_55%_22%)]",
-      iconBg: "bg-brand-paper/15",
       textColor: "text-brand-paper",
+      glow: "bg-brand-sun/30",
     },
     {
       label: "Nova Tarefa",
       description: "Registrar ação rápida.",
-      icon: CheckSquare,
+      image: imgTarefa,
       to: "/operacao?new=tarefa",
-      cardBg: "bg-gradient-to-br from-[hsl(43_100%_58%)] to-[hsl(38_95%_46%)]",
-      iconBg: "bg-brand-forest/15",
+      cardBg: "bg-gradient-to-br from-[hsl(43_100%_62%)] to-[hsl(38_95%_48%)]",
       textColor: "text-brand-forest",
+      glow: "bg-white/40",
     },
     {
       label: "Nova Despesa",
       description: "Lançar custo ou compra.",
-      icon: Receipt,
+      image: imgDespesa,
       to: "/lancamentos?new=1",
-      cardBg: "bg-gradient-to-br from-[hsl(28_50%_94%)] to-[hsl(28_40%_84%)]",
-      iconBg: "bg-[hsl(12_70%_42%)]/15",
+      cardBg: "bg-gradient-to-br from-[hsl(28_55%_92%)] to-[hsl(20_45%_78%)]",
       textColor: "text-brand-forest",
+      glow: "bg-[hsl(12_70%_55%)]/25",
     },
     {
       label: "Diário de Campo",
       description: "Anotar ocorrência do dia.",
-      icon: NotebookPen,
+      image: imgDiario,
       onClick: () => setDiarioOpen(true),
-      cardBg: "bg-gradient-to-br from-[hsl(82_35%_88%)] to-[hsl(85_30%_72%)]",
-      iconBg: "bg-brand-leaf/20",
+      cardBg: "bg-gradient-to-br from-[hsl(82_38%_86%)] to-[hsl(95_30%_64%)]",
       textColor: "text-brand-forest",
+      glow: "bg-brand-leaf/30",
     },
   ];
 
@@ -112,14 +107,14 @@ export function MobileHome() {
         </p>
       </section>
 
-      {/* Ações 2x2 — ocupam o espaço disponível */}
+      {/* Ações 2x2 — cards visuais com ilustração */}
       <section className="flex-1 min-h-0 grid grid-cols-2 gap-2.5 px-0.5">
         {actions.map((a, idx) => {
-          const Icon = a.icon;
           const inner = (
             <div
               className={cn(
-                "relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl p-3 shadow-[0_10px_28px_-14px_hsl(145_60%_12%/0.45)]",
+                "relative h-full w-full overflow-hidden rounded-[1.75rem] shadow-[0_14px_32px_-14px_hsl(145_60%_12%/0.55)]",
+                "ring-1 ring-white/40",
                 "transition-all duration-150 active:scale-[0.97] active:translate-y-0.5",
                 "animate-fade-in",
                 a.cardBg,
@@ -127,23 +122,30 @@ export function MobileHome() {
               )}
               style={{ animationDelay: `${idx * 50}ms` }}
             >
+              {/* halo difuso */}
               <span
                 aria-hidden
-                className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-white/20 blur-2xl opacity-60"
-              />
-              <div
                 className={cn(
-                  "relative h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
-                  a.iconBg,
+                  "absolute -top-10 -right-10 h-32 w-32 rounded-full blur-2xl opacity-70",
+                  a.glow,
                 )}
-              >
-                <Icon className="h-5 w-5" strokeWidth={2.3} />
-              </div>
-              <div className="relative">
-                <div className="font-display text-[14.5px] font-semibold leading-tight">
+              />
+              {/* ilustração */}
+              <img
+                src={a.image}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                width={512}
+                height={512}
+                className="absolute -right-3 -top-2 h-[58%] w-auto object-contain drop-shadow-[0_6px_10px_rgba(0,0,0,0.18)] pointer-events-none select-none"
+              />
+              {/* conteúdo inferior */}
+              <div className="absolute inset-x-0 bottom-0 p-3">
+                <div className="font-display text-[15px] font-semibold leading-tight">
                   {a.label}
                 </div>
-                <div className="text-[10.5px] opacity-80 leading-snug mt-0.5 line-clamp-2">
+                <div className="text-[10.5px] opacity-85 leading-snug mt-0.5 line-clamp-2">
                   {a.description}
                 </div>
               </div>
