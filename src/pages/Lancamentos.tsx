@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, DollarSign, Filter, X, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
@@ -16,6 +16,8 @@ import { ptBR } from "date-fns/locale";
 import { useCashTransactions, CashTransactionInsert } from "@/hooks/useCashTransactions";
 import { useOperations } from "@/hooks/useOperations";
 import { useAreas } from "@/hooks/useAreas";
+import { useCycles } from "@/hooks/useCycles";
+import { useResponsaveis } from "@/hooks/useResponsaveis";
 import { cashCategoryConfig, CashCategory, costTypeConfig } from "@/lib/categoryConfig";
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
