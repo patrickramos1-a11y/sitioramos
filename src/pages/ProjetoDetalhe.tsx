@@ -689,15 +689,16 @@ export default function ProjetoDetalhe() {
                   <p className="text-sm text-muted-foreground py-6 text-center">
                     Vincule uma área ou ciclo ao projeto para listar registros.
                   </p>
-                ) : journalEntries.length === 0 ? (
+                ) : filteredJournal.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">Nenhum registro encontrado.</p>
                 ) : (
                   <div className="space-y-2">
-                    {journalEntries.slice(0, 20).map((e: any) => (
+                    {filteredJournal.slice(0, 20).map((e: any) => (
                       <div key={e.id} className="border rounded-lg p-3 text-sm">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium truncate">{e.title || e.entry_type}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground flex items-center gap-2">
+                            {e.responsavel_id && <ResponsavelBadge responsavelId={e.responsavel_id} size="xs" />}
                             {format(new Date(e.entry_date), "dd/MM/yy", { locale: ptBR })}
                           </span>
                         </div>
