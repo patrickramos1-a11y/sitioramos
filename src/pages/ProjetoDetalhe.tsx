@@ -217,6 +217,14 @@ export default function ProjetoDetalhe() {
     [journalEntries, respFilter]
   );
 
+  // Histórico do projeto (eventos consolidados)
+  const historyTaskIds = useMemo(() => relatedTasks.map(t => t.id), [relatedTasks]);
+  const { data: historyEvents = [] } = useProjectHistory({
+    stageIds: stageIdsForLookup,
+    taskIds: historyTaskIds,
+    enabled: true,
+  });
+
   if (!currentOp) {
     return (
       <AppLayout>
