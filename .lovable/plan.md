@@ -1,70 +1,80 @@
-## Problema
 
-Quando você abre o app pelo ícone fixado na tela inicial do iPhone (ou pelo link salvo), aparece uma versão antiga. Isso acontece porque:
+# Refatorar a página de Tarefas (mobile)
 
-1. Em deploys anteriores ficou registrado um **service worker** que cacheou a versão antiga no aparelho. Ele continua servindo o HTML/JS antigo mesmo depois de novos deploys.
-2. O `start_url` do manifesto e o cache do iOS em modo "standalone" (PWA na tela inicial) também travam o app numa versão.
-3. Hoje não temos nenhum mecanismo de "checar se há versão nova e recarregar".
+## Problemas atuais
 
-O preview do navegador mostra a versão atual porque ele não tem SW antigo registrado.
+Olhando os prints e o código de `TasksBoard.tsx` (usado dentro de `MobileOperacaoView` quando o usuário clica em "Tarefas"), o layout atual foi desenhado para desktop e está ocupando muito espaço vertical no celular:
 
-## Objetivo
+1. O segmented control no topo corta a aba **"Tarefas"** ("Tar..."), porque agora são 4 botões competindo por espaço.
+2. A barra de busca é enorme e ocupa uma linha inteira ao lado de um botão "+ Tarefa" igualmente grande.
+3. Logo abaixo, **5 selects gigantes** (Status, Prioridade, Responsável, Projeto, Prazo) quebram em 3 linhas.
+4. Os KPIs (Total, Pendentes, Em andamento, Atrasadas, Concluídas hoje) também quebram em 2 linhas.
+5. A linha "Agrupar por" tem 4 botões grandes que extrapolam a largura.
+6. Não existe diferenciação entre o `TasksBoard` mostrado no desktop e o renderizado dentro do `MobileOperacaoView`.
 
-Sempre que o app abrir **com internet**, ele deve detectar que existe uma versão nova e atualizar automaticamente — tanto no link quanto no ícone da tela inicial.
+## Princípios do refator
 
-## Plano
+- Aplicar o **shell mobile** já documentado (`mem://style/mobile-app-shell`): controles pequenos (h-8), filtros em **bottom sheet** ao invés de selects soltos, listas verticais limpas.
+- Reaproveitar o padrão visual já usado no topo de `MobileOperacaoView` (botão "Filtros" + chips ativos + sheet de filtros).
+- Manter 100% do desktop intacto — `TasksBoard` continua como está para `>= md`.
 
-### 1. Service worker "kill-switch" em `/sw.js`
+## Mudanças
 
-Criar `public/sw.js` que:
-- Faz `skipWaiting` e `clients.claim` na ativação.
-- Apaga **todos** os caches (`caches.keys()` → `caches.delete`).
-- Navega cada client aberto adicionando `?sw-cleanup=<timestamp>` para forçar busca fresca.
-- Em seguida chama `self.registration.unregister()`.
+### 1. Novo componente `MobileTasksView`
 
-Resultado: aparelhos que já tinham SW antigo recebem este novo na próxima abertura, ele limpa o cache, recarrega a página, e se desregistra. Próximas aberturas passam a ir direto na rede.
+Arquivo: `src/components/operacao/mobile/MobileTasksView.tsx`.
 
-### 2. Registro condicional no `main.tsx`
+Recebe os mesmos props de `TasksBoard` (tasks, operations, onCreate/Edit/Delete/ToggleComplete) e implementa um layout próprio para celular.
 
-Manter o registro de `/sw.js` apenas em produção e fora do iframe/preview Lovable (já está assim). Garantir que ele seja registrado para que o kill-switch acima rode nos aparelhos atuais.
+Layout (de cima para baixo):
 
-### 3. Detector de versão nova
+```text
+┌─────────────────────────────────────────────────┐
+│ 🔍 Buscar tarefas...        [Filtros 2]   [ + ] │ ← linha única, h-9
+├─────────────────────────────────────────────────┤
+│ • Ativas  • Patrick  • Hoje                   × │ ← chips ativos (scroll-x)
+├─────────────────────────────────────────────────┤
+│ 24 Total · 4 Pend. · 0 Andam. · 1 Atras. · 0 ✓ │ ← KPIs em uma linha (scroll-x)
+├─────────────────────────────────────────────────┤
+│ Agrupar:  [Projeto] Prazo  Resp.  Lista         │ ← pílulas h-7 (scroll-x)
+├─────────────────────────────────────────────────┤
+│ Lista de grupos / cards (igual hoje)            │
+└─────────────────────────────────────────────────┘
+```
 
-- Gerar um `public/version.json` em build time com um id (`{ "build": "<timestamp>" }`) — usar um pequeno script no `vite.config.ts` (plugin `closeBundle`) ou um arquivo emitido com `define`.
-- Embutir o mesmo id no bundle via `import.meta.env.VITE_BUILD_ID` (definido em `vite.config.ts` com `Date.now()` no momento do build).
-- No app, criar `src/lib/versionCheck.ts` que:
-  - Busca `/version.json` (com `cache: "no-store"`) na inicialização e ao voltar para a aba (`visibilitychange` / `focus`).
-  - Se o `build` retornado for diferente do embutido **e** estiver online → mostra um toast "Nova versão disponível" com botão "Atualizar" que faz `location.reload()`.
-  - Opcional: após 5s sem interação, recarrega automaticamente (configurável).
+Detalhes:
+- **Toolbar (linha 1)**: Input de busca `h-9` ocupando `flex-1`; botão "Filtros" outline `h-9 px-2.5` com ícone `SlidersHorizontal` + badge contando filtros ativos; botão "+" primário `h-9 w-9 icon` (sem texto).
+- **Filtros**: abre `Sheet side="bottom"` (mesmo padrão do filtro de projetos no `MobileOperacaoView`) contendo seções para Status, Prioridade, Responsável, Projeto/Subprojeto e Prazo — com pílulas/checkboxes ao invés de selects. Roda em `ScrollArea` e botão "Aplicar (N tarefas)" no rodapé.
+- **Chips de filtros ativos**: linha `overflow-x-auto no-scrollbar`, cada chip remove o filtro ao tocar (mesmo `FilterChip` reaproveitado de `MobileOperacaoView`, ou um similar local).
+- **KPIs**: substituir badges grandes por uma fileira compacta `text-[11px]` em `flex gap-3 overflow-x-auto no-scrollbar` (sem quebrar linha). Atrasadas em `text-destructive`, andamento em `text-primary`, concluídas em `text-success`.
+- **Agrupar por**: pílulas `h-7 text-[11px]` com label "Agrupar:" prefixo, em uma linha rolável horizontalmente.
+- **Lista**: manter exatamente a renderização atual (`groups.map(...)` com checkbox + título + badges de projeto/responsável/prazo/prioridade + dropdown de ações), só com `tap-card` e padding ajustados.
 
-### 4. Botão manual "Atualizar app"
+### 2. Ajuste no `MobileOperacaoView.tsx`
 
-No componente `OfflineIndicator` (ou num menu adjacente), adicionar um item "Atualizar app" que:
-- Chama `caches.keys()` + `caches.delete` para limpar tudo.
-- Desregistra qualquer service worker remanescente.
-- Faz `location.reload()`.
+- No segmented control (linha ~277-282), quando há 4 botões cabe pouco texto. Tornar `SegBtn` **icon-only** (sem `<span>label</span>`) e adicionar `aria-label` apenas, garantindo que os 4 botões caibam confortavelmente em 391px de largura. Manter texto só em `>= sm`.
+- Substituir o uso atual de `<TasksBoard ... />` (linha ~310-318) por `<MobileTasksView ... />` quando `view === "tarefas"`.
 
-Assim, mesmo num cenário extremo, você consegue forçar a atualização com um toque.
+### 3. `TasksBoard.tsx` (desktop) inalterado
 
-### 5. Headers de cache (apenas observação)
-
-A hospedagem da Lovable já serve `index.html`, `/sw.js` e `/manifest.webmanifest` com `Cache-Control: no-cache`, então não precisa mexer em config de hosting.
+Continua sendo usado em `Operacao.tsx` no caminho desktop. Nenhuma mudança de lógica/dados — só quem renderiza no celular muda.
 
 ## Detalhes técnicos
 
-- `public/sw.js` é estático e fica versionado no repo.
-- `vite.config.ts` ganha `define: { "import.meta.env.VITE_BUILD_ID": JSON.stringify(Date.now().toString()) }` e um plugin que escreve `dist/version.json` no `closeBundle`.
-- `versionCheck.ts` é chamado uma vez em `App.tsx` dentro de um `useEffect`.
-- O toast usa o `sonner` já instalado.
-- Nada muda no fluxo offline existente: o React Query persistido continua funcionando para leitura sem internet; a checagem de versão só roda quando online.
+- Reaproveitar `useResponsaveis`, `stageMap`, `respMap`, `filtered`, `groups` exatamente como em `TasksBoard`. Para evitar duplicação, extrair essas funções puras (`buildStageMap`, `applyTaskFilters`, `buildGroups`, `formatPrazo`) para `src/lib/tasksUtils.ts` e importá-las em ambos os componentes.
+- Tipos `Grouping`, `PRIORIDADES` e helpers de data também vão para `tasksUtils.ts`.
+- Estados de filtros no mobile passam a ser objetos `Set` (`responsavelIds`, `parentIds`, `prazo`, `prioridade`, `status` único) consistentes com o padrão do filtro de projetos.
+- Sem mudanças de schema, hooks ou lógica de negócio.
+
+## Arquivos afetados
+
+- novo: `src/components/operacao/mobile/MobileTasksView.tsx`
+- novo: `src/lib/tasksUtils.ts` (extração de helpers compartilhados)
+- editado: `src/components/operacao/mobile/MobileOperacaoView.tsx` (segmented icon-only + troca para `MobileTasksView`)
+- editado: `src/components/operacao/TasksBoard.tsx` (passa a importar helpers de `tasksUtils.ts`; visual desktop intacto)
 
 ## Fora de escopo
 
-- Não vamos transformar o app em PWA "completo" com cache de assets via Workbox (mantemos a abordagem atual de cache só do React Query).
-- Não vamos mexer em `start_url`/`scope` do manifesto — mudar esses campos não atualiza ícones já instalados.
-
-## O que você verá no fim
-
-- Na próxima vez que abrir o ícone do iPhone com internet: o SW antigo é morto, o app recarrega sozinho na versão nova.
-- Em deploys futuros: aparece um toast "Nova versão disponível — Atualizar" e/ou recarrega sozinho.
-- Se algo travar: botão "Atualizar app" no indicador de status no topo.
+- Lógica de criação/edição/exclusão de tarefas (formulários e mutations continuam idênticos).
+- Página desktop de Operação.
+- Backend / hooks de dados.
