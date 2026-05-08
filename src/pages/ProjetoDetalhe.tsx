@@ -651,35 +651,63 @@ export default function ProjetoDetalhe() {
                   <Plus className="h-3 w-3 mr-1" /> Novo Lançamento
                 </Button>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 {filteredTransactions.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-6 text-center">Nenhum custo vinculado.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredTransactions.map(t => (
-                      <div key={t.id} className="flex items-center justify-between border rounded-lg p-3 text-sm">
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{t.descricao || (t as any).categoria}</div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                            <span>{format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}</span>
-                            {(t as any).contatos?.nome && <span>• {(t as any).contatos.nome}</span>}
-                            {(t as any).responsavel_id && (
-                              <ResponsavelBadge responsavelId={(t as any).responsavel_id} size="xs" />
-                            )}
+                ) : (() => {
+                  // Agrupa por subprojeto (ou "Projeto principal" para os do nó atual)
+                  const groups = new Map<string, { label: string; items: typeof filteredTransactions; total: number }>();
+                  filteredTransactions.forEach(tr => {
+                    const opId = (tr as any).operation_id as string | null;
+                    const groupId = opId === currentOp.id || !opId ? currentOp.id : opId;
+                    const sub = allStages.find(s => s.id === groupId);
+                    const label = groupId === currentOp.id ? "Projeto principal" : (sub?.nome || "Outro");
+                    const g = groups.get(groupId) || { label, items: [], total: 0 };
+                    g.items.push(tr);
+                    if (tr.tipo === "saida") g.total += Number(tr.valor || 0);
+                    groups.set(groupId, g);
+                  });
+                  return (
+                    <div className="space-y-4">
+                      {Array.from(groups.entries()).map(([gid, g]) => (
+                        <div key={gid} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              {g.label} <span className="text-[10px]">({g.items.length})</span>
+                            </h4>
+                            <span className="text-xs font-medium text-destructive tabular-nums">
+                              −{formatCurrency(g.total)}
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {g.items.map(t => (
+                              <div key={t.id} className="flex items-center justify-between border rounded-lg p-2.5 text-sm">
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{t.descricao || (t as any).categoria}</div>
+                                  <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                                    <span>{format(new Date(t.data), "dd/MM/yy", { locale: ptBR })}</span>
+                                    {(t as any).contatos?.nome && <span>• {(t as any).contatos.nome}</span>}
+                                    {(t as any).responsavel_id && (
+                                      <ResponsavelBadge responsavelId={(t as any).responsavel_id} size="xs" />
+                                    )}
+                                  </div>
+                                </div>
+                                <div className={`tabular-nums font-semibold ${t.tipo === "saida" ? "text-destructive" : "text-success"}`}>
+                                  {t.tipo === "saida" ? "-" : "+"} {formatCurrency(Number(t.valor))}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        <div className={`tabular-nums font-semibold ${t.tipo === "saida" ? "text-destructive" : "text-success"}`}>
-                          {t.tipo === "saida" ? "-" : "+"} {formatCurrency(Number(t.valor))}
-                        </div>
+                      ))}
+                      <div className="flex justify-end pt-2 border-t">
+                        <span className="text-sm font-semibold">
+                          Total saídas: <span className="text-destructive">{formatCurrency(totalCustoF)}</span>
+                        </span>
                       </div>
-                    ))}
-                    <div className="flex justify-end pt-2 border-t mt-2">
-                      <span className="text-sm font-semibold">
-                        Total saídas: <span className="text-destructive">{formatCurrency(totalCustoF)}</span>
-                      </span>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
