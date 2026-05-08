@@ -21,6 +21,7 @@ export function useOfflineSync() {
         if (r.synced > 0) {
           toast.success(`${r.synced} registro(s) sincronizado(s)`);
           qc.invalidateQueries({ queryKey: ["journal_entries"] });
+          qc.invalidateQueries({ queryKey: ["journal_points"] });
         }
         if (r.failed > 0) toast.error(`${r.failed} falharam ao sincronizar`);
       }
