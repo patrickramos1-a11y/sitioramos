@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Operation, OperationInsert } from "@/hooks/useOperations";
 import { OPERATION_CATEGORIES, STAGE_STATUS_OPTIONS_FORM, addDaysISO, getCategoryColor } from "@/lib/operacaoConfig";
-import { CalendarDays, Link2, RotateCcw } from "lucide-react";
+import { CalendarDays, Link2, RotateCcw, CheckCircle2 } from "lucide-react";
 import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
+import { CollapsibleField } from "@/components/ui/collapsible-field";
 
 const NONE = "__none__";
 const todayISO = () => new Date().toISOString().split("T")[0];
