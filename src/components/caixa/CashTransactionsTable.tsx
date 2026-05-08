@@ -230,19 +230,19 @@ export function CashTransactionsTable({
       </div>
 
       {/* Totais filtrados */}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-2 grid-cols-3">
         <Card className="bg-success/5 border-success/30">
-          <CardContent className="p-3">
-            <div className="text-xs text-muted-foreground">Entradas</div>
-            <div className="text-lg font-bold text-success">
+          <CardContent className="p-2 md:p-3">
+            <div className="text-[10px] md:text-xs text-muted-foreground">Entradas</div>
+            <div className="text-sm md:text-lg font-bold text-success leading-tight truncate">
               {formatCurrency(totals.entradas)}
             </div>
           </CardContent>
         </Card>
         <Card className="bg-destructive/5 border-destructive/30">
-          <CardContent className="p-3">
-            <div className="text-xs text-muted-foreground">Saídas</div>
-            <div className="text-lg font-bold text-destructive">
+          <CardContent className="p-2 md:p-3">
+            <div className="text-[10px] md:text-xs text-muted-foreground">Saídas</div>
+            <div className="text-sm md:text-lg font-bold text-destructive leading-tight truncate">
               {formatCurrency(totals.saidas)}
             </div>
           </CardContent>
@@ -254,10 +254,10 @@ export function CashTransactionsTable({
               : "bg-destructive/5 border-destructive/30"
           }
         >
-          <CardContent className="p-3">
-            <div className="text-xs text-muted-foreground">Saldo do filtro</div>
+          <CardContent className="p-2 md:p-3">
+            <div className="text-[10px] md:text-xs text-muted-foreground">Saldo</div>
             <div
-              className={`text-lg font-bold ${
+              className={`text-sm md:text-lg font-bold leading-tight truncate ${
                 totals.saldo >= 0 ? "text-success" : "text-destructive"
               }`}
             >
