@@ -312,13 +312,13 @@ export default function Lancamentos() {
         </div>
       </div>
 
-      {/* Form Sheet */}
-      <Sheet open={formOpen} onOpenChange={setFormOpen}>
-        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Novo lançamento</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-3 py-4">
+      {/* Form Dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Lançamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label>Data *</Label>
@@ -355,25 +355,83 @@ export default function Lancamentos() {
             )}
 
             <div>
-              <Label>Operação vinculada</Label>
-              <Select value={form.operation_id || "__none__"} onValueChange={v => setForm({ ...form, operation_id: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+              <Label>Responsável</Label>
+              <Select value={form.responsavel_id || "__none__"} onValueChange={v => setForm({ ...form, responsavel_id: v === "__none__" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {allOps.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
+                  <SelectItem value="__none__">Nenhum</SelectItem>
+                  {responsaveis.map(r => (
+                    <SelectItem key={r.id} value={r.id}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.cor }} />
+                        {r.nome}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <Label>Área</Label>
-              <Select value={form.area_id || "__none__"} onValueChange={v => setForm({ ...form, area_id: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="border-t pt-3 space-y-3">
+              <div>
+                <Label>Área</Label>
+                <Select
+                  value={form.area_id || "__none__"}
+                  onValueChange={v => setForm({ ...form, area_id: v === "__none__" ? "" : v, cycle_id: "" })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
+                    {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {form.area_id && cyclesForArea.length > 0 && (
+                <div>
+                  <Label>Ciclo</Label>
+                  <Select value={form.cycle_id || "__none__"} onValueChange={v => setForm({ ...form, cycle_id: v === "__none__" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
+                      {cyclesForArea.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.cultura} · {format(new Date(c.data_inicio_plantio), "MMM/yy", { locale: ptBR })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-3 space-y-3">
+              <div>
+                <Label>Projeto</Label>
+                <Select
+                  value={form.project_id || "__none__"}
+                  onValueChange={v => setForm({ ...form, project_id: v === "__none__" ? "" : v, subproject_id: "" })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
+                    {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {form.project_id && subprojects.length > 0 && (
+                <div>
+                  <Label>Subprojeto</Label>
+                  <Select value={form.subproject_id || "__none__"} onValueChange={v => setForm({ ...form, subproject_id: v === "__none__" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
+                      {subprojects.map((s: any) => <SelectItem key={s.id} value={s.id}>↳ {s.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <div>
@@ -386,12 +444,12 @@ export default function Lancamentos() {
               <Textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} rows={2} />
             </div>
           </div>
-          <SheetFooter>
+          <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancelar</Button>
             <Button onClick={handleSubmit} disabled={!form.valor || createTransaction.isPending}>Salvar</Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
