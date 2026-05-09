@@ -1,126 +1,143 @@
-# Refatoração visual da Timeline (Gantt) — Operação
+## Visão geral
 
-Foco: representar a vida da demanda numa **única barra contínua** dividida em "planejado" e "excedido", preservando a cor própria de cada projeto. Sem mexer em filtros, navegação, zoom, dados ou rotas.
+Hoje a página **Diário de Campo** é otimizada para captura no celular: card grande de "o que aconteceu hoje", botões de mídia, lista cronológica simples. Ótima para o app, ruim para gestão no desktop, onde o trabalho é **consultar, filtrar, revisar, editar, vincular, exportar e arquivar** muitos registros.
 
-Arquivos afetados:
-- `src/components/operacao/GanttTimeline.tsx` (visual das barras + tooltip + legenda)
-- `src/lib/operacaoConfig.ts` (apenas paleta — garantir distinção de cor)
+A proposta é manter o app móvel exatamente como está e criar uma **experiência desktop paralela** ("Cockpit do Diário"), que entra em ação a partir de `md:` (≥768px). Mesma rota `/diario`, mesmos dados, layout e fluxo diferentes.
 
 ---
 
-## Fase 1 — Continuidade visual: planejado + excedido como uma só demanda
+## Layout desktop — 3 zonas
 
-### 1.1 Geometria unificada
-Hoje a extensão de excedido é renderizada como um `<div>` separado, com bordas arredondadas próprias e fundo hachurado escuro (linhas 952–983). Isso causa o "retângulo solto".
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Header: título + KPIs (Total / Pendentes / Importantes / Sem vínculo)    │
+│         + botões: Novo registro · Exportar · Atualizar                   │
+├────────────────────┬────────────────────────────┬────────────────────────┤
+│ Sidebar Filtros    │ Lista (tabela ou timeline) │ Painel de detalhe      │
+│ (280px, sticky)    │ (flex-1, scroll próprio)   │ (420px, sticky)        │
+│                    │                            │                        │
+│ Período            │ ┌──────────────────────┐   │ Galeria de mídias      │
+│ Tipo               │ │ ☐ 12/05 · Plantio    │   │ Texto / observações    │
+│ Status             │ │   Casa de Farinha    │   │ Vínculos (Área/Ciclo/  │
+│ Área               │ │   Patrick · 📷3 🎤   │   │ Responsável/Tarefa)    │
+│ Ciclo              │ ├──────────────────────┤   │ Pontos GPS + mapa      │
+│ Responsável        │ │ ☐ 12/05 · Ocorrência │   │                        │
+│ Tags (multi)       │ │   ⚠ Pendente         │   │ Ações:                 │
+│ Revisado: todos/   │ └──────────────────────┘   │ ✎ Editar  ⤓ Baixar     │
+│  pendente/feito    │                            │ ✓ Revisar  ↪ Tarefa    │
+│ ★ Importantes      │ Paginação / "Carregar +"   │ 💰 Custo  🗑 Excluir   │
+│ Tem mídia          │                            │                        │
+│ Sem vínculo        │                            │                        │
+│ Busca (texto)      │                            │                        │
+└────────────────────┴────────────────────────────┴────────────────────────┘
+```
 
-Mudanças em `GanttTimeline.tsx` (bloco linhas ~801–1090, e a duplicata do `inlineChain` ~1092 em diante):
-
-- Renderizar **um único container "barra da demanda"** que vai de `start` até `mainEnd` (planejado) e, quando houver, **uma sub-camada interna** posicionada à direita representando o excedido (`endPrev → today` ou `endPrev → endReal`).
-- Container usa `border-radius` apenas nas pontas externas: cantos esquerdos arredondados (início real/planejado), cantos direitos arredondados na ponta final (que será o `endReal` se concluída com atraso, ou `today` se em atraso aberto).
-- A divisão entre planejado e excedido é uma **linha vertical fina** (1px, cor do projeto em tom escuro `dark`) — sem borda inteira ao redor do excedido. Isso garante "continuação" e não "barra nova".
-- Trecho excedido recebe **mesma cor do projeto, em tom mais escuro** (`dark`/`mid`) com leve textura diagonal sutil (gap maior, opacidade reduzida) — não o hachurado pesado atual.
-- Remover as bordas `dotted destructive` do excedido. O alerta vermelho passa a ser apenas o chip `+Nd` flutuante e o ícone de alerta na barra.
-
-### 1.2 Preenchimento interno (progresso)
-Atualmente o "fill" de progresso usa `respColor` (cor do responsável) e fica dentro da barra (linhas 998–1003). Substituir por:
-
-- Fundo da barra planejada: tom **claro** da cor do projeto (`soft`/`softer`) com **borda 1.5px sólida** na cor forte do projeto (`strong`).
-- Preenchimento de progresso: faixa interna na **cor forte do projeto** (`strong`), avançando da esquerda até:
-  - `today` se "em_andamento" dentro do prazo,
-  - `endPrev` se atrasada (preenchimento ocupa 100% da barra planejada),
-  - `endReal` se concluída no prazo,
-  - 100% se concluída.
-- Cor do responsável deixa de pintar o progresso. Continua aparecendo só como pequeno marcador/dot na ponta esquerda da barra (preservando identidade do responsável sem quebrar a cor da demanda).
-
-### 1.3 Variação por status (sem perder a cor do projeto)
-Reescrever o switch de `barStyle` (linhas 856–885) para sempre usar `projectColor(...)`. Status muda **só o tratamento**:
-
-- `planejada`: fundo `soft`, borda `strong`, sem fill interno.
-- `em_andamento`: fundo `soft`, borda `strong`, fill `strong` até hoje.
-- `atrasada`: idem em_andamento + extensão de excedido + ícone alerta + chip `+Nd`.
-- `concluida`: fundo `strong` cheio, ícone check, sem extensão.
-- `concluida_com_atraso`: fundo `strong` cheio até `endPrev`, extensão até `endReal`, chip `+Nd`.
-- `pausada`: textura listrada suave em tom `soft` + borda `strong` + ícone pause.
-- `travada`: dessaturada (s≈15) + borda tracejada + ícone Lock.
-- `cancelada`: cinza neutro com `line-through` (mantém comportamento atual).
-
-Projetos (`level 0`) podem ter borda mais grossa (2px) e altura levemente maior; subprojetos/sub-sub usam mesma lógica com borda mais fina ou tracejada — sem trocar a cor.
+No mobile (`<md`) nada muda — segue o card de captura atual.
 
 ---
 
-## Fase 2 — Rótulos, tooltip, legenda e diferenciação de cor
+## Funcionalidades por zona
 
-### 2.1 Rótulos separados
-Substituir `buildDurationLabel` (linhas 914–925) e o render do label (linha 1010+) por **três chips posicionais**:
+### 1. Header + KPIs
+- 4 cartões pequenos: **Total no período**, **Pendentes de revisão**, **Importantes**, **Sem vínculo (sem área/ciclo/responsável)**. Cada cartão é clicável e aplica o filtro correspondente.
+- Botões: **Novo registro** (abre dialog de captura — mesmo formulário do mobile), **Exportar** (CSV/ZIP), **Atualizar**.
 
-- **Dentro/no fim da barra planejada** (alinhado à direita do trecho planejado): `37d planejado` (em barras estreitas, abreviar para `37d plan`).
-- **Dentro do trecho excedido** (centralizado, se largura ≥ 40px): `+91d excedido` (em barras estreitas, só `+91d`).
-- **Na ponta direita da demanda inteira** (chip flutuante): `128d total` (apenas quando `dTot > dPrev` e há excedido — para concluídas no prazo, mostra apenas o `dPrev d ✓`).
+### 2. Sidebar de filtros (esquerda, sticky)
+- **Período**: presets (hoje, 7d, 30d, este mês, últimos 90d) + range customizado.
+- **Tipo de registro** (multi): observação, plantio, limpeza, colheita, manutenção, ocorrência, clima, ambiental.
+- **Status** (multi): informativo, atenção, pendente, resolvido, importante.
+- **Área**, **Ciclo**, **Responsável** — selects com busca.
+- **Tags** — multi, sugeridas a partir das tags já usadas.
+- **Revisado**: todos / pendentes / revisados.
+- Toggles: **★ Importantes**, **Com mídia**, **Sem vínculo**, **Com GPS**.
+- **Busca textual** no topo (título + descrição + notas).
+- "Limpar filtros" e contador de filtros ativos.
+- Filtros sincronizados com a URL (`?periodo=30d&tipo=plantio&area=…`) para compartilhar links.
 
-Tipografia: `tabular-nums`, peso 600, tamanho 9–10px. Em telas estreitas/mobile, esconder o "planejado"/"excedido"/"total" e manter só números (ex.: `37d`, `+91d`, `128d`).
+### 3. Visualização central — duas abas
+- **Tabela** (default desktop): colunas selecionáveis — `☐ | Data | Tipo | Título | Área | Ciclo | Responsável | Status | Mídias | Tags | Ações`. Ordenação por coluna, seleção múltipla com checkbox.
+- **Timeline**: agrupamento por dia, igual à versão atual mas em lista densa.
+- (Futuro: aba **Mapa** plotando pontos GPS — fora do escopo desta entrega.)
+- **Carregar mais** ou paginação 50/100/200 (hoje há `limit: 50` fixo — passamos a paginar).
 
-### 2.2 Cálculos (revisar `computeStageMetrics`)
-A lógica atual já cobre o essencial. Ajustes pontuais em `src/lib/operacaoConfig.ts`:
+#### Ações em massa (quando 1+ selecionado)
+Aparece uma barra fixa no rodapé da lista:
+- Marcar como revisado / não revisado
+- Marcar como importante
+- Atribuir responsável
+- Vincular a área / ciclo
+- Adicionar tags
+- Exportar selecionados (CSV ou ZIP de mídias)
+- Excluir (com confirmação)
 
-- Renomear/garantir nomes claros:
-  - `diasPlanejados` (alias de `duracaoPrevista`).
-  - `diasTotais` = `(fimReal ?? today) - start` (já existe).
-  - `diasExcedidos` = `max(0, diasTotais - diasPlanejados)` (já existe; revisar para usar diasTotais para consistência).
-  - Adicionar `percentualPlanejadoDecorrido` = `min(1, diasDecorridosDentroDoPrazo / diasPlanejados)`.
-  - Adicionar `percentualTotal` = `diasTotais / diasPlanejados`.
-- Garantir que `start` use `data_inicio_real ?? data_inicio_prevista` consistentemente (já ok).
+### 4. Painel de detalhe (direita, sticky)
+Ao clicar uma linha, abre o painel (sem sair da página):
+- **Cabeçalho**: data, tipo, status, badge de responsável, ★ importante.
+- **Mídias**: galeria com lightbox para fotos, player para vídeo e áudio, download individual.
+- **Texto**: descrição e observações em modo leitura, com botão ✎ que vira edição inline.
+- **Vínculos editáveis**: área, ciclo, responsável, tags, tipo, status — alterar e salvar sem abrir modal.
+- **Pontos GPS**: lista + miniatura de mapa (ou link "abrir no Maps") usando o `JournalPointsManager` em modo leitura.
+- **Ações**:
+  - ✓ Marcar revisado / Reabrir
+  - ↪ Converter em **tarefa** (já existe `convertToTask`)
+  - 💰 Lançar **custo** (já existe `handleConvertToExpense`)
+  - ⤓ Baixar tudo (ZIP com mídias + um `registro.json` com os metadados)
+  - 🗑 Excluir
+- **Histórico**: created_at, updated_at, quem revisou (quando houver).
 
-### 2.3 Tooltip enriquecido
-Substituir o tooltip atual (linhas ~978–982 e tooltip principal da barra) por um único bloco com:
+### 5. Exportação e download
+- **Linha única**: botão ⤓ baixa um ZIP `diario-<data>-<id>.zip` com mídias originais + `registro.json`.
+- **CSV** (1 ou N registros): planilha com colunas data, tipo, título, descrição, área, ciclo, responsável, status, tags, lat, lng, qtd_fotos, qtd_videos, qtd_audio, links públicos das mídias.
+- **ZIP em massa**: pasta por registro, mais um `index.csv` no raiz.
+- Tudo gerado no cliente com `JSZip` + `file-saver` (pequenos) — sem backend novo.
 
-- Nome da demanda (negrito) + chip de status.
-- Responsável (com cor própria).
-- Início (real ou planejado).
-- Fim planejado.
-- Fim real (se houver).
-- `Dias planejados: N`
-- `Dias decorridos: N` (com `%` do planejado).
-- `Dias excedidos: N` (em vermelho, só se > 0).
-- `Dias totais: N`.
-- Linha-resumo: "No prazo" / "Atrasada há Xd" / "Concluída no prazo" / "Concluída com Xd de atraso".
+### 6. Edição
+- Edição inline no painel de detalhe para campos simples (título, descrição, status, vínculos, tags, importante).
+- Botão "Editar completo" abre o mesmo formulário de captura em dialog para mexer também em mídias e pontos.
+- Adicionar/remover **mídias** depois de criado: upload novo no bucket `journal-media`, novo registro em `journal_attachments`; remoção apaga arquivo + linha.
 
-O tooltip do trecho excedido deixa de existir (a barra inteira é um único hover target).
-
-### 2.4 Legenda atualizada
-Reescrever a legenda (linhas ~1215–1230) com 6 entradas refletindo a nova semântica:
-
-- Período planejado (caixa `soft` + borda `strong`).
-- Progresso realizado (faixa `strong` dentro da caixa).
-- Tempo excedido (continuação em tom `dark` com textura sutil).
-- Concluída (caixa cheia `strong` + check).
-- Pausada/Travada (textura/dashed + ícone).
-- Linha de hoje (linha vermelha vertical).
-
-### 2.5 Cor única por demanda — reforço
-Hoje `getProjectVisualColor` pode usar a hue da **categoria** (linhas 121–141), o que faz vários projetos da mesma categoria ficarem com cor idêntica. Mudança em `GanttTimeline.tsx`:
-
-- `projectColorFor` deve **priorizar `getProjectColor(projectId)`** (hash do id → paleta) e usar a categoria apenas como fallback quando não houver projectId estável. Isso garante que cada demanda tenha cor distinta mesmo dentro da mesma categoria.
-- Manter a paleta de 12 cores atual (já bem distribuída).
-
----
-
-## Critérios de aceite (validação visual)
-
-- [ ] Demanda "teste" (37d planejados, 128d totais) mostra: barra planejada terminando em `endPrev`, extensão hachurada suave até hoje, chips `37d planejado` + `+91d excedido` + `128d total`.
-- [ ] Trecho excedido **parece colado** na barra planejada (sem gap, sem cantos arredondados internos, mesma cor base).
-- [ ] Dois projetos diferentes nunca têm cor idêntica (testar com 3+ projetos da mesma categoria).
-- [ ] Concluída no prazo: barra cheia até `endReal`, sem extensão, label `Nd ✓`.
-- [ ] Concluída com atraso: barra cheia até `endPrev` + extensão até `endReal` + chips.
-- [ ] Em andamento dentro do prazo: fill `strong` até hoje, sem extensão.
-- [ ] Em andamento atrasada: fill 100% da barra planejada + extensão até hoje + alerta.
-- [ ] Tooltip mostra todos os campos da seção 2.3.
-- [ ] Legenda reflete os 6 estados.
-- [ ] Mobile (≤640px): chips colapsam para versão curta, barra mantém legibilidade.
+### 7. Exclusão
+- Soft delete não está no escopo (o schema não suporta hoje); mantém DELETE direto com confirmação ("Isso vai apagar X mídias e Y pontos. Continuar?").
+- Em massa: dialog único com contagem total.
 
 ---
 
 ## Detalhes técnicos
 
-- Mesmas mudanças aplicadas no bloco principal e no `inlineChain` (linhas ~1092+) para manter consistência visual em chains inline.
-- Manter `getBarPosition`, `dayToPx`, `colWidth` intactos — apenas a renderização da barra muda.
-- Sem migrações de banco. Sem mudanças em hooks ou rotas.
+- **Sem mudança de schema.** Tudo já está em `journal_entries`, `journal_attachments`, `journal_points`.
+- `useJournalEntries` ganha:
+  - filtros novos: `dateFrom/dateTo`, `responsavelId`, `tags`, `hasMedia`, `hasNoLink`, `search`;
+  - paginação cursor/offset;
+  - mutation `bulkUpdate` (revisar/atribuir/tags em N ids) e `bulkDelete`;
+  - mutation `addAttachment`/`removeAttachment` para edição pós-criação.
+- Novos componentes em `src/components/diario/desktop/`:
+  - `DiarioCockpit.tsx` (orquestra layout 3 colunas)
+  - `DiarioFilters.tsx` (sidebar)
+  - `DiarioTable.tsx` (tabela + seleção)
+  - `DiarioTimeline.tsx` (modo alternativo)
+  - `DiarioDetailPanel.tsx` (painel direito)
+  - `DiarioBulkBar.tsx` (ações em massa)
+  - `DiarioExport.ts` (helpers CSV/ZIP)
+- `Diario.tsx` decide via `useIsMobile()`/`md:` qual versão renderizar; o formulário de captura vira `DiarioCaptureForm` reaproveitado pelos dois modos (mobile inline; desktop em dialog).
+- Sincronização URL ↔ filtros via `useSearchParams`.
+- ZIP/CSV: adicionar `jszip` e `file-saver` (pequenas).
+- Acessibilidade: tabela com `aria-sort`, painel direito como `aside` com foco gerenciado, atalhos: `J/K` próximo/anterior, `R` revisar, `E` editar, `Del` excluir.
+- Tokens de design: reaproveita `brand-leaf`, `brand-forest`, `brand-sun` já em uso, sem cores cruas.
+
+---
+
+## Entregáveis
+
+1. Layout desktop em 3 colunas em `/diario` (mobile intacto).
+2. Filtros completos sincronizados com URL + busca textual.
+3. Tabela com seleção, ordenação, ações em massa.
+4. Painel de detalhe com edição inline, vínculos, mídias, pontos, ações (revisar, tarefa, custo, baixar, excluir).
+5. Exportação CSV individual/em massa e ZIP com mídias.
+6. Sem mudanças de banco; sem afetar o fluxo do app móvel.
+
+## Fora do escopo (sugerir depois)
+
+- Aba **Mapa** com clusters dos pontos GPS.
+- Soft delete + lixeira.
+- Comentários/threads por registro.
+- Relatório PDF formatado por período.
