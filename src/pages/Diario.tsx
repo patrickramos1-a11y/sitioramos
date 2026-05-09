@@ -784,7 +784,7 @@ export default function Diario() {
         </div>
 
         {/* Coluna direita — timeline com filtros */}
-        <div className="mt-4 md:mt-0 space-y-3">
+        <div className={cn("mt-4 md:mt-0 space-y-3", !isMobile && "hidden")}>
           <div className="flex items-center justify-between gap-2 px-1">
             <h2 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-brand-forest/70">
               Registros recentes
