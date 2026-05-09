@@ -116,6 +116,8 @@ function defaultTitle(d = new Date()) {
 export default function Diario() {
   const navigate = useNavigate();
   const { online, pending } = useOfflineSync();
+  const isMobile = useIsMobile();
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [filterReviewed, setFilterReviewed] = useState<"all" | "todo" | "done">("all");
   const [filterType, setFilterType] = useState<string>("");
   const [filterAreaId, setFilterAreaId] = useState<string>("");
