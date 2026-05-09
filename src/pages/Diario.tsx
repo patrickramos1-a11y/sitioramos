@@ -374,35 +374,26 @@ export default function Diario() {
           <DiarioCockpit onNew={() => setCaptureOpen(true)} />
         </div>
       )}
-      <Dialog open={!isMobile && captureOpen} onOpenChange={setCaptureOpen}>
-        <DialogContent className="max-w-xl max-h-[92vh] overflow-auto p-0">
-          <DialogHeader className="px-4 pt-4">
-            <DialogTitle className="font-display text-brand-forest">Novo registro</DialogTitle>
-          </DialogHeader>
-          <div className="px-4 pb-4">
-            <CaptureCard {...{
-              title, setTitle, titlePlaceholder, text, setText, textareaRef,
-              recording, setRecording, audio, setAudio,
-              photos, removePhoto, video, setVideo,
-              photoInput, photoLibInput, videoInput, videoLibInput,
-              handlePhotoSelect, handleVideoSelect,
-              draftPoints, setDraftPoints,
-              detailsOpen, setDetailsOpen, moreOpen, setMoreOpen,
-              entryType, setEntryType, status, setStatus,
-              areaId, setAreaId, cycleId, setCycleId,
-              responsavelId, setResponsavelId,
-              weather, setWeather, tagsText, setTagsText, notes, setNotes,
-              important, setImportant,
-              areas, cycles,
-              canSave, isPending: create.isPending, handleSave,
-            }} />
-          </div>
-        </DialogContent>
-      </Dialog>
-      <div className={cn("mx-auto max-w-6xl pb-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6", !isMobile && "hidden")}>
+      <div
+        className={cn(
+          "mx-auto max-w-6xl pb-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6",
+          !isMobile && !captureOpen && "hidden",
+          !isMobile && captureOpen && "mt-4 px-4 border-t pt-4",
+        )}
+      >
         <div className="space-y-4">
+          {!isMobile && captureOpen && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider font-semibold text-brand-forest/70">
+                Novo registro
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => setCaptureOpen(false)}>
+                Fechar
+              </Button>
+            </div>
+          )}
           {/* Header compacto */}
-          <header className="flex items-start gap-3">
+          <header className={cn("flex items-start gap-3", !isMobile && "hidden")}>
           <span className="h-10 w-10 rounded-xl bg-brand-leaf/15 text-brand-leaf flex items-center justify-center shrink-0">
             <NotebookPen className="h-5 w-5" />
           </span>
