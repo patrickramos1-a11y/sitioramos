@@ -191,6 +191,7 @@ export default function Diario() {
     setMoreOpen(false);
     setCoords(null);
     setDraftPoints([]);
+    setCaptureOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
