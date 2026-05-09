@@ -53,7 +53,7 @@ import {
 import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DiarioCockpit } from "@/components/diario/desktop/DiarioCockpit";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+// Dialog import removed (capture toggles inline section on desktop)
 
 const NONE = "__none__";
 
