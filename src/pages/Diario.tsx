@@ -367,8 +367,55 @@ export default function Diario() {
     navigate(`/lancamentos?${params.toString()}`);
   };
 
+  const captureSection = (
+    <>
+      {/* Header compacto */}
+      <header className="flex items-start gap-3">
+        <span className="h-10 w-10 rounded-xl bg-brand-leaf/15 text-brand-leaf flex items-center justify-center shrink-0">
+          <NotebookPen className="h-5 w-5" />
+        </span>
+        <div className="flex-1">
+          <h1 className="font-display text-xl font-semibold text-brand-forest">
+            {isMobile ? "Diário de Campo" : "Novo registro"}
+          </h1>
+          <p className="text-xs text-muted-foreground">Registre o dia a dia do sítio.</p>
+        </div>
+      </header>
+    </>
+  );
+
   return (
     <AppLayout>
+      {!isMobile ? (
+        <div className="mx-auto max-w-[1500px] pb-4">
+          <DiarioCockpit onNew={() => setCaptureOpen(true)} />
+          <Dialog open={captureOpen} onOpenChange={setCaptureOpen}>
+            <DialogContent className="max-w-xl max-h-[92vh] overflow-auto">
+              <DialogHeader>
+                <DialogTitle className="font-display text-brand-forest">Novo registro de diário</DialogTitle>
+              </DialogHeader>
+              <DesktopCapture
+                {...{
+                  title, setTitle, titlePlaceholder, text, setText, textareaRef,
+                  recording, setRecording, audio, setAudio,
+                  photos, removePhoto, video, setVideo,
+                  photoInput, photoLibInput, videoInput, videoLibInput,
+                  handlePhotoSelect, handleVideoSelect,
+                  draftPoints, setDraftPoints,
+                  detailsOpen, setDetailsOpen, moreOpen, setMoreOpen,
+                  entryType, setEntryType, status, setStatus,
+                  areaId, setAreaId, cycleId, setCycleId,
+                  responsavelId, setResponsavelId,
+                  weather, setWeather, tagsText, setTagsText, notes, setNotes,
+                  important, setImportant,
+                  areas, cycles,
+                  canSave, isPending: create.isPending, handleSave,
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      ) : (
       <div className="mx-auto max-w-6xl pb-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
         <div className="space-y-4">
           {/* Header compacto */}
