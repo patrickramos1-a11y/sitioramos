@@ -51,6 +51,9 @@ import {
   JournalPointsCollapsible,
 } from "@/components/diario/JournalPointsManager";
 import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { DiarioCockpit } from "@/components/diario/desktop/DiarioCockpit";
+// Dialog import removed (capture toggles inline section on desktop)
 
 const NONE = "__none__";
 
@@ -113,6 +116,8 @@ function defaultTitle(d = new Date()) {
 export default function Diario() {
   const navigate = useNavigate();
   const { online, pending } = useOfflineSync();
+  const isMobile = useIsMobile();
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [filterReviewed, setFilterReviewed] = useState<"all" | "todo" | "done">("all");
   const [filterType, setFilterType] = useState<string>("");
   const [filterAreaId, setFilterAreaId] = useState<string>("");
@@ -186,6 +191,7 @@ export default function Diario() {
     setMoreOpen(false);
     setCoords(null);
     setDraftPoints([]);
+    setCaptureOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
@@ -363,10 +369,31 @@ export default function Diario() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-6xl pb-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6">
+      {!isMobile && (
+        <div className="mx-auto max-w-[1500px] pb-4">
+          <DiarioCockpit onNew={() => setCaptureOpen(true)} />
+        </div>
+      )}
+      <div
+        className={cn(
+          "mx-auto max-w-6xl pb-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-6",
+          !isMobile && !captureOpen && "hidden",
+          !isMobile && captureOpen && "mt-4 px-4 border-t pt-4",
+        )}
+      >
         <div className="space-y-4">
+          {!isMobile && captureOpen && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider font-semibold text-brand-forest/70">
+                Novo registro
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => setCaptureOpen(false)}>
+                Fechar
+              </Button>
+            </div>
+          )}
           {/* Header compacto */}
-          <header className="flex items-start gap-3">
+          <header className={cn("flex items-start gap-3", !isMobile && "hidden")}>
           <span className="h-10 w-10 rounded-xl bg-brand-leaf/15 text-brand-leaf flex items-center justify-center shrink-0">
             <NotebookPen className="h-5 w-5" />
           </span>
@@ -757,7 +784,7 @@ export default function Diario() {
         </div>
 
         {/* Coluna direita — timeline com filtros */}
-        <div className="mt-4 md:mt-0 space-y-3">
+        <div className={cn("mt-4 md:mt-0 space-y-3", !isMobile && "hidden")}>
           <div className="flex items-center justify-between gap-2 px-1">
             <h2 className="text-[11px] uppercase tracking-[0.16em] font-semibold text-brand-forest/70">
               Registros recentes
