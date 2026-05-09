@@ -51,6 +51,9 @@ import {
   JournalPointsCollapsible,
 } from "@/components/diario/JournalPointsManager";
 import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { DiarioCockpit } from "@/components/diario/desktop/DiarioCockpit";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const NONE = "__none__";
 
