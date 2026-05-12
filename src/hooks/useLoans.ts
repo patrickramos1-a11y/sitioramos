@@ -126,13 +126,14 @@ export function useLoans() {
         await supabase.from("cash_transactions").insert({
           data: formData.data,
           tipo: "entrada",
-          categoria: "emprestimo_entrada",
+          categoria: "financeiro",
+          subcategoria: "recebimento_emprestimo",
           valor: formData.valor_recebido,
           descricao: `Recebimento de empréstimo: ${formData.origem_credor}`,
           loan_id: data.id,
           area_id: formData.area_id,
           cycle_id: formData.cycle_id,
-        });
+        } as any);
       }
 
       // Cash exit for initial discounts
@@ -140,13 +141,14 @@ export function useLoans() {
         await supabase.from("cash_transactions").insert({
           data: formData.data,
           tipo: "saida",
-          categoria: "despesa_financeira",
+          categoria: "financeiro",
+          subcategoria: "despesa_financeira",
           valor: formData.descontos_iniciais,
           descricao: `Descontos iniciais: ${formData.origem_credor}`,
           loan_id: data.id,
           area_id: formData.area_id,
           cycle_id: formData.cycle_id,
-        });
+        } as any);
       }
       
       return data;
@@ -277,14 +279,15 @@ export function useLoans() {
         await supabase.from("cash_transactions").insert({
           data: dataPagamento,
           tipo: "saida",
-          categoria: "parcela_emprestimo",
+          categoria: "financeiro",
+          subcategoria: "parcela_emprestimo",
           valor: Number(installment.valor),
           descricao: `Parcela ${installment.numero_parcela} - ${loanData?.origem_credor || "Empréstimo"}`,
           loan_id: installment.loan_id,
           installment_id: id,
           area_id: loanData?.area_id || null,
           cycle_id: loanData?.cycle_id || null,
-        });
+        } as any);
       }
 
       return data;
@@ -319,13 +322,14 @@ export function useLoans() {
       await supabase.from("cash_transactions").insert({
         data: dataPagamento,
         tipo: "saida",
-        categoria: "quitacao_emprestimo",
+        categoria: "financeiro",
+        subcategoria: "quitacao_emprestimo",
         valor: valorQuitacao,
         descricao: `Quitação antecipada: ${loan.origem_credor}`,
         loan_id: loanId,
         area_id: loan.area_id,
         cycle_id: loan.cycle_id,
-      });
+      } as any);
 
       return loan;
     },

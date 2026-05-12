@@ -90,6 +90,7 @@ export type Database = {
         Row: {
           area_id: string | null
           categoria: string
+          categoria_legada: string | null
           contato_id: string | null
           cost_id: string | null
           created_at: string
@@ -104,6 +105,7 @@ export type Database = {
           operation_id: string | null
           responsavel_id: string | null
           revenue_id: string | null
+          subcategoria: string | null
           talhao_id: string | null
           tipo: string
           updated_at: string
@@ -112,6 +114,7 @@ export type Database = {
         Insert: {
           area_id?: string | null
           categoria: string
+          categoria_legada?: string | null
           contato_id?: string | null
           cost_id?: string | null
           created_at?: string
@@ -126,6 +129,7 @@ export type Database = {
           operation_id?: string | null
           responsavel_id?: string | null
           revenue_id?: string | null
+          subcategoria?: string | null
           talhao_id?: string | null
           tipo: string
           updated_at?: string
@@ -134,6 +138,7 @@ export type Database = {
         Update: {
           area_id?: string | null
           categoria?: string
+          categoria_legada?: string | null
           contato_id?: string | null
           cost_id?: string | null
           created_at?: string
@@ -148,6 +153,7 @@ export type Database = {
           operation_id?: string | null
           responsavel_id?: string | null
           revenue_id?: string | null
+          subcategoria?: string | null
           talhao_id?: string | null
           tipo?: string
           updated_at?: string

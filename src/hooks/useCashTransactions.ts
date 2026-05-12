@@ -8,6 +8,8 @@ export interface CashTransaction {
   data: string;
   tipo: "entrada" | "saida";
   categoria: CashCategory;
+  subcategoria: string | null;
+  categoria_legada?: string | null;
   valor: number;
   descricao: string | null;
   loan_id: string | null;
@@ -23,6 +25,7 @@ export interface CashTransaction {
   updated_at: string;
   // Joined data
   contato_id?: string | null;
+  responsavel_id?: string | null;
   areas?: { nome: string } | null;
   loans?: { origem_credor: string } | null;
   cycles?: { cultura: string } | null;
@@ -33,6 +36,7 @@ export interface CashTransactionInsert {
   data: string;
   tipo: "entrada" | "saida";
   categoria: CashCategory;
+  subcategoria?: string | null;
   valor: number;
   descricao?: string | null;
   loan_id?: string | null;
@@ -44,6 +48,7 @@ export interface CashTransactionInsert {
   cycle_id?: string | null;
   operation_id?: string | null;
   contato_id?: string | null;
+  responsavel_id?: string | null;
   observacoes?: string | null;
 }
 
@@ -55,12 +60,16 @@ export interface CashBalance {
 
 export interface CashFilters {
   categoria?: CashCategory;
+  subcategoria?: string;
   areaId?: string;
   cycleId?: string;
   operationId?: string;
   tipo?: "entrada" | "saida";
   startDate?: string;
   endDate?: string;
+  withoutCycle?: boolean;
+  withoutArea?: boolean;
+  withoutSubcategoria?: boolean;
 }
 
 // Re-export for backward compatibility
@@ -84,6 +93,9 @@ export function useCashTransactions(filters?: CashFilters) {
       if (filters?.categoria) {
         query = query.eq("categoria", filters.categoria);
       }
+      if (filters?.subcategoria) {
+        query = query.eq("subcategoria", filters.subcategoria);
+      }
       if (filters?.areaId) {
         query = query.eq("area_id", filters.areaId);
       }
@@ -102,10 +114,19 @@ export function useCashTransactions(filters?: CashFilters) {
       if (filters?.endDate) {
         query = query.lte("data", filters.endDate);
       }
+      if (filters?.withoutCycle) {
+        query = query.is("cycle_id", null);
+      }
+      if (filters?.withoutArea) {
+        query = query.is("area_id", null);
+      }
+      if (filters?.withoutSubcategoria) {
+        query = query.is("subcategoria", null);
+      }
       
       const { data, error } = await query;
       if (error) throw error;
-      return data as CashTransaction[];
+      return data as unknown as CashTransaction[];
     },
   });
 

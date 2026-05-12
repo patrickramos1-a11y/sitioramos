@@ -20,7 +20,7 @@ import { useRevenues, Revenue, RevenueInsert } from "@/hooks/useRevenues";
 import { useAreas } from "@/hooks/useAreas";
 import { useLoans } from "@/hooks/useLoans";
 import { useCycles } from "@/hooks/useCycles";
-import { cashCategoryConfig, CashCategory, costTypeConfig, investmentTypeConfig } from "@/lib/categoryConfig";
+import { cashCategoryConfig, CashCategory, costTypeConfig, investmentTypeConfig, revenueSubtypeConfig, financeiroSubtypeConfig, getSubcategoriaConfig } from "@/lib/categoryConfig";
 import { CostForm } from "@/components/costs/CostForm";
 import { InvestmentForm } from "@/components/investments/InvestmentForm";
 import { RevenueForm } from "@/components/revenues/RevenueForm";
@@ -127,36 +127,31 @@ export default function Caixa() {
 
   // Determine which subtypes to show based on selected category
   const getSubtypeOptions = () => {
-    if (formData.categoria === "custo_operacional") {
-      return Object.entries(costTypeConfig).map(([value, config]) => ({
-        value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
-      }));
-    }
-    if (formData.categoria === "investimento") {
-      return Object.entries(investmentTypeConfig).map(([value, config]) => ({
-        value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
-      }));
-    }
-    return [];
+    const dict = getSubcategoriaConfig(formData.categoria);
+    return Object.entries(dict).map(([value, config]) => ({
+      value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
+    }));
   };
 
   const subtypeOptions = getSubtypeOptions();
-  const needsSubtype = formData.categoria === "custo_operacional" || formData.categoria === "investimento";
+  const needsSubtype = formData.categoria === "custo" || formData.categoria === "investimento" || formData.categoria === "financeiro" || formData.categoria === "receita";
 
   const handleSubmit = () => {
     if (!formData.categoria || !formData.valor) return;
     if (needsSubtype && !formData.subtipo) return;
 
     const categoriaInfo = cashCategoryConfig[formData.categoria as CashCategory];
-    const tipo = categoriaInfo?.tipo || "saida";
+    // For financeiro, infer tipo from subcategoria
+    let tipo: "entrada" | "saida" = "saida";
+    if (categoriaInfo?.tipo === "entrada") tipo = "entrada";
+    else if (categoriaInfo?.tipo === "saida") tipo = "saida";
+    else if (formData.categoria === "financeiro") {
+      tipo = formData.subtipo === "recebimento_emprestimo" ? "entrada" : "saida";
+    }
 
-    // Build description with subtype info
-    const subtipoLabel = formData.subtipo 
-      ? (formData.categoria === "custo_operacional" 
-          ? costTypeConfig[formData.subtipo]?.label 
-          : investmentTypeConfig[formData.subtipo]?.label) || formData.subtipo
-      : "";
-    const descricaoFinal = formData.descricao 
+    const subDict = getSubcategoriaConfig(formData.categoria);
+    const subtipoLabel = formData.subtipo ? (subDict[formData.subtipo]?.label || formData.subtipo) : "";
+    const descricaoFinal = formData.descricao
       ? (subtipoLabel ? `${subtipoLabel}: ${formData.descricao}` : formData.descricao)
       : subtipoLabel || null;
 
@@ -164,6 +159,7 @@ export default function Caixa() {
       data: formData.data,
       tipo: tipo,
       categoria: formData.categoria as CashCategory,
+      subcategoria: formData.subtipo || null,
       valor: Number(formData.valor),
       descricao: descricaoFinal,
       loan_id: formData.loan_id || null,
@@ -956,38 +952,17 @@ export default function Caixa() {
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__header_entrada__" disabled className="font-bold text-success">
-                    ── ENTRADAS ──
-                  </SelectItem>
-                  {categoriaOptions
-                    .filter(c => c.tipo === "entrada")
-                    .map((cat) => {
-                      const Icon = cat.icon;
-                      return (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${cat.color}`} />
-                            {cat.label}
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  <SelectItem value="__header_saida__" disabled className="font-bold text-destructive">
-                    ── SAÍDAS ──
-                  </SelectItem>
-                  {categoriaOptions
-                    .filter(c => c.tipo === "saida")
-                    .map((cat) => {
-                      const Icon = cat.icon;
-                      return (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${cat.color}`} />
-                            {cat.label}
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
+                  {categoriaOptions.map((cat) => {
+                    const Icon = cat.icon;
+                    return (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        <div className="flex items-center gap-2">
+                          <Icon className={`h-4 w-4 ${cat.color}`} />
+                          {cat.label}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -996,7 +971,7 @@ export default function Caixa() {
             {needsSubtype && (
               <div className="space-y-2">
                 <Label htmlFor="subtipo">
-                  {formData.categoria === "custo_operacional" ? "Tipo de Custo *" : "Tipo de Implantação *"}
+                  {formData.categoria === "custo" ? "Tipo de Custo *" : formData.categoria === "investimento" ? "Tipo de Implantação *" : formData.categoria === "receita" ? "Tipo de Receita *" : "Tipo de Movimento *"}
                 </Label>
                 <Select
                   value={formData.subtipo}
