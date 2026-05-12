@@ -444,6 +444,8 @@ export default function Caixa() {
                 transactions={transactions}
                 areas={areas}
                 onDelete={(id) => handleDeleteClick(id, "transaction")}
+                onEdit={(t) => setEditingTransaction(t)}
+                onBulkEdit={(ids) => { setBulkIds(ids); setBulkEditOpen(true); }}
               />
             )}
           </TabsContent>
