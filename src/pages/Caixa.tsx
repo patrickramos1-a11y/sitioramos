@@ -393,7 +393,7 @@ export default function Caixa() {
             </CardHeader>
             <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
               <div className="text-base md:text-2xl font-bold text-success leading-tight">
-                {formatCurrency(hasFilters ? filteredTotals.totalEntradas : (balance?.total_entradas || 0))}
+                {formatCurrency(hasFilters ? analytics.totals.entradas : (balance?.total_entradas || 0))}
               </div>
             </CardContent>
           </Card>
@@ -407,7 +407,7 @@ export default function Caixa() {
             </CardHeader>
             <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
               <div className="text-base md:text-2xl font-bold text-destructive leading-tight">
-                {formatCurrency(hasFilters ? filteredTotals.totalSaidas : (balance?.total_saidas || 0))}
+                {formatCurrency(hasFilters ? analytics.totals.saidas : (balance?.total_saidas || 0))}
               </div>
             </CardContent>
           </Card>
