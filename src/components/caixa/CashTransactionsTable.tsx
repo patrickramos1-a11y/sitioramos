@@ -500,7 +500,19 @@ export function CashTransactionsTable({
                         | { nome: string }
                         | null;
                       return (
-                        <TableRow key={t.id}>
+                        <TableRow key={t.id} data-state={selected.has(t.id) ? "selected" : undefined}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selected.has(t.id)}
+                              onCheckedChange={(v) => {
+                                setSelected((prev) => {
+                                  const n = new Set(prev);
+                                  if (v) n.add(t.id); else n.delete(t.id);
+                                  return n;
+                                });
+                              }}
+                            />
+                          </TableCell>
                           <TableCell>
                             {format(new Date(t.data), "dd/MM/yyyy", {
                               locale: ptBR,
