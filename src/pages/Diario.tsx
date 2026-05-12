@@ -51,6 +51,8 @@ import {
   JournalPointsCollapsible,
 } from "@/components/diario/JournalPointsManager";
 import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
+import type { DraftDiaryGeometry } from "@/components/diario/DiaryGeometryManager";
+import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DiarioCockpit } from "@/components/diario/desktop/DiarioCockpit";
 // Dialog import removed (capture toggles inline section on desktop)
@@ -152,6 +154,7 @@ export default function Diario() {
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [draftPoints, setDraftPoints] = useState<DraftPoint[]>([]);
+  const [draftGeometries, setDraftGeometries] = useState<DraftDiaryGeometry[]>([]);
 
   const photoInput = useRef<HTMLInputElement>(null);
   const photoLibInput = useRef<HTMLInputElement>(null);
@@ -168,7 +171,7 @@ export default function Diario() {
   }, []);
 
   const hasContent =
-    text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0;
+    text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0 || draftGeometries.length > 0;
   const canSave = hasContent;
 
   const reset = () => {
@@ -191,6 +194,7 @@ export default function Diario() {
     setMoreOpen(false);
     setCoords(null);
     setDraftPoints([]);
+    setDraftGeometries([]);
     setCaptureOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
