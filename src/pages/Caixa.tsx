@@ -25,6 +25,9 @@ import { CostForm } from "@/components/costs/CostForm";
 import { InvestmentForm } from "@/components/investments/InvestmentForm";
 import { RevenueForm } from "@/components/revenues/RevenueForm";
 import { CashTransactionsTable } from "@/components/caixa/CashTransactionsTable";
+import { EditTransactionDialog } from "@/components/caixa/EditTransactionDialog";
+import { BulkEditDialog } from "@/components/caixa/BulkEditDialog";
+import type { CashTransaction } from "@/hooks/useCashTransactions";
 import { ContatoSelect } from "@/components/contatos/ContatoSelect";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -63,7 +66,7 @@ export default function Caixa() {
   const [filters, setFilters] = useState<CashFilters>(() => ({
     areaId: areaFromUrl || undefined,
   }));
-  const { transactions, balance, filteredTotals, isLoading, createTransaction, deleteTransaction } = useCashTransactions(filters);
+  const { transactions, balance, filteredTotals, isLoading, createTransaction, updateTransaction, bulkUpdateTransactions, deleteTransaction } = useCashTransactions(filters);
   const { costs, createCost, updateCost, deleteCost } = useCosts();
   const { investments, createInvestment, updateInvestment, deleteInvestment } = useInvestments();
   const { revenues, createRevenue, updateRevenue, deleteRevenue } = useRevenues();
@@ -83,6 +86,9 @@ export default function Caixa() {
   const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
   const [deleteType, setDeleteType] = useState<"transaction" | "cost" | "investment" | "revenue">("transaction");
   const [itemToDelete, setItemToDelete] = useState<any>(null);
+  const [editingTransaction, setEditingTransaction] = useState<CashTransaction | null>(null);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
 
   // Form state for direct cash entry
   const [formData, setFormData] = useState({
@@ -438,6 +444,8 @@ export default function Caixa() {
                 transactions={transactions}
                 areas={areas}
                 onDelete={(id) => handleDeleteClick(id, "transaction")}
+                onEdit={(t) => setEditingTransaction(t)}
+                onBulkEdit={(ids) => { setBulkIds(ids); setBulkEditOpen(true); }}
               />
             )}
           </TabsContent>
@@ -1174,6 +1182,29 @@ export default function Caixa() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditTransactionDialog
+        open={!!editingTransaction}
+        onOpenChange={(v) => { if (!v) setEditingTransaction(null); }}
+        transaction={editingTransaction}
+        areas={areas}
+        cycles={cycles as any}
+        onSave={(patch) => {
+          updateTransaction.mutate(patch as any);
+          setEditingTransaction(null);
+        }}
+      />
+
+      <BulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        count={bulkIds.length}
+        areas={areas}
+        cycles={cycles as any}
+        onApply={(patch) => {
+          bulkUpdateTransactions.mutate({ ids: bulkIds, patch: patch as any });
+        }}
+      />
     </AppLayout>
   );
 }

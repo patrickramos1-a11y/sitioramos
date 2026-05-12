@@ -11,7 +11,10 @@ import {
   Trash2,
   Wallet,
   User,
+  Pencil,
+  Layers,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -45,6 +48,8 @@ interface Props {
   transactions: CashTransaction[];
   areas: AreaOption[];
   onDelete: (id: string) => void;
+  onEdit?: (t: CashTransaction) => void;
+  onBulkEdit?: (ids: string[]) => void;
 }
 
 type SortKey = "data" | "valor" | "categoria" | "tipo" | "area" | "contato";
@@ -60,8 +65,11 @@ export function CashTransactionsTable({
   transactions,
   areas,
   onDelete,
+  onEdit,
+  onBulkEdit,
 }: Props) {
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [period, setPeriod] = useState<PeriodPreset>("tudo");
   const [tipoSel, setTipoSel] = useState<string[]>([]);
   const [catSel, setCatSel] = useState<string[]>([]);
@@ -270,7 +278,7 @@ export function CashTransactionsTable({
       {/* Tabela */}
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center justify-between gap-2 p-4 border-b flex-wrap">
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
               <span className="font-medium">Histórico de Movimentações</span>
@@ -278,6 +286,17 @@ export function CashTransactionsTable({
                 {filtered.length} de {transactions.length}
               </Badge>
             </div>
+            {selected.size > 0 && (
+              <div className="flex items-center gap-2">
+                <Badge>{selected.size} selecionada(s)</Badge>
+                {onBulkEdit && (
+                  <Button size="sm" variant="outline" onClick={() => onBulkEdit(Array.from(selected))} className="gap-1">
+                    <Layers className="h-4 w-4" /> Editar em massa
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Limpar</Button>
+              </div>
+            )}
           </div>
 
           {filtered.length === 0 ? (
@@ -299,7 +318,18 @@ export function CashTransactionsTable({
                   const Icon = c?.icon || Wallet;
                   const contato = (t as any).contatos as { nome: string } | null;
                   return (
-                    <li key={t.id} className="p-3 flex gap-3 active:bg-muted/40">
+                    <li key={t.id} className="p-3 flex gap-2 active:bg-muted/40">
+                      <Checkbox
+                        className="mt-2 shrink-0"
+                        checked={selected.has(t.id)}
+                        onCheckedChange={(v) => {
+                          setSelected((prev) => {
+                            const n = new Set(prev);
+                            if (v) n.add(t.id); else n.delete(t.id);
+                            return n;
+                          });
+                        }}
+                      />
                       <div
                         className={`rounded-xl p-2.5 h-fit ${
                           c?.bgColor || "bg-muted"
@@ -357,14 +387,21 @@ export function CashTransactionsTable({
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive shrink-0"
-                        onClick={() => onDelete(t.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex flex-col gap-1 shrink-0">
+                        {onEdit && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(t)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => onDelete(t.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </li>
                   );
                 })}
@@ -375,6 +412,15 @@ export function CashTransactionsTable({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={filtered.length > 0 && filtered.every((t) => selected.has(t.id))}
+                          onCheckedChange={(v) => {
+                            if (v) setSelected(new Set(filtered.map((t) => t.id)));
+                            else setSelected(new Set());
+                          }}
+                        />
+                      </TableHead>
                       <TableHead
                         className="cursor-pointer select-none"
                         onClick={() => toggleSort("data")}
@@ -443,7 +489,7 @@ export function CashTransactionsTable({
                       >
                         Valor <SortIcon k="valor" />
                       </TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-20 text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -454,7 +500,19 @@ export function CashTransactionsTable({
                         | { nome: string }
                         | null;
                       return (
-                        <TableRow key={t.id}>
+                        <TableRow key={t.id} data-state={selected.has(t.id) ? "selected" : undefined}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selected.has(t.id)}
+                              onCheckedChange={(v) => {
+                                setSelected((prev) => {
+                                  const n = new Set(prev);
+                                  if (v) n.add(t.id); else n.delete(t.id);
+                                  return n;
+                                });
+                              }}
+                            />
+                          </TableCell>
                           <TableCell>
                             {format(new Date(t.data), "dd/MM/yyyy", {
                               locale: ptBR,
@@ -520,14 +578,26 @@ export function CashTransactionsTable({
                             {formatCurrency(Number(t.valor))}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => onDelete(t.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1 justify-end">
+                              {onEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => onEdit(t)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => onDelete(t.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
