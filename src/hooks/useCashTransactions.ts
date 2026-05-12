@@ -237,6 +237,8 @@ export function useCashTransactions(filters?: CashFilters) {
     isLoading,
     error,
     createTransaction,
+    updateTransaction,
+    bulkUpdateTransactions,
     deleteTransaction,
   };
 }
