@@ -167,6 +167,9 @@ export const investmentTypeConfig: Record<string, {
 export type CashCategory = 
   | "emprestimo_entrada"
   | "receita_venda"
+  | "receita_aporte_socio"
+  | "receita_emprestimo_bancario"
+  | "receita_outra"
   | "aporte"
   | "custo_operacional"
   | "investimento"
@@ -192,6 +195,27 @@ export const cashCategoryConfig: Record<CashCategory, {
   receita_venda: { 
     label: "Receita de Venda", 
     icon: TrendingUp, 
+    color: "text-success",
+    bgColor: "bg-success/10",
+    tipo: "entrada"
+  },
+  receita_aporte_socio: {
+    label: "Aporte de Sócio",
+    icon: Wallet,
+    color: "text-success",
+    bgColor: "bg-success/10",
+    tipo: "entrada"
+  },
+  receita_emprestimo_bancario: {
+    label: "Entrada Bancária",
+    icon: Landmark,
+    color: "text-success",
+    bgColor: "bg-success/10",
+    tipo: "entrada"
+  },
+  receita_outra: {
+    label: "Outra Receita",
+    icon: TrendingUp,
     color: "text-success",
     bgColor: "bg-success/10",
     tipo: "entrada"
