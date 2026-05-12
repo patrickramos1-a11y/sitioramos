@@ -387,14 +387,21 @@ export function CashTransactionsTable({
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive shrink-0"
-                        onClick={() => onDelete(t.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex flex-col gap-1 shrink-0">
+                        {onEdit && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(t)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => onDelete(t.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </li>
                   );
                 })}
