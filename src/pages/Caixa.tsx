@@ -120,24 +120,32 @@ export default function Caixa() {
   });
 
   const saldoAtual = balance?.saldo_atual || 0;
-  const hasFilters = filters.categoria || filters.areaId || filters.cycleId || filters.tipo;
+  const hasAnalyticsFilters =
+    !!analyticsFilters.startDate || !!analyticsFilters.endDate || !!analyticsFilters.areaId ||
+    !!analyticsFilters.cycleId || !!analyticsFilters.categoria || !!analyticsFilters.subcategoria ||
+    !!analyticsFilters.tipo || !!analyticsFilters.withoutCycle || !!analyticsFilters.withoutArea;
+  const hasFilters = hasAnalyticsFilters;
 
-  // Sync URL params with tab
-  useEffect(() => {
-    if (tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [tabFromUrl]);
+  const handleViewChange = (value: string) => {
+    setMainView(value);
+    const newParams = new URLSearchParams(searchParams);
+    if (value === "visao_geral") newParams.delete("view");
+    else newParams.set("view", value);
+    setSearchParams(newParams);
+  };
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     const newParams = new URLSearchParams(searchParams);
-    if (value === "todos") {
-      newParams.delete("tab");
-    } else {
-      newParams.set("tab", value);
-    }
+    if (value === "todos") newParams.delete("tab");
+    else newParams.set("tab", value);
     setSearchParams(newParams);
+  };
+
+  const goToLancamentosWithFilter = (patch: Partial<CashAnalyticsFilters>) => {
+    setAnalyticsFilters((f) => ({ ...f, ...patch }));
+    handleViewChange("lancamentos");
+    setActiveTab("todos");
   };
 
   // Determine which subtypes to show based on selected category
