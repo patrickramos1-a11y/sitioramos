@@ -155,15 +155,13 @@ export function DiaryGeometryManager({
       // Cria geometria ponto imediatamente
       const seq = pointCount + 1;
       try {
-        await add.mutateAsync({
-          entry_id: entryId,
+        await addGeometry({
           geometry_type: "point",
           name: `P${seq}`,
           description: null,
           geojson: { type: "Point", coordinates: [cp.longitude, cp.latitude] },
           area_m2: null,
           length_m: null,
-          responsavel_id: null,
           ordem: geometries.length,
         });
         toast.success(`P${seq} salvo`);
@@ -221,15 +219,13 @@ export function DiaryGeometryManager({
     }
 
     try {
-      await add.mutateAsync({
-        entry_id: entryId,
+      await addGeometry({
         geometry_type: mode,
         name: namingForm.name.trim() || (mode === "polygon" ? `Polígono ${nextPolySeq}` : `Linha ${nextLineSeq}`),
         description: namingForm.description.trim() || null,
         geojson,
         area_m2,
         length_m,
-        responsavel_id: null,
         ordem: geometries.length,
       });
       toast.success(mode === "polygon" ? "Polígono salvo" : "Linha salva");
@@ -247,8 +243,7 @@ export function DiaryGeometryManager({
 
   const saveEdit = async () => {
     if (!editing) return;
-    await update.mutateAsync({
-      id: editing.id,
+    await updateGeometry(editing.id, {
       name: namingForm.name.trim() || null,
       description: namingForm.description.trim() || null,
     });
