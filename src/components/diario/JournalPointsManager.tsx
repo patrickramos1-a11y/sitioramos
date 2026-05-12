@@ -246,13 +246,13 @@ export function JournalPointsManager({
         />
       )}
 
-      {(isDraft || points.length > 0) && (
+      {!isDraft && points.length > 0 && (
       <div className="space-y-2 pt-2 border-t border-brand-leaf/15">
       <div className="flex items-center justify-between">
         <span className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
-          Pontos GPS {points.length > 0 && <span className="text-muted-foreground">· {points.length}</span>}
+          Pontos GPS legados <span className="text-muted-foreground">· {points.length}</span>
         </span>
-        {!isDraft && entryMeta && points.length > 0 && (
+        {entryMeta && (
           <Button
             type="button"
             size="sm"
@@ -267,28 +267,11 @@ export function JournalPointsManager({
         )}
       </div>
 
-      <Button
-        type="button"
-        onClick={openCapture}
-        className="w-full h-14 bg-brand-leaf hover:bg-brand-leaf/90 text-primary-foreground text-base font-display"
-      >
-        <MapPin className="h-5 w-5 mr-2" />
-        Bater ponto GPS
-      </Button>
-
       <GpsCaptureDialog
         open={captureOpen}
         onOpenChange={setCaptureOpen}
         onSave={handleCaptured}
       />
-
-      <button
-        type="button"
-        onClick={() => setManualOpen(true)}
-        className="w-full text-[11px] text-muted-foreground hover:text-brand-forest flex items-center justify-center gap-1 py-1"
-      >
-        <Plus className="h-3 w-3" /> Lançar manualmente
-      </button>
 
       {points.length > 0 && (
         <ul className="space-y-1.5">
