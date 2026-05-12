@@ -692,12 +692,18 @@ export type Database = {
       journal_points: {
         Row: {
           accuracy: number | null
+          altitude: number | null
+          altitude_accuracy: number | null
           attachment_id: string | null
+          best_accuracy: number | null
+          capture_duration_seconds: number | null
+          capture_method: string | null
           captured_at: string
           coordinates: Json | null
           created_at: string
           entry_id: string
           geometry_type: string
+          heading: number | null
           id: string
           latitude: number
           longitude: number
@@ -705,16 +711,25 @@ export type Database = {
           nome: string
           observacao: string | null
           ordem: number
+          precision_quality: string | null
+          readings_count: number | null
+          speed: number | null
           updated_at: string
         }
         Insert: {
           accuracy?: number | null
+          altitude?: number | null
+          altitude_accuracy?: number | null
           attachment_id?: string | null
+          best_accuracy?: number | null
+          capture_duration_seconds?: number | null
+          capture_method?: string | null
           captured_at?: string
           coordinates?: Json | null
           created_at?: string
           entry_id: string
           geometry_type?: string
+          heading?: number | null
           id?: string
           latitude: number
           longitude: number
@@ -722,16 +737,25 @@ export type Database = {
           nome: string
           observacao?: string | null
           ordem?: number
+          precision_quality?: string | null
+          readings_count?: number | null
+          speed?: number | null
           updated_at?: string
         }
         Update: {
           accuracy?: number | null
+          altitude?: number | null
+          altitude_accuracy?: number | null
           attachment_id?: string | null
+          best_accuracy?: number | null
+          capture_duration_seconds?: number | null
+          capture_method?: string | null
           captured_at?: string
           coordinates?: Json | null
           created_at?: string
           entry_id?: string
           geometry_type?: string
+          heading?: number | null
           id?: string
           latitude?: number
           longitude?: number
@@ -739,6 +763,9 @@ export type Database = {
           nome?: string
           observacao?: string | null
           ordem?: number
+          precision_quality?: string | null
+          readings_count?: number | null
+          speed?: number | null
           updated_at?: string
         }
         Relationships: []
