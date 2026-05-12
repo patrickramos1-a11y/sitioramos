@@ -153,7 +153,20 @@ export function DiaryMapView({ geometries, draft, height = 320, className }: Pro
 
     if (allPts.length) {
       const bounds = L.latLngBounds(allPts);
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 18 });
+      const apply = () => {
+        map.invalidateSize();
+        if (bounds.isValid()) {
+          if (allPts.length === 1) {
+            map.setView(allPts[0] as L.LatLngExpression, 17, { animate: false });
+          } else {
+            map.fitBounds(bounds, { padding: [30, 30], maxZoom: 18, animate: false });
+          }
+        }
+      };
+      // Run now and after layout settles (collapsible/animation)
+      apply();
+      setTimeout(apply, 80);
+      setTimeout(apply, 250);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey]);
