@@ -412,6 +412,15 @@ export function CashTransactionsTable({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={filtered.length > 0 && filtered.every((t) => selected.has(t.id))}
+                          onCheckedChange={(v) => {
+                            if (v) setSelected(new Set(filtered.map((t) => t.id)));
+                            else setSelected(new Set());
+                          }}
+                        />
+                      </TableHead>
                       <TableHead
                         className="cursor-pointer select-none"
                         onClick={() => toggleSort("data")}
