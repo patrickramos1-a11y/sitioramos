@@ -16,6 +16,15 @@ export interface JournalPoint {
   geometry_type: "point" | "line" | "polygon";
   coordinates: any | null;
   attachment_id: string | null;
+  altitude: number | null;
+  altitude_accuracy: number | null;
+  heading: number | null;
+  speed: number | null;
+  capture_duration_seconds: number | null;
+  readings_count: number | null;
+  best_accuracy: number | null;
+  capture_method: string | null;
+  precision_quality: "excelente" | "boa" | "aceitavel" | "baixa" | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,10 +34,23 @@ export type JournalPointInsert = Omit<
   "id" | "created_at" | "updated_at"
 >;
 
-export type DraftPoint = Omit<
-  JournalPoint,
-  "id" | "entry_id" | "created_at" | "updated_at"
-> & { tempId: string };
+type RequiredDraftFields =
+  | "nome"
+  | "observacao"
+  | "latitude"
+  | "longitude"
+  | "accuracy"
+  | "captured_at"
+  | "ordem"
+  | "manual"
+  | "geometry_type"
+  | "coordinates"
+  | "attachment_id";
+
+export type DraftPoint = Pick<JournalPoint, RequiredDraftFields> &
+  Partial<Omit<JournalPoint, "id" | "entry_id" | "created_at" | "updated_at" | RequiredDraftFields>> & {
+    tempId: string;
+  };
 
 export function useJournalPoints(entryId?: string) {
   const qc = useQueryClient();
@@ -103,6 +125,15 @@ export async function batchInsertPoints(
     geometry_type: d.geometry_type,
     coordinates: d.coordinates,
     attachment_id: d.attachment_id,
+    altitude: d.altitude ?? null,
+    altitude_accuracy: d.altitude_accuracy ?? null,
+    heading: d.heading ?? null,
+    speed: d.speed ?? null,
+    capture_duration_seconds: d.capture_duration_seconds ?? null,
+    readings_count: d.readings_count ?? null,
+    best_accuracy: d.best_accuracy ?? null,
+    capture_method: d.capture_method ?? null,
+    precision_quality: d.precision_quality ?? null,
   }));
   const { error } = await supabase.from("journal_points" as any).insert(rows as any);
   if (error) throw error;
