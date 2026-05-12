@@ -20,6 +20,9 @@ import {
   Spline,
   Hexagon,
   Loader2,
+  ChevronDown,
+  ChevronUp,
+  Map as MapIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -54,6 +57,7 @@ export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
   const [mode, setMode] = useState<GeometryType>("point");
   const [draft, setDraft] = useState<DraftVertex[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const [namingOpen, setNamingOpen] = useState(false);
   const [namingForm, setNamingForm] = useState({ name: "", description: "" });
@@ -327,7 +331,34 @@ export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
         </div>
       )}
 
-      <DiaryMapView geometries={geometries} draft={draftPreview} height={320} />
+      {/* Mapa minimizável */}
+      <div className="rounded-lg border border-brand-leaf/20 bg-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setMapOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-brand-forest hover:bg-muted/40"
+        >
+          <span className="flex items-center gap-1.5">
+            <MapIcon className="h-3.5 w-3.5" />
+            Mapa de visualização
+            {(geometries.length > 0 || draft.length > 0) && (
+              <span className="text-muted-foreground font-normal">
+                · {geometries.length + (draft.length > 0 ? 1 : 0)} elemento
+                {geometries.length + (draft.length > 0 ? 1 : 0) > 1 ? "s" : ""}
+              </span>
+            )}
+          </span>
+          {mapOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+        {mapOpen && (
+          <div className="p-2 pt-0">
+            <DiaryMapView geometries={geometries} draft={draftPreview} height={280} />
+            <p className="text-[10px] text-muted-foreground mt-1 italic text-center">
+              Tiles do mapa precisam de internet. Coordenadas são salvas e funcionam offline.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Listagem por grupo */}
       {(["point", "line", "polygon"] as GeometryType[]).map((t) => {

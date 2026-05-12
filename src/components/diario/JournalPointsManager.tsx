@@ -25,6 +25,9 @@ import {
   Pencil,
   Download,
   ExternalLink,
+  Spline,
+  Hexagon,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -234,8 +237,39 @@ export function JournalPointsManager({
       )}
 
       {isDraft && (
-        <div className="rounded-md border border-brand-leaf/30 bg-brand-leaf/5 p-2 text-[11px] text-brand-forest">
-          Modo <strong>Linha</strong> e <strong>Polígono</strong> com mapa estarão disponíveis após salvar o registro — abra "Pontos GPS" no card salvo.
+        <div className="space-y-2">
+          <span className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
+            Mapa / GPS
+          </span>
+          <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg">
+            <button
+              type="button"
+              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium bg-brand-forest text-primary-foreground shadow-sm"
+            >
+              <MapPin className="h-3.5 w-3.5" /> Ponto
+            </button>
+            <button
+              type="button"
+              disabled
+              title="Disponível após salvar o registro"
+              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium text-muted-foreground/60 cursor-not-allowed"
+            >
+              <Spline className="h-3.5 w-3.5" /> Linha
+              <Lock className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              disabled
+              title="Disponível após salvar o registro"
+              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium text-muted-foreground/60 cursor-not-allowed"
+            >
+              <Hexagon className="h-3.5 w-3.5" /> Polígono
+              <Lock className="h-3 w-3" />
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Linha e polígono (com mapa) ficam disponíveis após salvar o registro.
+          </p>
         </div>
       )}
 
