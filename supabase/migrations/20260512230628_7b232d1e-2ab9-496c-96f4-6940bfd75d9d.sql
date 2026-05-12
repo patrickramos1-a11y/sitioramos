@@ -1,0 +1,2 @@
+ALTER TABLE public.cash_transactions DROP CONSTRAINT cash_transactions_categoria_check;
+ALTER TABLE public.cash_transactions ADD CONSTRAINT cash_transactions_categoria_check CHECK (categoria = ANY (ARRAY['emprestimo_entrada'::text, 'receita_venda'::text, 'receita_aporte_socio'::text, 'receita_emprestimo_bancario'::text, 'receita_outra'::text, 'aporte'::text, 'custo_operacional'::text, 'investimento'::text, 'parcela_emprestimo'::text, 'quitacao_emprestimo'::text, 'despesa_financeira'::text, 'transferencia'::text]));
