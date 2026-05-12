@@ -332,9 +332,27 @@ export function JournalPointsManager({
                         <div className="text-[10px] text-muted-foreground font-mono truncate">
                           {p.latitude.toFixed(6)}, {p.longitude.toFixed(6)}
                         </div>
-                        <div className="text-[10px] text-muted-foreground flex items-center gap-2">
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-2 flex-wrap">
                           {p.accuracy != null && <span>±{Math.round(p.accuracy)}m</span>}
+                          {(p as any).precision_quality && (
+                            <span
+                              className={cn(
+                                "px-1.5 py-0.5 rounded border text-[9px]",
+                                QUALITY_COLOR[(p as any).precision_quality as PrecisionQuality],
+                              )}
+                            >
+                              {QUALITY_LABEL[(p as any).precision_quality as PrecisionQuality]}
+                            </span>
+                          )}
                           <span>{formatRel(p.captured_at)}</span>
+                          {(p as any).readings_count != null && (
+                            <span>· {(p as any).readings_count} leituras</span>
+                          )}
+                          {(p as any).capture_duration_seconds != null && (
+                            <span>
+                              · {Math.round((p as any).capture_duration_seconds)}s
+                            </span>
+                          )}
                         </div>
                         {p.observacao && (
                           <p className="text-[11px] text-foreground/80 mt-0.5 line-clamp-2">
