@@ -318,8 +318,16 @@ export default function Diario() {
       weather: weather.trim() || null,
       tags,
       is_important: important,
-      latitude: coords?.lat ?? draftPoints[0]?.latitude ?? null,
-      longitude: coords?.lng ?? draftPoints[0]?.longitude ?? null,
+      latitude:
+        coords?.lat ??
+        draftPoints[0]?.latitude ??
+        firstGeometryCoord(draftGeometries)?.lat ??
+        null,
+      longitude:
+        coords?.lng ??
+        draftPoints[0]?.longitude ??
+        firstGeometryCoord(draftGeometries)?.lng ??
+        null,
       location_accuracy: coords?.accuracy ?? draftPoints[0]?.accuracy ?? null,
       reviewed: !!(areaId || cycleId || entryType !== "observacao"),
     };
@@ -354,6 +362,25 @@ export default function Diario() {
               await batchInsertPoints(newId, draftPoints);
             } catch (e: any) {
               toast.error("Falha ao salvar pontos: " + (e.message || ""));
+            }
+          }
+          if (newId && draftGeometries.length) {
+            try {
+              const rows = draftGeometries.map((g, i) => ({
+                entry_id: newId,
+                geometry_type: g.geometry_type,
+                name: g.name,
+                description: g.description,
+                geojson: g.geojson,
+                area_m2: g.area_m2,
+                length_m: g.length_m,
+                ordem: i,
+                responsavel_id: null,
+              }));
+              const { error } = await supabase.from("diary_geometries" as any).insert(rows as any);
+              if (error) throw error;
+            } catch (e: any) {
+              toast.error("Falha ao salvar geometrias: " + (e.message || ""));
             }
           }
           reset();
