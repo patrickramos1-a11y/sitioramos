@@ -233,6 +233,12 @@ export function JournalPointsManager({
         <DiaryGeometryManager entryId={entryId} entryMeta={entryMeta} />
       )}
 
+      {isDraft && (
+        <div className="rounded-md border border-brand-leaf/30 bg-brand-leaf/5 p-2 text-[11px] text-brand-forest">
+          Modo <strong>Linha</strong> e <strong>Polígono</strong> com mapa estarão disponíveis após salvar o registro — abra "Pontos GPS" no card salvo.
+        </div>
+      )}
+
       {(isDraft || points.length > 0) && (
       <div className="space-y-2 pt-2 border-t border-brand-leaf/15">
       <div className="flex items-center justify-between">
