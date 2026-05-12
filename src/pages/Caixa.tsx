@@ -1182,6 +1182,29 @@ export default function Caixa() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditTransactionDialog
+        open={!!editingTransaction}
+        onOpenChange={(v) => { if (!v) setEditingTransaction(null); }}
+        transaction={editingTransaction}
+        areas={areas}
+        cycles={cycles as any}
+        onSave={(patch) => {
+          updateTransaction.mutate(patch as any);
+          setEditingTransaction(null);
+        }}
+      />
+
+      <BulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        count={bulkIds.length}
+        areas={areas}
+        cycles={cycles as any}
+        onApply={(patch) => {
+          bulkUpdateTransactions.mutate({ ids: bulkIds, patch: patch as any });
+        }}
+      />
     </AppLayout>
   );
 }
