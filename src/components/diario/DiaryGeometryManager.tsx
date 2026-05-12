@@ -40,9 +40,22 @@ import {
   type KmlEntryMeta,
 } from "@/lib/kmlExport";
 
+export interface DraftDiaryGeometry {
+  id: string;
+  geometry_type: GeometryType;
+  name: string | null;
+  description: string | null;
+  geojson: any;
+  area_m2: number | null;
+  length_m: number | null;
+  ordem: number;
+}
+
 interface Props {
-  entryId: string;
+  entryId?: string;
   entryMeta?: KmlEntryMeta;
+  draftGeometries?: DraftDiaryGeometry[];
+  onDraftGeometriesChange?: (g: DraftDiaryGeometry[]) => void;
 }
 
 const MODES: { value: GeometryType; label: string; icon: typeof MapPin }[] = [
@@ -51,8 +64,59 @@ const MODES: { value: GeometryType; label: string; icon: typeof MapPin }[] = [
   { value: "polygon", label: "Polígono", icon: Hexagon },
 ];
 
-export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
-  const { data: geometries = [], add, update, remove } = useDiaryGeometries(entryId);
+export function DiaryGeometryManager({
+  entryId,
+  entryMeta,
+  draftGeometries,
+  onDraftGeometriesChange,
+}: Props) {
+  const isDraft = !entryId;
+  const remote = useDiaryGeometries(entryId);
+
+  const geometries: (DiaryGeometry | (DraftDiaryGeometry & { entry_id: string; responsavel_id: null; created_at: string; updated_at: string }))[] = isDraft
+    ? (draftGeometries || []).map((d) => ({
+        ...d,
+        entry_id: "",
+        responsavel_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }))
+    : remote.data || [];
+
+  const addGeometry = async (g: Omit<DraftDiaryGeometry, "id">) => {
+    if (isDraft) {
+      const newOne: DraftDiaryGeometry = { ...g, id: crypto.randomUUID() };
+      onDraftGeometriesChange?.([...(draftGeometries || []), newOne]);
+      return;
+    }
+    await remote.add.mutateAsync({
+      entry_id: entryId!,
+      geometry_type: g.geometry_type,
+      name: g.name,
+      description: g.description,
+      geojson: g.geojson,
+      area_m2: g.area_m2,
+      length_m: g.length_m,
+      responsavel_id: null,
+      ordem: g.ordem,
+    });
+  };
+
+  const updateGeometry = async (id: string, patch: Partial<DraftDiaryGeometry>) => {
+    if (isDraft) {
+      onDraftGeometriesChange?.((draftGeometries || []).map((d) => (d.id === id ? { ...d, ...patch } : d)));
+      return;
+    }
+    await remote.update.mutateAsync({ id, ...patch } as any);
+  };
+
+  const removeGeometry = async (id: string) => {
+    if (isDraft) {
+      onDraftGeometriesChange?.((draftGeometries || []).filter((d) => d.id !== id));
+      return;
+    }
+    await remote.remove.mutateAsync(id);
+  };
 
   const [mode, setMode] = useState<GeometryType>("point");
   const [draft, setDraft] = useState<DraftVertex[]>([]);
@@ -91,15 +155,13 @@ export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
       // Cria geometria ponto imediatamente
       const seq = pointCount + 1;
       try {
-        await add.mutateAsync({
-          entry_id: entryId,
+        await addGeometry({
           geometry_type: "point",
           name: `P${seq}`,
           description: null,
           geojson: { type: "Point", coordinates: [cp.longitude, cp.latitude] },
           area_m2: null,
           length_m: null,
-          responsavel_id: null,
           ordem: geometries.length,
         });
         toast.success(`P${seq} salvo`);
@@ -157,15 +219,13 @@ export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
     }
 
     try {
-      await add.mutateAsync({
-        entry_id: entryId,
+      await addGeometry({
         geometry_type: mode,
         name: namingForm.name.trim() || (mode === "polygon" ? `Polígono ${nextPolySeq}` : `Linha ${nextLineSeq}`),
         description: namingForm.description.trim() || null,
         geojson,
         area_m2,
         length_m,
-        responsavel_id: null,
         ordem: geometries.length,
       });
       toast.success(mode === "polygon" ? "Polígono salvo" : "Linha salva");
@@ -183,8 +243,7 @@ export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
 
   const saveEdit = async () => {
     if (!editing) return;
-    await update.mutateAsync({
-      id: editing.id,
+    await updateGeometry(editing.id, {
       name: namingForm.name.trim() || null,
       description: namingForm.description.trim() || null,
     });
@@ -417,7 +476,7 @@ export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
                       <button
                         type="button"
                         onClick={() => {
-                          if (confirm(`Excluir ${g.name || t}?`)) remove.mutate(g.id);
+                          if (confirm(`Excluir ${g.name || t}?`)) removeGeometry(g.id);
                         }}
                         className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         title="Excluir"

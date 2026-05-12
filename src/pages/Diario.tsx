@@ -51,11 +51,30 @@ import {
   JournalPointsCollapsible,
 } from "@/components/diario/JournalPointsManager";
 import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
+import type { DraftDiaryGeometry } from "@/components/diario/DiaryGeometryManager";
+import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DiarioCockpit } from "@/components/diario/desktop/DiarioCockpit";
 // Dialog import removed (capture toggles inline section on desktop)
 
 const NONE = "__none__";
+
+function firstGeometryCoord(geos: DraftDiaryGeometry[]): { lat: number; lng: number } | null {
+  for (const g of geos) {
+    const gj = g.geojson;
+    if (!gj) continue;
+    if (gj.type === "Point" && Array.isArray(gj.coordinates)) {
+      return { lng: gj.coordinates[0], lat: gj.coordinates[1] };
+    }
+    if (gj.type === "LineString" && Array.isArray(gj.coordinates?.[0])) {
+      return { lng: gj.coordinates[0][0], lat: gj.coordinates[0][1] };
+    }
+    if (gj.type === "Polygon" && Array.isArray(gj.coordinates?.[0]?.[0])) {
+      return { lng: gj.coordinates[0][0][0], lat: gj.coordinates[0][0][1] };
+    }
+  }
+  return null;
+}
 
 const TIPOS = [
   { value: "observacao", label: "Registro geral" },
@@ -152,6 +171,7 @@ export default function Diario() {
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [draftPoints, setDraftPoints] = useState<DraftPoint[]>([]);
+  const [draftGeometries, setDraftGeometries] = useState<DraftDiaryGeometry[]>([]);
 
   const photoInput = useRef<HTMLInputElement>(null);
   const photoLibInput = useRef<HTMLInputElement>(null);
@@ -168,7 +188,7 @@ export default function Diario() {
   }, []);
 
   const hasContent =
-    text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0;
+    text.trim().length > 0 || !!audio || photos.length > 0 || !!video || draftPoints.length > 0 || draftGeometries.length > 0;
   const canSave = hasContent;
 
   const reset = () => {
@@ -191,6 +211,7 @@ export default function Diario() {
     setMoreOpen(false);
     setCoords(null);
     setDraftPoints([]);
+    setDraftGeometries([]);
     setCaptureOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
@@ -314,8 +335,16 @@ export default function Diario() {
       weather: weather.trim() || null,
       tags,
       is_important: important,
-      latitude: coords?.lat ?? draftPoints[0]?.latitude ?? null,
-      longitude: coords?.lng ?? draftPoints[0]?.longitude ?? null,
+      latitude:
+        coords?.lat ??
+        draftPoints[0]?.latitude ??
+        firstGeometryCoord(draftGeometries)?.lat ??
+        null,
+      longitude:
+        coords?.lng ??
+        draftPoints[0]?.longitude ??
+        firstGeometryCoord(draftGeometries)?.lng ??
+        null,
       location_accuracy: coords?.accuracy ?? draftPoints[0]?.accuracy ?? null,
       reviewed: !!(areaId || cycleId || entryType !== "observacao"),
     };
@@ -350,6 +379,25 @@ export default function Diario() {
               await batchInsertPoints(newId, draftPoints);
             } catch (e: any) {
               toast.error("Falha ao salvar pontos: " + (e.message || ""));
+            }
+          }
+          if (newId && draftGeometries.length) {
+            try {
+              const rows = draftGeometries.map((g, i) => ({
+                entry_id: newId,
+                geometry_type: g.geometry_type,
+                name: g.name,
+                description: g.description,
+                geojson: g.geojson,
+                area_m2: g.area_m2,
+                length_m: g.length_m,
+                ordem: i,
+                responsavel_id: null,
+              }));
+              const { error } = await supabase.from("diary_geometries" as any).insert(rows as any);
+              if (error) throw error;
+            } catch (e: any) {
+              toast.error("Falha ao salvar geometrias: " + (e.message || ""));
             }
           }
           reset();
@@ -594,6 +642,8 @@ export default function Diario() {
           <JournalPointsManager
             draftPoints={draftPoints}
             onDraftChange={setDraftPoints}
+            draftGeometries={draftGeometries}
+            onDraftGeometriesChange={setDraftGeometries}
           />
 
           <input

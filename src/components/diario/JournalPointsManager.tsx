@@ -25,9 +25,6 @@ import {
   Pencil,
   Download,
   ExternalLink,
-  Spline,
-  Hexagon,
-  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -39,7 +36,7 @@ import {
 import { exportEntryKml, type KmlEntryMeta } from "@/lib/kmlExport";
 import { GpsCaptureDialog, type CapturedGpsPoint } from "@/components/diario/GpsCaptureDialog";
 import { QUALITY_LABEL, QUALITY_COLOR, type PrecisionQuality } from "@/hooks/useGpsCapture";
-import { DiaryGeometryManager } from "@/components/diario/DiaryGeometryManager";
+import { DiaryGeometryManager, type DraftDiaryGeometry } from "@/components/diario/DiaryGeometryManager";
 
 interface Props {
   /** Modo persistido: id do registro existente */
@@ -47,6 +44,9 @@ interface Props {
   /** Modo rascunho: pontos em estado local */
   draftPoints?: DraftPoint[];
   onDraftChange?: (points: DraftPoint[]) => void;
+  /** Modo rascunho: geometrias (linha/polígono) em estado local */
+  draftGeometries?: DraftDiaryGeometry[];
+  onDraftGeometriesChange?: (g: DraftDiaryGeometry[]) => void;
   /** Meta para exportação KML (modo persistido) */
   entryMeta?: KmlEntryMeta;
   /** Compacto = sem export, mais enxuto */
@@ -65,6 +65,8 @@ export function JournalPointsManager({
   entryId,
   draftPoints,
   onDraftChange,
+  draftGeometries,
+  onDraftGeometriesChange,
   entryMeta,
   compact,
 }: Props) {
@@ -232,54 +234,22 @@ export function JournalPointsManager({
 
   return (
     <div className="space-y-3">
-      {!isDraft && entryId && (
+      {!isDraft && entryId ? (
         <DiaryGeometryManager entryId={entryId} entryMeta={entryMeta} />
+      ) : (
+        <DiaryGeometryManager
+          draftGeometries={draftGeometries}
+          onDraftGeometriesChange={onDraftGeometriesChange}
+        />
       )}
 
-      {isDraft && (
-        <div className="space-y-2">
-          <span className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
-            Mapa / GPS
-          </span>
-          <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium bg-brand-forest text-primary-foreground shadow-sm"
-            >
-              <MapPin className="h-3.5 w-3.5" /> Ponto
-            </button>
-            <button
-              type="button"
-              disabled
-              title="Disponível após salvar o registro"
-              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium text-muted-foreground/60 cursor-not-allowed"
-            >
-              <Spline className="h-3.5 w-3.5" /> Linha
-              <Lock className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              disabled
-              title="Disponível após salvar o registro"
-              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium text-muted-foreground/60 cursor-not-allowed"
-            >
-              <Hexagon className="h-3.5 w-3.5" /> Polígono
-              <Lock className="h-3 w-3" />
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            Linha e polígono (com mapa) ficam disponíveis após salvar o registro.
-          </p>
-        </div>
-      )}
-
-      {(isDraft || points.length > 0) && (
+      {!isDraft && points.length > 0 && (
       <div className="space-y-2 pt-2 border-t border-brand-leaf/15">
       <div className="flex items-center justify-between">
         <span className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
-          Pontos GPS {points.length > 0 && <span className="text-muted-foreground">· {points.length}</span>}
+          Pontos GPS legados <span className="text-muted-foreground">· {points.length}</span>
         </span>
-        {!isDraft && entryMeta && points.length > 0 && (
+        {entryMeta && (
           <Button
             type="button"
             size="sm"
@@ -294,28 +264,11 @@ export function JournalPointsManager({
         )}
       </div>
 
-      <Button
-        type="button"
-        onClick={openCapture}
-        className="w-full h-14 bg-brand-leaf hover:bg-brand-leaf/90 text-primary-foreground text-base font-display"
-      >
-        <MapPin className="h-5 w-5 mr-2" />
-        Bater ponto GPS
-      </Button>
-
       <GpsCaptureDialog
         open={captureOpen}
         onOpenChange={setCaptureOpen}
         onSave={handleCaptured}
       />
-
-      <button
-        type="button"
-        onClick={() => setManualOpen(true)}
-        className="w-full text-[11px] text-muted-foreground hover:text-brand-forest flex items-center justify-center gap-1 py-1"
-      >
-        <Plus className="h-3 w-3" /> Lançar manualmente
-      </button>
 
       {points.length > 0 && (
         <ul className="space-y-1.5">
