@@ -65,8 +65,11 @@ export function CashTransactionsTable({
   transactions,
   areas,
   onDelete,
+  onEdit,
+  onBulkEdit,
 }: Props) {
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [period, setPeriod] = useState<PeriodPreset>("tudo");
   const [tipoSel, setTipoSel] = useState<string[]>([]);
   const [catSel, setCatSel] = useState<string[]>([]);
