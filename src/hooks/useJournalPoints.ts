@@ -34,10 +34,23 @@ export type JournalPointInsert = Omit<
   "id" | "created_at" | "updated_at"
 >;
 
-export type DraftPoint = Omit<
-  JournalPoint,
-  "id" | "entry_id" | "created_at" | "updated_at"
-> & { tempId: string };
+type RequiredDraftFields =
+  | "nome"
+  | "observacao"
+  | "latitude"
+  | "longitude"
+  | "accuracy"
+  | "captured_at"
+  | "ordem"
+  | "manual"
+  | "geometry_type"
+  | "coordinates"
+  | "attachment_id";
+
+export type DraftPoint = Pick<JournalPoint, RequiredDraftFields> &
+  Partial<Omit<JournalPoint, "id" | "entry_id" | "created_at" | "updated_at" | RequiredDraftFields>> & {
+    tempId: string;
+  };
 
 export function useJournalPoints(entryId?: string) {
   const qc = useQueryClient();
