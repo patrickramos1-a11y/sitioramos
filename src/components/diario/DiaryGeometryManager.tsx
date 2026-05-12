@@ -476,7 +476,7 @@ export function DiaryGeometryManager({
                       <button
                         type="button"
                         onClick={() => {
-                          if (confirm(`Excluir ${g.name || t}?`)) remove.mutate(g.id);
+                          if (confirm(`Excluir ${g.name || t}?`)) removeGeometry(g.id);
                         }}
                         className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         title="Excluir"
