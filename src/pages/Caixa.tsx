@@ -413,42 +413,100 @@ export default function Caixa() {
           </Card>
         </div>
 
-        {/* Area Filter (if active) */}
-        {hasFilters && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="gap-1">
-              <Filter className="h-3 w-3" />
-              Filtrado por: {selectedArea?.nome || "Área"}
-            </Badge>
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground h-8">
-              <X className="h-4 w-4 mr-1" />
-              Limpar
-            </Button>
-          </div>
-        )}
+        {/* Global filters bar */}
+        <GlobalFiltersBar
+          value={analyticsFilters}
+          onChange={setAnalyticsFilters}
+          areas={areas}
+          cycles={cycles as any}
+        />
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+        {/* Outer tabs (analytical views) */}
+        <Tabs value={mainView} onValueChange={handleViewChange} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4 h-11 md:h-10">
-            <TabsTrigger value="todos" className="gap-1.5 text-xs md:text-sm">
+            <TabsTrigger value="visao_geral" className="gap-1.5 text-xs md:text-sm">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Visão Geral</span>
+              <span className="sm:hidden">Geral</span>
+            </TabsTrigger>
+            <TabsTrigger value="lancamentos" className="gap-1.5 text-xs md:text-sm">
               <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">Todos</span>
-              <span className="sm:hidden">Tudo</span>
+              <span className="hidden sm:inline">Lançamentos</span>
+              <span className="sm:hidden">Lanç.</span>
             </TabsTrigger>
-            <TabsTrigger value="custos" className="gap-1.5 text-xs md:text-sm">
-              <DollarSign className="h-4 w-4" />
-              Custos
+            <TabsTrigger value="areas" className="gap-1.5 text-xs md:text-sm">
+              <MapPin className="h-4 w-4" />
+              <span className="hidden sm:inline">Por Área</span>
+              <span className="sm:hidden">Áreas</span>
             </TabsTrigger>
-            <TabsTrigger value="investimentos" className="gap-1.5 text-xs md:text-sm">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Implantação</span>
-              <span className="sm:hidden">Impl.</span>
-            </TabsTrigger>
-            <TabsTrigger value="receitas" className="gap-1.5 text-xs md:text-sm">
-              <TrendingUp className="h-4 w-4" />
-              Receitas
+            <TabsTrigger value="ciclos" className="gap-1.5 text-xs md:text-sm">
+              <Sprout className="h-4 w-4" />
+              <span className="hidden sm:inline">Por Ciclo</span>
+              <span className="sm:hidden">Ciclos</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Visão Geral */}
+          <TabsContent value="visao_geral">
+            {isLoading ? (
+              <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+            ) : (
+              <OverviewTab
+                analytics={analytics}
+                onSelectSubcategoria={(categoria, subcategoria) =>
+                  goToLancamentosWithFilter({ categoria: categoria as any, subcategoria: subcategoria || undefined })
+                }
+              />
+            )}
+          </TabsContent>
+
+          {/* Por Área */}
+          <TabsContent value="areas">
+            {isLoading ? (
+              <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+            ) : (
+              <ByAreaTab
+                analytics={analytics}
+                onSelectArea={(areaId) => goToLancamentosWithFilter({ areaId: areaId || undefined })}
+              />
+            )}
+          </TabsContent>
+
+          {/* Por Ciclo */}
+          <TabsContent value="ciclos">
+            {isLoading ? (
+              <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+            ) : (
+              <ByCycleTab
+                analytics={analytics}
+                onSelectCycle={(cycleId) => goToLancamentosWithFilter({ cycleId: cycleId || undefined })}
+              />
+            )}
+          </TabsContent>
+
+          {/* Lançamentos (with sub-tabs for detailed source tables) */}
+          <TabsContent value="lancamentos" className="space-y-4">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-4 h-10">
+                <TabsTrigger value="todos" className="gap-1.5 text-xs">
+                  <Wallet className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Todos</span>
+                  <span className="sm:hidden">Tudo</span>
+                </TabsTrigger>
+                <TabsTrigger value="custos" className="gap-1.5 text-xs">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Custos
+                </TabsTrigger>
+                <TabsTrigger value="investimentos" className="gap-1.5 text-xs">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Implantação</span>
+                  <span className="sm:hidden">Impl.</span>
+                </TabsTrigger>
+                <TabsTrigger value="receitas" className="gap-1.5 text-xs">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Receitas
+                </TabsTrigger>
+              </TabsList>
 
           {/* All Transactions Tab */}
           <TabsContent value="todos">
