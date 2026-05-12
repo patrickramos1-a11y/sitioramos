@@ -161,6 +161,48 @@ export function useCashTransactions(filters?: CashFilters) {
     },
   });
 
+  const updateTransaction = useMutation({
+    mutationFn: async ({ id, ...patch }: { id: string } & Partial<CashTransactionInsert>) => {
+      const { data, error } = await supabase
+        .from("cash_transactions")
+        .update(patch)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast({ title: "Movimentação atualizada" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao atualizar movimentação", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const bulkUpdateTransactions = useMutation({
+    mutationFn: async ({ ids, patch }: { ids: string[]; patch: Partial<CashTransactionInsert> }) => {
+      if (!ids.length) return;
+      const { error } = await supabase
+        .from("cash_transactions")
+        .update(patch)
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["cash-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast({ title: `${vars.ids.length} movimentações atualizadas` });
+    },
+    onError: (error) => {
+      toast({ title: "Erro na atualização em massa", description: error.message, variant: "destructive" });
+    },
+  });
+
   const deleteTransaction = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
