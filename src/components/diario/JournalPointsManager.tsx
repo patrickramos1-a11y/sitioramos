@@ -39,7 +39,7 @@ import {
 import { exportEntryKml, type KmlEntryMeta } from "@/lib/kmlExport";
 import { GpsCaptureDialog, type CapturedGpsPoint } from "@/components/diario/GpsCaptureDialog";
 import { QUALITY_LABEL, QUALITY_COLOR, type PrecisionQuality } from "@/hooks/useGpsCapture";
-import { DiaryGeometryManager } from "@/components/diario/DiaryGeometryManager";
+import { DiaryGeometryManager, type DraftDiaryGeometry } from "@/components/diario/DiaryGeometryManager";
 
 interface Props {
   /** Modo persistido: id do registro existente */
@@ -47,6 +47,9 @@ interface Props {
   /** Modo rascunho: pontos em estado local */
   draftPoints?: DraftPoint[];
   onDraftChange?: (points: DraftPoint[]) => void;
+  /** Modo rascunho: geometrias (linha/polígono) em estado local */
+  draftGeometries?: DraftDiaryGeometry[];
+  onDraftGeometriesChange?: (g: DraftDiaryGeometry[]) => void;
   /** Meta para exportação KML (modo persistido) */
   entryMeta?: KmlEntryMeta;
   /** Compacto = sem export, mais enxuto */
@@ -65,6 +68,8 @@ export function JournalPointsManager({
   entryId,
   draftPoints,
   onDraftChange,
+  draftGeometries,
+  onDraftGeometriesChange,
   entryMeta,
   compact,
 }: Props) {
