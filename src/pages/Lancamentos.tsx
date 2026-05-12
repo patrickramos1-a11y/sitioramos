@@ -22,7 +22,7 @@ import { cashCategoryConfig, CashCategory, costTypeConfig } from "@/lib/category
 
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const COST_CATEGORIES: CashCategory[] = ["custo_operacional", "investimento", "despesa_financeira"];
+const COST_CATEGORIES: CashCategory[] = ["custo", "investimento", "financeiro"];
 
 export default function Lancamentos() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -99,7 +99,7 @@ export default function Lancamentos() {
   const openNewForm = () => {
     setForm({
       data: new Date().toISOString().split("T")[0],
-      categoria: "custo_operacional",
+      categoria: "custo",
       subtipo: "",
       valor: "",
       descricao: "",
@@ -138,6 +138,7 @@ export default function Lancamentos() {
       data: form.data,
       tipo: "saida",
       categoria: form.categoria,
+      subcategoria: form.subtipo || null,
       valor: Number(form.valor),
       descricao: desc,
       operation_id,
@@ -351,7 +352,7 @@ export default function Lancamentos() {
               </Select>
             </div>
 
-            {form.categoria === "custo_operacional" && (
+            {form.categoria === "custo" && (
               <div>
                 <Label>Tipo de custo</Label>
                 <Select value={form.subtipo} onValueChange={v => setForm({ ...form, subtipo: v })}>

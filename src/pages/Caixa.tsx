@@ -127,7 +127,7 @@ export default function Caixa() {
 
   // Determine which subtypes to show based on selected category
   const getSubtypeOptions = () => {
-    if (formData.categoria === "custo_operacional") {
+    if (formData.categoria === "custo") {
       return Object.entries(costTypeConfig).map(([value, config]) => ({
         value, label: config.label, icon: config.icon, color: config.color, bgColor: config.bgColor,
       }));
@@ -141,22 +141,21 @@ export default function Caixa() {
   };
 
   const subtypeOptions = getSubtypeOptions();
-  const needsSubtype = formData.categoria === "custo_operacional" || formData.categoria === "investimento";
+  const needsSubtype = formData.categoria === "custo" || formData.categoria === "investimento";
 
   const handleSubmit = () => {
     if (!formData.categoria || !formData.valor) return;
     if (needsSubtype && !formData.subtipo) return;
 
     const categoriaInfo = cashCategoryConfig[formData.categoria as CashCategory];
-    const tipo = categoriaInfo?.tipo || "saida";
+    const tipo = (categoriaInfo?.tipo === "ambos" ? "saida" : categoriaInfo?.tipo) || "saida";
 
-    // Build description with subtype info
-    const subtipoLabel = formData.subtipo 
-      ? (formData.categoria === "custo_operacional" 
-          ? costTypeConfig[formData.subtipo]?.label 
+    const subtipoLabel = formData.subtipo
+      ? (formData.categoria === "custo"
+          ? costTypeConfig[formData.subtipo]?.label
           : investmentTypeConfig[formData.subtipo]?.label) || formData.subtipo
       : "";
-    const descricaoFinal = formData.descricao 
+    const descricaoFinal = formData.descricao
       ? (subtipoLabel ? `${subtipoLabel}: ${formData.descricao}` : formData.descricao)
       : subtipoLabel || null;
 
@@ -164,6 +163,7 @@ export default function Caixa() {
       data: formData.data,
       tipo: tipo,
       categoria: formData.categoria as CashCategory,
+      subcategoria: formData.subtipo || null,
       valor: Number(formData.valor),
       descricao: descricaoFinal,
       loan_id: formData.loan_id || null,
@@ -996,7 +996,7 @@ export default function Caixa() {
             {needsSubtype && (
               <div className="space-y-2">
                 <Label htmlFor="subtipo">
-                  {formData.categoria === "custo_operacional" ? "Tipo de Custo *" : "Tipo de Implantação *"}
+                  {formData.categoria === "custo" ? "Tipo de Custo *" : "Tipo de Implantação *"}
                 </Label>
                 <Select
                   value={formData.subtipo}
