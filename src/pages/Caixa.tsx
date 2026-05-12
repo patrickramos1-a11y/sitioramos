@@ -141,7 +141,7 @@ export default function Caixa() {
   };
 
   const subtypeOptions = getSubtypeOptions();
-  const needsSubtype = formData.categoria === "custo" || formData.categoria === "investimento";
+  const needsSubtype = formData.categoria === "custo" || formData.categoria === "investimento" || formData.categoria === "financeiro" || formData.categoria === "receita";
 
   const handleSubmit = () => {
     if (!formData.categoria || !formData.valor) return;
@@ -956,38 +956,17 @@ export default function Caixa() {
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__header_entrada__" disabled className="font-bold text-success">
-                    ── ENTRADAS ──
-                  </SelectItem>
-                  {categoriaOptions
-                    .filter(c => c.tipo === "entrada")
-                    .map((cat) => {
-                      const Icon = cat.icon;
-                      return (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${cat.color}`} />
-                            {cat.label}
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  <SelectItem value="__header_saida__" disabled className="font-bold text-destructive">
-                    ── SAÍDAS ──
-                  </SelectItem>
-                  {categoriaOptions
-                    .filter(c => c.tipo === "saida")
-                    .map((cat) => {
-                      const Icon = cat.icon;
-                      return (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${cat.color}`} />
-                            {cat.label}
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
+                  {categoriaOptions.map((cat) => {
+                    const Icon = cat.icon;
+                    return (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        <div className="flex items-center gap-2">
+                          <Icon className={`h-4 w-4 ${cat.color}`} />
+                          {cat.label}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
