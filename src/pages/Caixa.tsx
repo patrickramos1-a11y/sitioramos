@@ -14,6 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCashTransactions, CashTransactionInsert, CashFilters } from "@/hooks/useCashTransactions";
+import { useCashAnalytics, CashAnalyticsFilters } from "@/hooks/useCashAnalytics";
+import { GlobalFiltersBar } from "@/components/caixa/GlobalFiltersBar";
+import { OverviewTab } from "@/components/caixa/OverviewTab";
+import { ByAreaTab } from "@/components/caixa/ByAreaTab";
+import { ByCycleTab } from "@/components/caixa/ByCycleTab";
+import { BarChart3, MapPin, Sprout } from "lucide-react";
 import { useCosts, Cost, CostInsert } from "@/hooks/useCosts";
 import { useInvestments, Investment, InvestmentInsert } from "@/hooks/useInvestments";
 import { useRevenues, Revenue, RevenueInsert } from "@/hooks/useRevenues";
