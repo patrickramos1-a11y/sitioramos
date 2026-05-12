@@ -278,7 +278,7 @@ export function CashTransactionsTable({
       {/* Tabela */}
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center justify-between gap-2 p-4 border-b flex-wrap">
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
               <span className="font-medium">Histórico de Movimentações</span>
@@ -286,6 +286,17 @@ export function CashTransactionsTable({
                 {filtered.length} de {transactions.length}
               </Badge>
             </div>
+            {selected.size > 0 && (
+              <div className="flex items-center gap-2">
+                <Badge>{selected.size} selecionada(s)</Badge>
+                {onBulkEdit && (
+                  <Button size="sm" variant="outline" onClick={() => onBulkEdit(Array.from(selected))} className="gap-1">
+                    <Layers className="h-4 w-4" /> Editar em massa
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Limpar</Button>
+              </div>
+            )}
           </div>
 
           {filtered.length === 0 ? (
