@@ -642,6 +642,8 @@ export default function Diario() {
           <JournalPointsManager
             draftPoints={draftPoints}
             onDraftChange={setDraftPoints}
+            draftGeometries={draftGeometries}
+            onDraftGeometriesChange={setDraftGeometries}
           />
 
           <input
