@@ -237,45 +237,13 @@ export function JournalPointsManager({
 
   return (
     <div className="space-y-3">
-      {!isDraft && entryId && (
+      {!isDraft && entryId ? (
         <DiaryGeometryManager entryId={entryId} entryMeta={entryMeta} />
-      )}
-
-      {isDraft && (
-        <div className="space-y-2">
-          <span className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
-            Mapa / GPS
-          </span>
-          <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium bg-brand-forest text-primary-foreground shadow-sm"
-            >
-              <MapPin className="h-3.5 w-3.5" /> Ponto
-            </button>
-            <button
-              type="button"
-              disabled
-              title="Disponível após salvar o registro"
-              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium text-muted-foreground/60 cursor-not-allowed"
-            >
-              <Spline className="h-3.5 w-3.5" /> Linha
-              <Lock className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              disabled
-              title="Disponível após salvar o registro"
-              className="flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium text-muted-foreground/60 cursor-not-allowed"
-            >
-              <Hexagon className="h-3.5 w-3.5" /> Polígono
-              <Lock className="h-3 w-3" />
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            Linha e polígono (com mapa) ficam disponíveis após salvar o registro.
-          </p>
-        </div>
+      ) : (
+        <DiaryGeometryManager
+          draftGeometries={draftGeometries}
+          onDraftGeometriesChange={onDraftGeometriesChange}
+        />
       )}
 
       {(isDraft || points.length > 0) && (
