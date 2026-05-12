@@ -428,6 +428,51 @@ export type Database = {
           },
         ]
       }
+      diary_geometries: {
+        Row: {
+          area_m2: number | null
+          created_at: string
+          description: string | null
+          entry_id: string
+          geojson: Json
+          geometry_type: string
+          id: string
+          length_m: number | null
+          name: string | null
+          ordem: number
+          responsavel_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          area_m2?: number | null
+          created_at?: string
+          description?: string | null
+          entry_id: string
+          geojson: Json
+          geometry_type: string
+          id?: string
+          length_m?: number | null
+          name?: string | null
+          ordem?: number
+          responsavel_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area_m2?: number | null
+          created_at?: string
+          description?: string | null
+          entry_id?: string
+          geojson?: Json
+          geometry_type?: string
+          id?: string
+          length_m?: number | null
+          name?: string | null
+          ordem?: number
+          responsavel_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       installments: {
         Row: {
           created_at: string
@@ -702,6 +747,7 @@ export type Database = {
           coordinates: Json | null
           created_at: string
           entry_id: string
+          geometry_id: string | null
           geometry_type: string
           heading: number | null
           id: string
@@ -711,6 +757,9 @@ export type Database = {
           nome: string
           observacao: string | null
           ordem: number
+          order_index: number | null
+          point_label: string | null
+          point_number: number | null
           precision_quality: string | null
           readings_count: number | null
           speed: number | null
@@ -728,6 +777,7 @@ export type Database = {
           coordinates?: Json | null
           created_at?: string
           entry_id: string
+          geometry_id?: string | null
           geometry_type?: string
           heading?: number | null
           id?: string
@@ -737,6 +787,9 @@ export type Database = {
           nome: string
           observacao?: string | null
           ordem?: number
+          order_index?: number | null
+          point_label?: string | null
+          point_number?: number | null
           precision_quality?: string | null
           readings_count?: number | null
           speed?: number | null
@@ -754,6 +807,7 @@ export type Database = {
           coordinates?: Json | null
           created_at?: string
           entry_id?: string
+          geometry_id?: string | null
           geometry_type?: string
           heading?: number | null
           id?: string
@@ -763,6 +817,9 @@ export type Database = {
           nome?: string
           observacao?: string | null
           ordem?: number
+          order_index?: number | null
+          point_label?: string | null
+          point_number?: number | null
           precision_quality?: string | null
           readings_count?: number | null
           speed?: number | null
