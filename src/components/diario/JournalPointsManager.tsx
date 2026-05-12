@@ -36,6 +36,7 @@ import {
 import { exportEntryKml, type KmlEntryMeta } from "@/lib/kmlExport";
 import { GpsCaptureDialog, type CapturedGpsPoint } from "@/components/diario/GpsCaptureDialog";
 import { QUALITY_LABEL, QUALITY_COLOR, type PrecisionQuality } from "@/hooks/useGpsCapture";
+import { DiaryGeometryManager } from "@/components/diario/DiaryGeometryManager";
 
 interface Props {
   /** Modo persistido: id do registro existente */
