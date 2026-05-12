@@ -489,7 +489,7 @@ export function CashTransactionsTable({
                       >
                         Valor <SortIcon k="valor" />
                       </TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-20 text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
