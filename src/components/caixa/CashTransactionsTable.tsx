@@ -318,7 +318,18 @@ export function CashTransactionsTable({
                   const Icon = c?.icon || Wallet;
                   const contato = (t as any).contatos as { nome: string } | null;
                   return (
-                    <li key={t.id} className="p-3 flex gap-3 active:bg-muted/40">
+                    <li key={t.id} className="p-3 flex gap-2 active:bg-muted/40">
+                      <Checkbox
+                        className="mt-2 shrink-0"
+                        checked={selected.has(t.id)}
+                        onCheckedChange={(v) => {
+                          setSelected((prev) => {
+                            const n = new Set(prev);
+                            if (v) n.add(t.id); else n.delete(t.id);
+                            return n;
+                          });
+                        }}
+                      />
                       <div
                         className={`rounded-xl p-2.5 h-fit ${
                           c?.bgColor || "bg-muted"
