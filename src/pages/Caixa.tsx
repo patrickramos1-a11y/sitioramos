@@ -66,7 +66,7 @@ export default function Caixa() {
   const [filters, setFilters] = useState<CashFilters>(() => ({
     areaId: areaFromUrl || undefined,
   }));
-  const { transactions, balance, filteredTotals, isLoading, createTransaction, deleteTransaction } = useCashTransactions(filters);
+  const { transactions, balance, filteredTotals, isLoading, createTransaction, updateTransaction, bulkUpdateTransactions, deleteTransaction } = useCashTransactions(filters);
   const { costs, createCost, updateCost, deleteCost } = useCosts();
   const { investments, createInvestment, updateInvestment, deleteInvestment } = useInvestments();
   const { revenues, createRevenue, updateRevenue, deleteRevenue } = useRevenues();
