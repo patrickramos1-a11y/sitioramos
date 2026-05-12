@@ -1,143 +1,140 @@
-## Visão geral
+## Módulo Geográfico no Diário de Campo
 
-Hoje a página **Diário de Campo** é otimizada para captura no celular: card grande de "o que aconteceu hoje", botões de mídia, lista cronológica simples. Ótima para o app, ruim para gestão no desktop, onde o trabalho é **consultar, filtrar, revisar, editar, vincular, exportar e arquivar** muitos registros.
-
-A proposta é manter o app móvel exatamente como está e criar uma **experiência desktop paralela** ("Cockpit do Diário"), que entra em ação a partir de `md:` (≥768px). Mesma rota `/diario`, mesmos dados, layout e fluxo diferentes.
+Transformar a captura GPS em um módulo completo: pontos sequenciais (P1, P2…), linhas e polígonos, com mapa Leaflet, edição, cálculo de área e exportação KML por elemento ou em lote.
 
 ---
 
-## Layout desktop — 3 zonas
+### 1. Banco de dados
 
-```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Header: título + KPIs (Total / Pendentes / Importantes / Sem vínculo)    │
-│         + botões: Novo registro · Exportar · Atualizar                   │
-├────────────────────┬────────────────────────────┬────────────────────────┤
-│ Sidebar Filtros    │ Lista (tabela ou timeline) │ Painel de detalhe      │
-│ (280px, sticky)    │ (flex-1, scroll próprio)   │ (420px, sticky)        │
-│                    │                            │                        │
-│ Período            │ ┌──────────────────────┐   │ Galeria de mídias      │
-│ Tipo               │ │ ☐ 12/05 · Plantio    │   │ Texto / observações    │
-│ Status             │ │   Casa de Farinha    │   │ Vínculos (Área/Ciclo/  │
-│ Área               │ │   Patrick · 📷3 🎤   │   │ Responsável/Tarefa)    │
-│ Ciclo              │ ├──────────────────────┤   │ Pontos GPS + mapa      │
-│ Responsável        │ │ ☐ 12/05 · Ocorrência │   │                        │
-│ Tags (multi)       │ │   ⚠ Pendente         │   │ Ações:                 │
-│ Revisado: todos/   │ └──────────────────────┘   │ ✎ Editar  ⤓ Baixar     │
-│  pendente/feito    │                            │ ✓ Revisar  ↪ Tarefa    │
-│ ★ Importantes      │ Paginação / "Carregar +"   │ 💰 Custo  🗑 Excluir   │
-│ Tem mídia          │                            │                        │
-│ Sem vínculo        │                            │                        │
-│ Busca (texto)      │                            │                        │
-└────────────────────┴────────────────────────────┴────────────────────────┘
+Nova tabela `diary_geometries` (uma geometria = um ponto solto, uma linha ou um polígono):
+
+- `id`, `entry_id` (ref. `journal_entries`)
+- `geometry_type`: `point` | `line` | `polygon`
+- `name`, `description`
+- `geojson` (jsonb com a geometria GeoJSON completa)
+- `area_m2` (numeric, calculada para polígonos)
+- `length_m` (numeric, calculada para linhas)
+- `responsavel_id`, `ordem`, `created_at`, `updated_at`
+- RLS pública (mesmo padrão das demais tabelas do diário)
+
+Estender `journal_points` com:
+
+- `geometry_id` (ref. `diary_geometries`, nullable — vincula vértice à sua geometria)
+- `point_number` (int — numeração sequencial P1, P2…)
+- `point_label` (text — complemento editável)
+- `order_index` (int — ordem dentro da geometria)
+
+Pontos soltos continuam funcionando: ficam sem `geometry_id` ou criam `diary_geometries` tipo `point` automaticamente. Migração preserva dados existentes.
+
+---
+
+### 2. Captura GPS (reuso)
+
+Reutiliza `useGpsCapture` já existente (estabilização, watchPosition, classificação de qualidade). Cada vértice salva: lat, lng, altitude, accuracy, captured_at, capture_duration_seconds, readings_count, precision_quality.
+
+---
+
+### 3. Lógica de modos
+
+Hook novo `useDiaryGeometry(entryId)` gerencia:
+
+- modo ativo: `point` | `line` | `polygon`
+- geometria em construção (rascunho local) com lista de vértices
+- numeração automática P1, P2… (reset por geometria)
+- ações: `addCurrentPoint()`, `closePolygon()`, `cancelDraft()`, `commitDraft()`
+- validação: polígono exige ≥3 pontos antes de fechar
+- ao fechar/commit: persiste `diary_geometries` + `journal_points` vinculados, calcula área (fórmula esférica de Shoelace) e comprimento (Haversine)
+
+Modo `point`: cada captura cria imediatamente uma `diary_geometries` tipo `point` com 1 vértice (P1, P2, P3 sequenciais por entry).
+
+---
+
+### 4. Mapa (Leaflet + OSM)
+
+Novo componente `DiaryMapView`:
+
+- biblioteca: `leaflet` + `react-leaflet`
+- camada base: OpenStreetMap (tiles padrão)
+- seletor "Mapa | Satélite" preparado (Esri World Imagery como satélite gratuito, sem API key)
+- renderiza:
+  - markers para pontos com label (P1 / Entrada…)
+  - polylines para linhas e polígono em construção
+  - polygons fechados com fill semi-transparente
+  - vértices visíveis nos polígonos
+- popup ao clicar mostra: nome, descrição, precisão, data/hora, responsável
+- auto-fit bounds nos elementos da entry
+
+---
+
+### 5. UI — Aba "Mapa / GPS" no registro do diário
+
+Substitui/expande o `JournalPointsManager` atual. Layout:
+
+```
+[ Ponto | Linha | Polígono ]  <- seletor de modo
+[ + Adicionar ponto atual ]
+[ Fechar polígono ]   (só no modo polígono, ≥3 pontos)
+[ Exportar KML do diário ]
+
+<mapa Leaflet>
+
+Lista:
+  Pontos
+    • P1 / Entrada da área   [editar] [exportar] [excluir]
+    • P2 / Local do trator
+  Linhas
+    • Trilha 1 / Caminho do gado   [...]
+  Polígonos
+    • Polígono 1 / Área vistoriada — 3.250 m² (0,325 ha)   [...]
 ```
 
-No mobile (`<md`) nada muda — segue o card de captura atual.
+Edição inline do label (após "/"). Excluir vértice de polígono atualiza geojson e recalcula área; alerta se ficar com <3 vértices.
+
+Mobile: botões grandes empilhados, mapa em altura fixa (~50vh), lista abaixo.
 
 ---
 
-## Funcionalidades por zona
+### 6. Exportação KML
 
-### 1. Header + KPIs
-- 4 cartões pequenos: **Total no período**, **Pendentes de revisão**, **Importantes**, **Sem vínculo (sem área/ciclo/responsável)**. Cada cartão é clicável e aplica o filtro correspondente.
-- Botões: **Novo registro** (abre dialog de captura — mesmo formulário do mobile), **Exportar** (CSV/ZIP), **Atualizar**.
+Estender `kmlExport.ts`:
 
-### 2. Sidebar de filtros (esquerda, sticky)
-- **Período**: presets (hoje, 7d, 30d, este mês, últimos 90d) + range customizado.
-- **Tipo de registro** (multi): observação, plantio, limpeza, colheita, manutenção, ocorrência, clima, ambiental.
-- **Status** (multi): informativo, atenção, pendente, resolvido, importante.
-- **Área**, **Ciclo**, **Responsável** — selects com busca.
-- **Tags** — multi, sugeridas a partir das tags já usadas.
-- **Revisado**: todos / pendentes / revisados.
-- Toggles: **★ Importantes**, **Com mídia**, **Sem vínculo**, **Com GPS**.
-- **Busca textual** no topo (título + descrição + notas).
-- "Limpar filtros" e contador de filtros ativos.
-- Filtros sincronizados com a URL (`?periodo=30d&tipo=plantio&area=…`) para compartilhar links.
-
-### 3. Visualização central — duas abas
-- **Tabela** (default desktop): colunas selecionáveis — `☐ | Data | Tipo | Título | Área | Ciclo | Responsável | Status | Mídias | Tags | Ações`. Ordenação por coluna, seleção múltipla com checkbox.
-- **Timeline**: agrupamento por dia, igual à versão atual mas em lista densa.
-- (Futuro: aba **Mapa** plotando pontos GPS — fora do escopo desta entrega.)
-- **Carregar mais** ou paginação 50/100/200 (hoje há `limit: 50` fixo — passamos a paginar).
-
-#### Ações em massa (quando 1+ selecionado)
-Aparece uma barra fixa no rodapé da lista:
-- Marcar como revisado / não revisado
-- Marcar como importante
-- Atribuir responsável
-- Vincular a área / ciclo
-- Adicionar tags
-- Exportar selecionados (CSV ou ZIP de mídias)
-- Excluir (com confirmação)
-
-### 4. Painel de detalhe (direita, sticky)
-Ao clicar uma linha, abre o painel (sem sair da página):
-- **Cabeçalho**: data, tipo, status, badge de responsável, ★ importante.
-- **Mídias**: galeria com lightbox para fotos, player para vídeo e áudio, download individual.
-- **Texto**: descrição e observações em modo leitura, com botão ✎ que vira edição inline.
-- **Vínculos editáveis**: área, ciclo, responsável, tags, tipo, status — alterar e salvar sem abrir modal.
-- **Pontos GPS**: lista + miniatura de mapa (ou link "abrir no Maps") usando o `JournalPointsManager` em modo leitura.
-- **Ações**:
-  - ✓ Marcar revisado / Reabrir
-  - ↪ Converter em **tarefa** (já existe `convertToTask`)
-  - 💰 Lançar **custo** (já existe `handleConvertToExpense`)
-  - ⤓ Baixar tudo (ZIP com mídias + um `registro.json` com os metadados)
-  - 🗑 Excluir
-- **Histórico**: created_at, updated_at, quem revisou (quando houver).
-
-### 5. Exportação e download
-- **Linha única**: botão ⤓ baixa um ZIP `diario-<data>-<id>.zip` com mídias originais + `registro.json`.
-- **CSV** (1 ou N registros): planilha com colunas data, tipo, título, descrição, área, ciclo, responsável, status, tags, lat, lng, qtd_fotos, qtd_videos, qtd_audio, links públicos das mídias.
-- **ZIP em massa**: pasta por registro, mais um `index.csv` no raiz.
-- Tudo gerado no cliente com `JSZip` + `file-saver` (pequenos) — sem backend novo.
-
-### 6. Edição
-- Edição inline no painel de detalhe para campos simples (título, descrição, status, vínculos, tags, importante).
-- Botão "Editar completo" abre o mesmo formulário de captura em dialog para mexer também em mídias e pontos.
-- Adicionar/remover **mídias** depois de criado: upload novo no bucket `journal-media`, novo registro em `journal_attachments`; remoção apaga arquivo + linha.
-
-### 7. Exclusão
-- Soft delete não está no escopo (o schema não suporta hoje); mantém DELETE direto com confirmação ("Isso vai apagar X mídias e Y pontos. Continuar?").
-- Em massa: dialog único com contagem total.
+- `Point` → Placemark com `<Point>`
+- `line` → Placemark com `<LineString>`
+- `polygon` → Placemark com `<Polygon><outerBoundaryIs><LinearRing>`
+- ordem correta: `lng,lat,alt`
+- description inclui: nome do diário, data, responsável, descrição, precisão, área (se polígono)
+- exportação por elemento individual ou todos do registro
+- arquivo salvo no bucket `journal-media` (já existe) e baixado no navegador
 
 ---
 
-## Detalhes técnicos
+### 7. Componentes/arquivos novos
 
-- **Sem mudança de schema.** Tudo já está em `journal_entries`, `journal_attachments`, `journal_points`.
-- `useJournalEntries` ganha:
-  - filtros novos: `dateFrom/dateTo`, `responsavelId`, `tags`, `hasMedia`, `hasNoLink`, `search`;
-  - paginação cursor/offset;
-  - mutation `bulkUpdate` (revisar/atribuir/tags em N ids) e `bulkDelete`;
-  - mutation `addAttachment`/`removeAttachment` para edição pós-criação.
-- Novos componentes em `src/components/diario/desktop/`:
-  - `DiarioCockpit.tsx` (orquestra layout 3 colunas)
-  - `DiarioFilters.tsx` (sidebar)
-  - `DiarioTable.tsx` (tabela + seleção)
-  - `DiarioTimeline.tsx` (modo alternativo)
-  - `DiarioDetailPanel.tsx` (painel direito)
-  - `DiarioBulkBar.tsx` (ações em massa)
-  - `DiarioExport.ts` (helpers CSV/ZIP)
-- `Diario.tsx` decide via `useIsMobile()`/`md:` qual versão renderizar; o formulário de captura vira `DiarioCaptureForm` reaproveitado pelos dois modos (mobile inline; desktop em dialog).
-- Sincronização URL ↔ filtros via `useSearchParams`.
-- ZIP/CSV: adicionar `jszip` e `file-saver` (pequenas).
-- Acessibilidade: tabela com `aria-sort`, painel direito como `aside` com foco gerenciado, atalhos: `J/K` próximo/anterior, `R` revisar, `E` editar, `Del` excluir.
-- Tokens de design: reaproveita `brand-leaf`, `brand-forest`, `brand-sun` já em uso, sem cores cruas.
+- `supabase/migrations/<ts>_diary_geometries.sql`
+- `src/hooks/useDiaryGeometries.ts`
+- `src/hooks/useDiaryGeometryDraft.ts` (estado de rascunho do modo)
+- `src/components/diario/DiaryMapView.tsx`
+- `src/components/diario/DiaryGeometryManager.tsx` (novo container — substitui o uso atual de `JournalPointsManager` no fluxo de edição)
+- `src/lib/geoMath.ts` (área shoelace esférica, comprimento haversine)
+- estende `src/lib/kmlExport.ts` (suporte a Line/Polygon e export em lote)
+
+Editados:
+
+- `src/components/diario/JournalPointsManager.tsx` — passa a delegar para `DiaryGeometryManager` quando há geometria, mantendo retrocompat dos pontos soltos antigos
+- `src/components/diario/desktop/DiarioCockpit.tsx` — abre o novo manager no detalhe
+- `src/components/diario/desktop/diarioExport.ts` — inclui geometrias no ZIP
 
 ---
 
-## Entregáveis
+### 8. Dependências
 
-1. Layout desktop em 3 colunas em `/diario` (mobile intacto).
-2. Filtros completos sincronizados com URL + busca textual.
-3. Tabela com seleção, ordenação, ações em massa.
-4. Painel de detalhe com edição inline, vínculos, mídias, pontos, ações (revisar, tarefa, custo, baixar, excluir).
-5. Exportação CSV individual/em massa e ZIP com mídias.
-6. Sem mudanças de banco; sem afetar o fluxo do app móvel.
+- `leaflet`, `react-leaflet`, `@types/leaflet`
 
-## Fora do escopo (sugerir depois)
+---
 
-- Aba **Mapa** com clusters dos pontos GPS.
-- Soft delete + lixeira.
-- Comentários/threads por registro.
-- Relatório PDF formatado por período.
+### 9. Fora de escopo (para depois)
+
+- Edição de vértice arrastando no mapa
+- Camada satélite com Mapbox/Google (deixaremos Esri gratuito como opção inicial; estrutura pronta para trocar)
+- Snap entre pontos / edição topológica avançada
+- Importação de KML/GPX

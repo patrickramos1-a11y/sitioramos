@@ -36,6 +36,7 @@ import {
 import { exportEntryKml, type KmlEntryMeta } from "@/lib/kmlExport";
 import { GpsCaptureDialog, type CapturedGpsPoint } from "@/components/diario/GpsCaptureDialog";
 import { QUALITY_LABEL, QUALITY_COLOR, type PrecisionQuality } from "@/hooks/useGpsCapture";
+import { DiaryGeometryManager } from "@/components/diario/DiaryGeometryManager";
 
 interface Props {
   /** Modo persistido: id do registro existente */
@@ -227,7 +228,13 @@ export function JournalPointsManager({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {!isDraft && entryId && (
+        <DiaryGeometryManager entryId={entryId} entryMeta={entryMeta} />
+      )}
+
+      {(isDraft || points.length > 0) && (
+      <div className="space-y-2 pt-2 border-t border-brand-leaf/15">
       <div className="flex items-center justify-between">
         <span className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
           Pontos GPS {points.length > 0 && <span className="text-muted-foreground">· {points.length}</span>}
@@ -452,6 +459,8 @@ export function JournalPointsManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
+      )}
     </div>
   );
 }
