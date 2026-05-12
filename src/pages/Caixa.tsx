@@ -86,6 +86,9 @@ export default function Caixa() {
   const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
   const [deleteType, setDeleteType] = useState<"transaction" | "cost" | "investment" | "revenue">("transaction");
   const [itemToDelete, setItemToDelete] = useState<any>(null);
+  const [editingTransaction, setEditingTransaction] = useState<CashTransaction | null>(null);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
 
   // Form state for direct cash entry
   const [formData, setFormData] = useState({
