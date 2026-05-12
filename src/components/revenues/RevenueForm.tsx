@@ -14,15 +14,26 @@ import { Cycle } from "@/hooks/useCycles";
 import { Loader2 } from "lucide-react";
 
 const revenueSchema = z.object({
-  area_id: z.string().min(1, "Área é obrigatória"),
-  cycle_id: z.string().optional().nullable(),
+  tipo_receita: z.enum(["venda", "aporte_socio", "emprestimo_bancario", "outra"]),
   data: z.string().min(1, "Data é obrigatória"),
-  produto: z.string().min(1, "Produto é obrigatório").max(100, "Produto muito longo"),
-  quantidade: z.coerce.number().positive("Quantidade deve ser maior que 0"),
-  unidade: z.enum(["kg", "saca", "unidade", "tonelada"]),
-  preco_unitario: z.coerce.number().positive("Preço deve ser maior que 0"),
+  area_id: z.string().optional().nullable(),
+  cycle_id: z.string().optional().nullable(),
+  produto: z.string().max(100).optional().nullable(),
+  quantidade: z.coerce.number().optional().nullable(),
+  unidade: z.enum(["kg", "saca", "unidade", "tonelada"]).optional().nullable(),
+  preco_unitario: z.coerce.number().optional().nullable(),
+  valor: z.coerce.number().optional().nullable(),
   cliente: z.string().max(100).optional().nullable(),
   observacoes: z.string().max(500).optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (data.tipo_receita === "venda") {
+    if (!data.area_id) ctx.addIssue({ code: "custom", path: ["area_id"], message: "Área é obrigatória" });
+    if (!data.produto) ctx.addIssue({ code: "custom", path: ["produto"], message: "Produto é obrigatório" });
+    if (!data.quantidade || data.quantidade <= 0) ctx.addIssue({ code: "custom", path: ["quantidade"], message: "Quantidade deve ser maior que 0" });
+    if (!data.preco_unitario || data.preco_unitario <= 0) ctx.addIssue({ code: "custom", path: ["preco_unitario"], message: "Preço deve ser maior que 0" });
+  } else {
+    if (!data.valor || data.valor <= 0) ctx.addIssue({ code: "custom", path: ["valor"], message: "Valor deve ser maior que 0" });
+  }
 });
 
 type RevenueFormData = z.infer<typeof revenueSchema>;
@@ -32,6 +43,13 @@ const unidadeOptions = [
   { value: "saca", label: "Saca" },
   { value: "unidade", label: "Unidade" },
   { value: "tonelada", label: "Tonelada" },
+];
+
+const tipoOptions = [
+  { value: "venda", label: "🌱 Venda de produção", desc: "Receita gerada pela comercialização da produção" },
+  { value: "aporte_socio", label: "👤 Aporte de sócio", desc: "Dinheiro colocado pelos próprios sócios no caixa" },
+  { value: "emprestimo_bancario", label: "🏦 Entrada bancária / Empréstimo", desc: "Crédito ou transferência recebida do banco" },
+  { value: "outra", label: "💰 Outra receita", desc: "Outra entrada não classificada acima" },
 ];
 
 interface RevenueFormProps {
@@ -48,47 +66,58 @@ export function RevenueForm({ open, onOpenChange, revenue, areas, cycles, onSubm
   const form = useForm<RevenueFormData>({
     resolver: zodResolver(revenueSchema),
     defaultValues: {
+      tipo_receita: "venda",
       area_id: "",
       cycle_id: "",
       data: new Date().toISOString().split('T')[0],
       produto: "",
-      quantidade: 0,
+      quantidade: undefined,
       unidade: "kg",
-      preco_unitario: 0,
+      preco_unitario: undefined,
+      valor: undefined,
       cliente: "",
       observacoes: "",
     },
   });
 
+  const tipoReceita = form.watch("tipo_receita");
+  const isVenda = tipoReceita === "venda";
+
   const selectedAreaId = form.watch("area_id");
   const filteredCycles = cycles.filter(c => c.area_id === selectedAreaId);
-  
-  const quantidade = form.watch("quantidade");
-  const precoUnitario = form.watch("preco_unitario");
-  const valorTotal = quantidade * precoUnitario;
+
+  const quantidade = form.watch("quantidade") || 0;
+  const precoUnitario = form.watch("preco_unitario") || 0;
+  const valorDireto = form.watch("valor") || 0;
+  const valorTotal = isVenda ? Number(quantidade) * Number(precoUnitario) : Number(valorDireto);
 
   useEffect(() => {
     if (revenue) {
+      const tipo = ((revenue as any).tipo_receita || "venda") as RevenueFormData["tipo_receita"];
       form.reset({
-        area_id: revenue.area_id,
+        tipo_receita: tipo,
+        area_id: revenue.area_id || "",
         cycle_id: revenue.cycle_id || "",
         data: revenue.data,
-        produto: revenue.produto,
-        quantidade: Number(revenue.quantidade),
-        unidade: revenue.unidade,
-        preco_unitario: Number(revenue.preco_unitario),
+        produto: revenue.produto || "",
+        quantidade: revenue.quantidade ? Number(revenue.quantidade) : undefined,
+        unidade: (revenue.unidade as any) || "kg",
+        preco_unitario: revenue.preco_unitario ? Number(revenue.preco_unitario) : undefined,
+        valor: tipo !== "venda" && revenue.valor_total ? Number(revenue.valor_total) : undefined,
         cliente: revenue.cliente || "",
         observacoes: revenue.observacoes || "",
       });
     } else {
       form.reset({
+        tipo_receita: "venda",
         area_id: "",
         cycle_id: "",
         data: new Date().toISOString().split('T')[0],
         produto: "",
-        quantidade: 0,
+        quantidade: undefined,
         unidade: "kg",
-        preco_unitario: 0,
+        preco_unitario: undefined,
+        valor: undefined,
         cliente: "",
         observacoes: "",
       });
@@ -96,170 +125,223 @@ export function RevenueForm({ open, onOpenChange, revenue, areas, cycles, onSubm
   }, [revenue, form]);
 
   const handleSubmit = (data: RevenueFormData) => {
-    onSubmit({
-      area_id: data.area_id,
-      cycle_id: data.cycle_id || null,
-      data: data.data,
-      produto: data.produto,
-      quantidade: data.quantidade,
-      unidade: data.unidade,
-      preco_unitario: data.preco_unitario,
-      cliente: data.cliente || null,
-      observacoes: data.observacoes || null,
-    });
+    if (data.tipo_receita === "venda") {
+      onSubmit({
+        tipo_receita: "venda",
+        area_id: data.area_id!,
+        cycle_id: data.cycle_id || null,
+        data: data.data,
+        produto: data.produto!,
+        quantidade: Number(data.quantidade),
+        unidade: data.unidade as any,
+        preco_unitario: Number(data.preco_unitario),
+        cliente: data.cliente || null,
+        observacoes: data.observacoes || null,
+      } as any);
+    } else {
+      onSubmit({
+        tipo_receita: data.tipo_receita,
+        area_id: null,
+        cycle_id: null,
+        data: data.data,
+        produto: null as any,
+        quantidade: null as any,
+        unidade: null as any,
+        preco_unitario: null as any,
+        valor_total: Number(data.valor),
+        cliente: data.cliente || null,
+        observacoes: data.observacoes || null,
+      } as any);
+    }
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
+
+  const tipoSelected = tipoOptions.find(t => t.value === tipoReceita);
+  const clienteLabel = isVenda ? "Cliente" : tipoReceita === "aporte_socio" ? "Sócio" : tipoReceita === "emprestimo_bancario" ? "Banco / Origem" : "Origem";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{revenue ? "Editar Receita" : "Nova Receita"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="area_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Área *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+            <FormField
+              control={form.control}
+              name="tipo_receita"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de receita *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {tipoOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {tipoSelected && (
+                    <p className="text-xs text-muted-foreground mt-1">{tipoSelected.desc}</p>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="data"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Data *</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {isVenda ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="area_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Área *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {areas.map((area) => (
+                              <SelectItem key={area.id} value={area.id}>{area.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="cycle_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ciclo</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Opcional" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {filteredCycles.map((cycle) => (
+                              <SelectItem key={cycle.id} value={cycle.id}>{cycle.cultura}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="produto"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Produto *</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
+                        <Input placeholder="Ex: Café, Eucalipto" {...field} value={field.value || ""} />
                       </FormControl>
-                      <SelectContent>
-                        {areas.map((area) => (
-                          <SelectItem key={area.id} value={area.id}>
-                            {area.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="quantidade"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantidade *</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" min="0" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="unidade"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unidade *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || "kg"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {unidadeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="preco_unitario"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preço Unit. (R$) *</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" min="0" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            ) : (
               <FormField
                 control={form.control}
-                name="cycle_id"
+                name="valor"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ciclo</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Opcional" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {filteredCycles.map((cycle) => (
-                          <SelectItem key={cycle.id} value={cycle.id}>
-                            {cycle.cultura}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="data"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data *</FormLabel>
+                    <FormLabel>Valor (R$) *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="number" step="0.01" min="0" placeholder="0,00" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="produto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Produto *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Café, Eucalipto" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="quantidade"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantidade *</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" min="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="unidade"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unidade *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {unidadeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="preco_unitario"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preço Unit. (R$) *</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" min="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            )}
 
             <div className="rounded-lg bg-muted p-3 text-center">
               <p className="text-sm text-muted-foreground">Valor Total</p>
@@ -271,9 +353,13 @@ export function RevenueForm({ open, onOpenChange, revenue, areas, cycles, onSubm
               name="cliente"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
+                  <FormLabel>{clienteLabel}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nome do comprador" {...field} value={field.value || ""} />
+                    <Input
+                      placeholder={isVenda ? "Nome do comprador" : tipoReceita === "aporte_socio" ? "Nome do sócio" : tipoReceita === "emprestimo_bancario" ? "Ex: Banco do Brasil" : "Origem da receita"}
+                      {...field}
+                      value={field.value || ""}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -287,11 +373,7 @@ export function RevenueForm({ open, onOpenChange, revenue, areas, cycles, onSubm
                 <FormItem>
                   <FormLabel>Observações</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Notas adicionais..." 
-                      {...field} 
-                      value={field.value || ""}
-                    />
+                    <Textarea placeholder="Notas adicionais..." {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
