@@ -48,6 +48,8 @@ interface Props {
   transactions: CashTransaction[];
   areas: AreaOption[];
   onDelete: (id: string) => void;
+  onEdit?: (t: CashTransaction) => void;
+  onBulkEdit?: (ids: string[]) => void;
 }
 
 type SortKey = "data" | "valor" | "categoria" | "tipo" | "area" | "contato";
