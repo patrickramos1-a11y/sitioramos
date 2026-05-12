@@ -236,37 +236,37 @@ export default function Caixa() {
   };
 
   const clearFilters = () => {
-    setFilters({});
+    setAnalyticsFilters({});
     const newParams = new URLSearchParams();
-    if (activeTab !== "todos") {
-      newParams.set("tab", activeTab);
-    }
+    if (mainView !== "visao_geral") newParams.set("view", mainView);
+    if (activeTab !== "todos") newParams.set("tab", activeTab);
     setSearchParams(newParams);
   };
 
   // Sync URL params with filters
   useEffect(() => {
-    if (areaFromUrl && areaFromUrl !== filters.areaId) {
-      setFilters(f => ({ ...f, areaId: areaFromUrl }));
+    if (areaFromUrl && areaFromUrl !== analyticsFilters.areaId) {
+      setAnalyticsFilters(f => ({ ...f, areaId: areaFromUrl }));
     }
   }, [areaFromUrl]);
 
-  const selectedArea = filters.areaId ? areas.find(a => a.id === filters.areaId) : null;
+  const selectedArea = analyticsFilters.areaId ? areas.find(a => a.id === analyticsFilters.areaId) : null;
 
   const availableCycles = formData.area_id
     ? cycles.filter(c => c.area_id === formData.area_id)
     : cycles;
 
-  // Filter data based on selected area
-  const filteredCosts = filters.areaId 
-    ? costs.filter((c: any) => c.area_id === filters.areaId)
-    : costs;
-  const filteredInvestments = filters.areaId
-    ? investments.filter((i: any) => i.area_id === filters.areaId)
-    : investments;
-  const filteredRevenues = filters.areaId
-    ? revenues.filter((r: any) => r.area_id === filters.areaId)
-    : revenues;
+  // Filter source-table data using analyticsFilters (area + cycle + date range)
+  const matchesSource = (item: any) => {
+    if (analyticsFilters.areaId && item.area_id !== analyticsFilters.areaId) return false;
+    if (analyticsFilters.cycleId && item.cycle_id !== analyticsFilters.cycleId) return false;
+    if (analyticsFilters.startDate && item.data < analyticsFilters.startDate) return false;
+    if (analyticsFilters.endDate && item.data > analyticsFilters.endDate) return false;
+    return true;
+  };
+  const filteredCosts = costs.filter(matchesSource);
+  const filteredInvestments = investments.filter(matchesSource);
+  const filteredRevenues = revenues.filter(matchesSource);
 
   const totalCosts = filteredCosts.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
   const totalInvestments = filteredInvestments.reduce((sum: number, i: any) => sum + Number(i.valor), 0);
