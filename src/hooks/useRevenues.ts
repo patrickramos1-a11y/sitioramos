@@ -105,9 +105,12 @@ export function useRevenues() {
         .eq("id", id)
         .single();
 
+      const tipoReceita = (updates as any).tipo_receita || (oldRev as any)?.tipo_receita || "venda";
       const quantidade = updates.quantidade ?? oldRev?.quantidade ?? 0;
       const precoUnitario = updates.preco_unitario ?? oldRev?.preco_unitario ?? 0;
-      const valorTotal = Number(quantidade) * Number(precoUnitario);
+      const valorTotal = tipoReceita === "venda"
+        ? Number(quantidade) * Number(precoUnitario)
+        : Number((updates as any).valor_total ?? (oldRev as any)?.valor_total ?? 0);
 
       const { data, error } = await supabase
         .from("revenues")
@@ -121,16 +124,31 @@ export function useRevenues() {
       
       if (error) throw error;
 
+      const categoriaMap: Record<string, string> = {
+        venda: "receita_venda",
+        aporte_socio: "receita_aporte_socio",
+        emprestimo_bancario: "receita_emprestimo_bancario",
+        outra: "receita_outra",
+      };
+      const produto = updates.produto || oldRev?.produto;
+      const cliente = updates.cliente || oldRev?.cliente;
+      const descMap: Record<string, string> = {
+        venda: `Venda: ${produto || ""}${cliente ? ` - ${cliente}` : ""}`,
+        aporte_socio: `Aporte de sócio${cliente ? `: ${cliente}` : ""}`,
+        emprestimo_bancario: `Entrada bancária${cliente ? `: ${cliente}` : ""}`,
+        outra: `Outra receita${cliente ? `: ${cliente}` : ""}`,
+      };
+
       // Update the related cash transaction
       await supabase.from("cash_transactions").delete().eq("revenue_id", id);
       await supabase.from("cash_transactions").insert({
         data: updates.data || oldRev?.data,
         tipo: "entrada",
-        categoria: "receita_venda",
+        categoria: categoriaMap[tipoReceita] || "receita_outra",
         valor: valorTotal,
-        descricao: `Venda: ${updates.produto || oldRev?.produto}${(updates.cliente || oldRev?.cliente) ? ` - ${updates.cliente || oldRev?.cliente}` : ""}`,
+        descricao: descMap[tipoReceita] || "Receita",
         revenue_id: id,
-        area_id: updates.area_id || oldRev?.area_id,
+        area_id: updates.area_id || oldRev?.area_id || null,
         cycle_id: updates.cycle_id || oldRev?.cycle_id || null,
       });
 
