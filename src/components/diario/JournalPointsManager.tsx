@@ -459,6 +459,8 @@ export function JournalPointsManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
+      )}
     </div>
   );
 }
