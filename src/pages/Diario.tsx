@@ -59,6 +59,23 @@ import { DiarioCockpit } from "@/components/diario/desktop/DiarioCockpit";
 
 const NONE = "__none__";
 
+function firstGeometryCoord(geos: DraftDiaryGeometry[]): { lat: number; lng: number } | null {
+  for (const g of geos) {
+    const gj = g.geojson;
+    if (!gj) continue;
+    if (gj.type === "Point" && Array.isArray(gj.coordinates)) {
+      return { lng: gj.coordinates[0], lat: gj.coordinates[1] };
+    }
+    if (gj.type === "LineString" && Array.isArray(gj.coordinates?.[0])) {
+      return { lng: gj.coordinates[0][0], lat: gj.coordinates[0][1] };
+    }
+    if (gj.type === "Polygon" && Array.isArray(gj.coordinates?.[0]?.[0])) {
+      return { lng: gj.coordinates[0][0][0], lat: gj.coordinates[0][0][1] };
+    }
+  }
+  return null;
+}
+
 const TIPOS = [
   { value: "observacao", label: "Registro geral" },
   { value: "plantio", label: "Plantio" },
