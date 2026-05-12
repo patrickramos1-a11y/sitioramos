@@ -40,9 +40,22 @@ import {
   type KmlEntryMeta,
 } from "@/lib/kmlExport";
 
+export interface DraftDiaryGeometry {
+  id: string;
+  geometry_type: GeometryType;
+  name: string | null;
+  description: string | null;
+  geojson: any;
+  area_m2: number | null;
+  length_m: number | null;
+  ordem: number;
+}
+
 interface Props {
-  entryId: string;
+  entryId?: string;
   entryMeta?: KmlEntryMeta;
+  draftGeometries?: DraftDiaryGeometry[];
+  onDraftGeometriesChange?: (g: DraftDiaryGeometry[]) => void;
 }
 
 const MODES: { value: GeometryType; label: string; icon: typeof MapPin }[] = [
@@ -51,8 +64,59 @@ const MODES: { value: GeometryType; label: string; icon: typeof MapPin }[] = [
   { value: "polygon", label: "Polígono", icon: Hexagon },
 ];
 
-export function DiaryGeometryManager({ entryId, entryMeta }: Props) {
-  const { data: geometries = [], add, update, remove } = useDiaryGeometries(entryId);
+export function DiaryGeometryManager({
+  entryId,
+  entryMeta,
+  draftGeometries,
+  onDraftGeometriesChange,
+}: Props) {
+  const isDraft = !entryId;
+  const remote = useDiaryGeometries(entryId);
+
+  const geometries: (DiaryGeometry | (DraftDiaryGeometry & { entry_id: string; responsavel_id: null; created_at: string; updated_at: string }))[] = isDraft
+    ? (draftGeometries || []).map((d) => ({
+        ...d,
+        entry_id: "",
+        responsavel_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }))
+    : remote.data || [];
+
+  const addGeometry = async (g: Omit<DraftDiaryGeometry, "id">) => {
+    if (isDraft) {
+      const newOne: DraftDiaryGeometry = { ...g, id: crypto.randomUUID() };
+      onDraftGeometriesChange?.([...(draftGeometries || []), newOne]);
+      return;
+    }
+    await remote.add.mutateAsync({
+      entry_id: entryId!,
+      geometry_type: g.geometry_type,
+      name: g.name,
+      description: g.description,
+      geojson: g.geojson,
+      area_m2: g.area_m2,
+      length_m: g.length_m,
+      responsavel_id: null,
+      ordem: g.ordem,
+    });
+  };
+
+  const updateGeometry = async (id: string, patch: Partial<DraftDiaryGeometry>) => {
+    if (isDraft) {
+      onDraftGeometriesChange?.((draftGeometries || []).map((d) => (d.id === id ? { ...d, ...patch } : d)));
+      return;
+    }
+    await remote.update.mutateAsync({ id, ...patch } as any);
+  };
+
+  const removeGeometry = async (id: string) => {
+    if (isDraft) {
+      onDraftGeometriesChange?.((draftGeometries || []).filter((d) => d.id !== id));
+      return;
+    }
+    await remote.remove.mutateAsync(id);
+  };
 
   const [mode, setMode] = useState<GeometryType>("point");
   const [draft, setDraft] = useState<DraftVertex[]>([]);
