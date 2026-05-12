@@ -1,22 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Polyline,
-  Polygon,
-  Popup,
-  CircleMarker,
-  useMap,
-} from "react-leaflet";
-import type { DiaryGeometry } from "@/hooks/useDiaryGeometries";
-
-// Fix default marker icons (vite + leaflet)
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
+import type { DiaryGeometry } from "@/hooks/useDiaryGeometries";
 
 const DefaultIcon = L.icon({
   iconUrl,
@@ -42,16 +30,6 @@ interface Props {
   className?: string;
 }
 
-function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (bounds && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 18 });
-    }
-  }, [bounds, map]);
-  return null;
-}
-
 const LAYERS = {
   osm: {
     label: "Mapa",
@@ -65,30 +43,126 @@ const LAYERS = {
   },
 } as const;
 
-export function DiaryMapView({ geometries, draft, height = 360, className }: Props) {
+export function DiaryMapView({ geometries, draft, height = 320, className }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const tileRef = useRef<L.TileLayer | null>(null);
+  const layerGroupRef = useRef<L.LayerGroup | null>(null);
   const [layer, setLayer] = useState<keyof typeof LAYERS>("osm");
 
-  const { bounds, fallbackCenter } = useMemo(() => {
-    const pts: [number, number][] = [];
+  // Init map once
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [-15.78, -47.93],
+      zoom: 15,
+      scrollWheelZoom: true,
+    });
+    const cfg = LAYERS.osm;
+    tileRef.current = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(map);
+    layerGroupRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+    // Ensure proper sizing after mount/animations
+    setTimeout(() => map.invalidateSize(), 50);
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      tileRef.current = null;
+      layerGroupRef.current = null;
+    };
+  }, []);
+
+  // Switch layer
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (tileRef.current) tileRef.current.remove();
+    const cfg = LAYERS[layer];
+    tileRef.current = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(
+      mapRef.current,
+    );
+  }, [layer]);
+
+  // Re-render geometries
+  const dataKey = useMemo(
+    () =>
+      JSON.stringify({
+        g: geometries.map((g) => [g.id, g.geometry_type, g.geojson]),
+        d: draft,
+      }),
+    [geometries, draft],
+  );
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const group = layerGroupRef.current;
+    if (!map || !group) return;
+    group.clearLayers();
+    const allPts: L.LatLngExpression[] = [];
+
     geometries.forEach((g) => {
       if (g.geometry_type === "point" && g.geojson?.coordinates) {
         const [lng, lat] = g.geojson.coordinates;
-        pts.push([lat, lng]);
-      } else if (
-        (g.geometry_type === "line" || g.geometry_type === "polygon") &&
-        Array.isArray(g.geojson?.coordinates)
-      ) {
-        const coords =
-          g.geometry_type === "polygon" ? g.geojson.coordinates[0] : g.geojson.coordinates;
-        coords?.forEach(([lng, lat]: number[]) => pts.push([lat, lng]));
+        L.marker([lat, lng])
+          .bindPopup(
+            `<div style="font-size:12px"><b>${g.name || "Ponto"}</b><br/><span style="font-family:monospace">${lat.toFixed(6)}, ${lng.toFixed(6)}</span></div>`,
+          )
+          .addTo(group);
+        allPts.push([lat, lng]);
+      } else if (g.geometry_type === "line" && Array.isArray(g.geojson?.coordinates)) {
+        const positions = g.geojson.coordinates.map(([lng, lat]: number[]) => [lat, lng]) as [number, number][];
+        L.polyline(positions, { color: "#15803d", weight: 4 })
+          .bindPopup(
+            `<div style="font-size:12px"><b>${g.name || "Linha"}</b>${g.length_m != null ? `<br/>${Math.round(g.length_m)} m` : ""}</div>`,
+          )
+          .addTo(group);
+        positions.forEach((p) => allPts.push(p));
+      } else if (g.geometry_type === "polygon" && Array.isArray(g.geojson?.coordinates?.[0])) {
+        const positions = g.geojson.coordinates[0].map(([lng, lat]: number[]) => [lat, lng]) as [number, number][];
+        L.polygon(positions, {
+          color: "#166534",
+          weight: 2,
+          fillColor: "#22c55e",
+          fillOpacity: 0.25,
+        })
+          .bindPopup(
+            `<div style="font-size:12px"><b>${g.name || "Polígono"}</b>${g.area_m2 != null ? `<br/>${Math.round(g.area_m2)} m² (${(g.area_m2 / 10000).toFixed(3)} ha)` : ""}</div>`,
+          )
+          .addTo(group);
+        positions.forEach((p) => allPts.push(p));
       }
     });
-    draft?.vertices.forEach((v) => pts.push([v.lat, v.lng]));
-    if (!pts.length) return { bounds: null, fallbackCenter: [-15.78, -47.93] as [number, number] };
-    return { bounds: L.latLngBounds(pts), fallbackCenter: pts[0] };
-  }, [geometries, draft]);
 
-  const cfg = LAYERS[layer];
+    if (draft && draft.vertices.length > 0) {
+      const positions = draft.vertices.map((v) => [v.lat, v.lng]) as [number, number][];
+      if ((draft.mode === "polygon" || draft.mode === "line") && positions.length >= 2) {
+        L.polyline(positions, { color: "#f59e0b", weight: 3, dashArray: "6 6" }).addTo(group);
+      }
+      draft.vertices.forEach((v) => {
+        L.circleMarker([v.lat, v.lng], {
+          radius: 6,
+          color: "#b45309",
+          fillColor: "#fbbf24",
+          fillOpacity: 1,
+          weight: 2,
+        })
+          .bindPopup(`P${v.number}`)
+          .addTo(group);
+        allPts.push([v.lat, v.lng]);
+      });
+    }
+
+    if (allPts.length) {
+      const bounds = L.latLngBounds(allPts);
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 18 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey]);
+
+  // Recalculate size when height changes (collapse/expand)
+  useEffect(() => {
+    const id = setTimeout(() => mapRef.current?.invalidateSize(), 60);
+    return () => clearTimeout(id);
+  }, [height]);
 
   return (
     <div className={className} style={{ position: "relative" }}>
@@ -109,101 +183,11 @@ export function DiaryMapView({ geometries, draft, height = 360, className }: Pro
           </button>
         ))}
       </div>
-      <MapContainer
-        center={fallbackCenter}
-        zoom={15}
+      <div
+        ref={containerRef}
         style={{ height, width: "100%", borderRadius: 8 }}
-        scrollWheelZoom
-      >
-        <TileLayer key={layer} url={cfg.url} attribution={cfg.attribution} maxZoom={19} />
-        <FitBounds bounds={bounds} />
-
-        {geometries.map((g) => {
-          if (g.geometry_type === "point" && g.geojson?.coordinates) {
-            const [lng, lat] = g.geojson.coordinates;
-            return (
-              <Marker key={g.id} position={[lat, lng]}>
-                <Popup>
-                  <div className="text-xs space-y-0.5">
-                    <div className="font-semibold">{g.name || "Ponto"}</div>
-                    {g.description && <div>{g.description}</div>}
-                    <div className="text-muted-foreground font-mono">
-                      {lat.toFixed(6)}, {lng.toFixed(6)}
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          }
-          if (g.geometry_type === "line" && Array.isArray(g.geojson?.coordinates)) {
-            const positions = g.geojson.coordinates.map(([lng, lat]: number[]) => [lat, lng]) as [number, number][];
-            return (
-              <Polyline key={g.id} positions={positions} pathOptions={{ color: "#15803d", weight: 4 }}>
-                <Popup>
-                  <div className="text-xs">
-                    <div className="font-semibold">{g.name || "Linha"}</div>
-                    {g.description && <div>{g.description}</div>}
-                    {g.length_m != null && <div>{Math.round(g.length_m)} m</div>}
-                  </div>
-                </Popup>
-              </Polyline>
-            );
-          }
-          if (g.geometry_type === "polygon" && Array.isArray(g.geojson?.coordinates?.[0])) {
-            const positions = g.geojson.coordinates[0].map(([lng, lat]: number[]) => [lat, lng]) as [number, number][];
-            return (
-              <Polygon
-                key={g.id}
-                positions={positions}
-                pathOptions={{ color: "#166534", weight: 2, fillColor: "#22c55e", fillOpacity: 0.25 }}
-              >
-                <Popup>
-                  <div className="text-xs space-y-0.5">
-                    <div className="font-semibold">{g.name || "Polígono"}</div>
-                    {g.description && <div>{g.description}</div>}
-                    {g.area_m2 != null && (
-                      <div>
-                        {Math.round(g.area_m2)} m² ({(g.area_m2 / 10000).toFixed(3)} ha)
-                      </div>
-                    )}
-                  </div>
-                </Popup>
-                {positions.map((p, i) => (
-                  <CircleMarker
-                    key={i}
-                    center={p}
-                    radius={4}
-                    pathOptions={{ color: "#166534", fillColor: "#fff", fillOpacity: 1, weight: 2 }}
-                  />
-                ))}
-              </Polygon>
-            );
-          }
-          return null;
-        })}
-
-        {/* Rascunho em construção */}
-        {draft && draft.vertices.length > 0 && (
-          <>
-            {(draft.mode === "polygon" || draft.mode === "line") && draft.vertices.length >= 2 && (
-              <Polyline
-                positions={draft.vertices.map((v) => [v.lat, v.lng] as [number, number])}
-                pathOptions={{ color: "#f59e0b", weight: 3, dashArray: "6 6" }}
-              />
-            )}
-            {draft.vertices.map((v) => (
-              <CircleMarker
-                key={v.number}
-                center={[v.lat, v.lng]}
-                radius={6}
-                pathOptions={{ color: "#b45309", fillColor: "#fbbf24", fillOpacity: 1, weight: 2 }}
-              >
-                <Popup>P{v.number}</Popup>
-              </CircleMarker>
-            ))}
-          </>
-        )}
-      </MapContainer>
+        className="border border-border"
+      />
     </div>
   );
 }
