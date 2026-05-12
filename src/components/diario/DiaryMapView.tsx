@@ -185,15 +185,9 @@ export function DiaryMapView({ geometries, draft, height = 360, className }: Pro
         {/* Rascunho em construção */}
         {draft && draft.vertices.length > 0 && (
           <>
-            {draft.mode === "polygon" && draft.vertices.length >= 2 && (
+            {(draft.mode === "polygon" || draft.mode === "line") && draft.vertices.length >= 2 && (
               <Polyline
-                positions={draft.vertices.map((v) => [v.lat, v.lng])}
-                pathOptions={{ color: "#f59e0b", weight: 3, dashArray: "6 6" }}
-              />
-            )}
-            {draft.mode === "line" && draft.vertices.length >= 2 && (
-              <Polyline
-                positions={draft.vertices.map((v) => [v.lat, v.lng])}
+                positions={draft.vertices.map((v) => [v.lat, v.lng] as [number, number])}
                 pathOptions={{ color: "#f59e0b", weight: 3, dashArray: "6 6" }}
               />
             )}
