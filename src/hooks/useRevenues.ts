@@ -26,8 +26,11 @@ export function useRevenues() {
 
   const createRevenue = useMutation({
     mutationFn: async (newRevenue: RevenueInsert) => {
-      const valorTotal = Number(newRevenue.quantidade) * Number(newRevenue.preco_unitario);
-      
+      const tipoReceita = (newRevenue as any).tipo_receita || "venda";
+      const valorTotal = tipoReceita === "venda"
+        ? Number(newRevenue.quantidade) * Number(newRevenue.preco_unitario)
+        : Number((newRevenue as any).valor_total || 0);
+
       // 1. Create the revenue record
       const { data: revData, error: revError } = await supabase
         .from("revenues")
@@ -40,17 +43,30 @@ export function useRevenues() {
       
       if (revError) throw revError;
 
+      const categoriaMap: Record<string, string> = {
+        venda: "receita_venda",
+        aporte_socio: "receita_aporte_socio",
+        emprestimo_bancario: "receita_emprestimo_bancario",
+        outra: "receita_outra",
+      };
+      const descMap: Record<string, string> = {
+        venda: `Venda: ${newRevenue.produto || ""}${newRevenue.cliente ? ` - ${newRevenue.cliente}` : ""}`,
+        aporte_socio: `Aporte de sócio${newRevenue.cliente ? `: ${newRevenue.cliente}` : ""}`,
+        emprestimo_bancario: `Entrada bancária${newRevenue.cliente ? `: ${newRevenue.cliente}` : ""}`,
+        outra: `Outra receita${newRevenue.cliente ? `: ${newRevenue.cliente}` : ""}`,
+      };
+
       // 2. Create a cash transaction (entry) for the revenue
       const { error: txError } = await supabase
         .from("cash_transactions")
         .insert({
           data: newRevenue.data,
           tipo: "entrada",
-          categoria: "receita_venda",
+          categoria: categoriaMap[tipoReceita] || "receita_outra",
           valor: valorTotal,
-          descricao: `Venda: ${newRevenue.produto}${newRevenue.cliente ? ` - ${newRevenue.cliente}` : ""}`,
+          descricao: descMap[tipoReceita] || "Receita",
           revenue_id: revData.id,
-          area_id: newRevenue.area_id,
+          area_id: newRevenue.area_id || null,
           cycle_id: newRevenue.cycle_id || null,
         });
       
