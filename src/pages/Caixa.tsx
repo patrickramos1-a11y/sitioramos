@@ -989,6 +989,8 @@ export default function Caixa() {
               </CardContent>
             </Card>
           </TabsContent>
+            </Tabs>
+          </TabsContent>
         </Tabs>
       </div>
 
