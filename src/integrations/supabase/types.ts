@@ -1280,7 +1280,7 @@ export type Database = {
       }
       revenues: {
         Row: {
-          area_id: string
+          area_id: string | null
           cliente: string | null
           contato_id: string | null
           created_at: string
@@ -1288,17 +1288,18 @@ export type Database = {
           data: string
           id: string
           observacoes: string | null
-          preco_unitario: number
-          produto: string
-          quantidade: number
+          preco_unitario: number | null
+          produto: string | null
+          quantidade: number | null
           responsavel_id: string | null
           talhao_id: string | null
-          unidade: Database["public"]["Enums"]["unit_type"]
+          tipo_receita: string
+          unidade: Database["public"]["Enums"]["unit_type"] | null
           updated_at: string
           valor_total: number | null
         }
         Insert: {
-          area_id: string
+          area_id?: string | null
           cliente?: string | null
           contato_id?: string | null
           created_at?: string
@@ -1306,17 +1307,18 @@ export type Database = {
           data: string
           id?: string
           observacoes?: string | null
-          preco_unitario: number
-          produto: string
-          quantidade: number
+          preco_unitario?: number | null
+          produto?: string | null
+          quantidade?: number | null
           responsavel_id?: string | null
           talhao_id?: string | null
-          unidade?: Database["public"]["Enums"]["unit_type"]
+          tipo_receita?: string
+          unidade?: Database["public"]["Enums"]["unit_type"] | null
           updated_at?: string
           valor_total?: number | null
         }
         Update: {
-          area_id?: string
+          area_id?: string | null
           cliente?: string | null
           contato_id?: string | null
           created_at?: string
@@ -1324,12 +1326,13 @@ export type Database = {
           data?: string
           id?: string
           observacoes?: string | null
-          preco_unitario?: number
-          produto?: string
-          quantidade?: number
+          preco_unitario?: number | null
+          produto?: string | null
+          quantidade?: number | null
           responsavel_id?: string | null
           talhao_id?: string | null
-          unidade?: Database["public"]["Enums"]["unit_type"]
+          tipo_receita?: string
+          unidade?: Database["public"]["Enums"]["unit_type"] | null
           updated_at?: string
           valor_total?: number | null
         }
