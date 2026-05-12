@@ -760,7 +760,18 @@ export default function Caixa() {
                     {/* Mobile list */}
                     <ul className="md:hidden divide-y -mx-6 -mb-6">
                       {filteredRevenues.map((revenue: any) => {
-                        const total = Number(revenue.quantidade) * Number(revenue.preco_unitario);
+                        const tipo = revenue.tipo_receita || "venda";
+                        const isVenda = tipo === "venda";
+                        const total = isVenda
+                          ? Number(revenue.quantidade || 0) * Number(revenue.preco_unitario || 0)
+                          : Number(revenue.valor_total || 0);
+                        const tipoLabel: Record<string, { icon: string; title: string }> = {
+                          venda: { icon: "🌱", title: revenue.produto || "Venda" },
+                          aporte_socio: { icon: "👤", title: "Aporte de sócio" },
+                          emprestimo_bancario: { icon: "🏦", title: "Entrada bancária" },
+                          outra: { icon: "💰", title: "Outra receita" },
+                        };
+                        const meta = tipoLabel[tipo] || tipoLabel.outra;
                         return (
                           <li key={revenue.id} className="p-3 flex gap-3 active:bg-muted/40">
                             <div className="rounded-xl p-2.5 h-fit bg-success/10">
@@ -769,10 +780,12 @@ export default function Caixa() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate">🌱 {revenue.produto}</p>
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {Number(revenue.quantidade).toLocaleString("pt-BR")} {unidadeLabels[revenue.unidade]} × {formatCurrency(Number(revenue.preco_unitario))}
-                                  </p>
+                                  <p className="font-medium text-sm truncate">{meta.icon} {meta.title}</p>
+                                  {isVenda && revenue.quantidade ? (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {Number(revenue.quantidade).toLocaleString("pt-BR")} {unidadeLabels[revenue.unidade]} × {formatCurrency(Number(revenue.preco_unitario))}
+                                    </p>
+                                  ) : null}
                                 </div>
                                 <div className="text-sm font-semibold whitespace-nowrap text-success">
                                   +{formatCurrency(total)}
@@ -810,31 +823,44 @@ export default function Caixa() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Data</TableHead>
-                        <TableHead>Produto</TableHead>
+                        <TableHead>Tipo / Produto</TableHead>
                         <TableHead>Área</TableHead>
                         <TableHead>Quantidade</TableHead>
                         <TableHead>Preço Unit.</TableHead>
-                        <TableHead>Cliente</TableHead>
+                        <TableHead>Cliente / Origem</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredRevenues.map((revenue: any) => {
-                        const total = Number(revenue.quantidade) * Number(revenue.preco_unitario);
+                        const tipo = revenue.tipo_receita || "venda";
+                        const isVenda = tipo === "venda";
+                        const total = isVenda
+                          ? Number(revenue.quantidade || 0) * Number(revenue.preco_unitario || 0)
+                          : Number(revenue.valor_total || 0);
+                        const tipoLabel: Record<string, { icon: string; title: string }> = {
+                          venda: { icon: "🌱", title: revenue.produto || "Venda" },
+                          aporte_socio: { icon: "👤", title: "Aporte de sócio" },
+                          emprestimo_bancario: { icon: "🏦", title: "Entrada bancária" },
+                          outra: { icon: "💰", title: "Outra receita" },
+                        };
+                        const meta = tipoLabel[tipo] || tipoLabel.outra;
                         return (
                           <TableRow key={revenue.id}>
                             <TableCell>{format(new Date(revenue.data), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                                🌱 {revenue.produto}
+                                {meta.icon} {meta.title}
                               </Badge>
                             </TableCell>
-                            <TableCell>{revenue.areas?.nome}</TableCell>
+                            <TableCell>{revenue.areas?.nome || "-"}</TableCell>
                             <TableCell>
-                              {Number(revenue.quantidade).toLocaleString("pt-BR")} {unidadeLabels[revenue.unidade]}
+                              {isVenda && revenue.quantidade
+                                ? `${Number(revenue.quantidade).toLocaleString("pt-BR")} ${unidadeLabels[revenue.unidade]}`
+                                : "-"}
                             </TableCell>
-                            <TableCell>{formatCurrency(Number(revenue.preco_unitario))}</TableCell>
+                            <TableCell>{isVenda && revenue.preco_unitario ? formatCurrency(Number(revenue.preco_unitario)) : "-"}</TableCell>
                             <TableCell className="max-w-[120px] truncate">{revenue.cliente || "-"}</TableCell>
                             <TableCell className="text-right font-medium text-success">
                               +{formatCurrency(total)}
