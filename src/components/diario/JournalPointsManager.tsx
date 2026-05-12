@@ -34,6 +34,8 @@ import {
   type DraftPoint,
 } from "@/hooks/useJournalPoints";
 import { exportEntryKml, type KmlEntryMeta } from "@/lib/kmlExport";
+import { GpsCaptureDialog, type CapturedGpsPoint } from "@/components/diario/GpsCaptureDialog";
+import { QUALITY_LABEL, QUALITY_COLOR, type PrecisionQuality } from "@/hooks/useGpsCapture";
 
 interface Props {
   /** Modo persistido: id do registro existente */
@@ -75,7 +77,7 @@ export function JournalPointsManager({
       }))
     : remoteHook.data || [];
 
-  const [locating, setLocating] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [manual, setManual] = useState({ lat: "", lng: "", nome: "", obs: "" });
   const [exporting, setExporting] = useState(false);
@@ -101,52 +103,50 @@ export function JournalPointsManager({
     onDraftChange?.((draftPoints || []).filter((d) => d.tempId !== tempId));
   };
 
-  const captureCurrent = () => {
+  const handleCaptured = (cp: CapturedGpsPoint) => {
+    const newPoint = {
+      nome: nextName(),
+      observacao: null,
+      latitude: cp.latitude,
+      longitude: cp.longitude,
+      accuracy: cp.accuracy,
+      captured_at: cp.captured_at,
+      ordem: points.length,
+      manual: false,
+      geometry_type: "point" as const,
+      coordinates: null,
+      attachment_id: null,
+      altitude: cp.altitude,
+      altitude_accuracy: cp.altitude_accuracy,
+      heading: cp.heading,
+      speed: cp.speed,
+      capture_duration_seconds: cp.capture_duration_seconds,
+      readings_count: cp.readings_count,
+      best_accuracy: cp.best_accuracy,
+      capture_method: cp.capture_method,
+      precision_quality: cp.precision_quality,
+    };
+    if (isDraft) {
+      addDraft({ ...newPoint, tempId: crypto.randomUUID() });
+      toast.success(`Ponto capturado · ${QUALITY_LABEL[cp.precision_quality]}`);
+    } else if (entryId) {
+      remoteHook.add.mutate(
+        { entry_id: entryId, ...newPoint },
+        {
+          onSuccess: () =>
+            toast.success(`Ponto capturado · ${QUALITY_LABEL[cp.precision_quality]}`),
+        },
+      );
+    }
+  };
+
+  const openCapture = () => {
     if (!("geolocation" in navigator)) {
       toast.error("Geolocalização não suportada — use entrada manual");
       setManualOpen(true);
       return;
     }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        const newPoint = {
-          nome: nextName(),
-          observacao: null,
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          captured_at: new Date().toISOString(),
-          ordem: points.length,
-          manual: false,
-          geometry_type: "point" as const,
-          coordinates: null,
-          attachment_id: null,
-        };
-        if (isDraft) {
-          addDraft({ ...newPoint, tempId: crypto.randomUUID() });
-          toast.success("Ponto capturado");
-        } else if (entryId) {
-          remoteHook.add.mutate(
-            { entry_id: entryId, ...newPoint },
-            { onSuccess: () => toast.success("Ponto capturado") },
-          );
-        }
-      },
-      (err) => {
-        setLocating(false);
-        const msg =
-          err.code === 1
-            ? "Permissão negada — use entrada manual"
-            : err.code === 3
-            ? "Tempo esgotado — use entrada manual"
-            : "Falha ao obter localização";
-        toast.error(msg);
-        setManualOpen(true);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
+    setCaptureOpen(true);
   };
 
   const submitManual = () => {
