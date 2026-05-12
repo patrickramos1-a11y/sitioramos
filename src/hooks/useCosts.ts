@@ -67,14 +67,15 @@ export function useCosts(filters?: CostFilters) {
           .insert({
             data: newCost.data,
             tipo: "saida",
-            categoria: "custo_operacional",
+            categoria: "custo",
+            subcategoria: newCost.tipo as any,
             valor: newCost.valor,
             descricao: newCost.descricao || `Custo: ${newCost.tipo}`,
             cost_id: costData.id,
             area_id: newCost.area_id,
             cycle_id: newCost.cycle_id || null,
             contato_id: (newCost as any).contato_id || null,
-          });
+          } as any);
         
         if (txError) {
           // Rollback the cost if transaction fails
@@ -132,13 +133,14 @@ export function useCosts(filters?: CostFilters) {
           await supabase.from("cash_transactions").insert({
             data: updates.data || oldCost?.data,
             tipo: "saida",
-            categoria: "custo_operacional",
+            categoria: "custo",
+            subcategoria: (updates.tipo || oldCost?.tipo) as any,
             valor: updates.valor || oldCost?.valor,
             descricao: updates.descricao || oldCost?.descricao || `Custo: ${updates.tipo || oldCost?.tipo}`,
             cost_id: id,
             area_id: updates.area_id || oldCost?.area_id,
             cycle_id: updates.cycle_id || oldCost?.cycle_id || null,
-          });
+          } as any);
         }
       }
 

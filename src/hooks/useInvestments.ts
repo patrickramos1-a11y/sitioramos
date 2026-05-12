@@ -42,11 +42,12 @@ export function useInvestments() {
           data: newInvestment.data,
           tipo: "saida",
           categoria: "investimento",
+          subcategoria: newInvestment.tipo as any,
           valor: newInvestment.valor,
           descricao: newInvestment.descricao || `Investimento: ${newInvestment.tipo}`,
           investment_id: invData.id,
           area_id: newInvestment.area_id || null,
-        });
+        } as any);
       
       if (txError) {
         // Rollback the investment if transaction fails
@@ -99,11 +100,12 @@ export function useInvestments() {
         data: updates.data || oldInv?.data,
         tipo: "saida",
         categoria: "investimento",
+        subcategoria: (updates.tipo || oldInv?.tipo) as any,
         valor: updates.valor || oldInv?.valor,
         descricao: updates.descricao || oldInv?.descricao || `Investimento: ${updates.tipo || oldInv?.tipo}`,
         investment_id: id,
         area_id: updates.area_id || oldInv?.area_id || null,
-      });
+      } as any);
 
       return data;
     },
