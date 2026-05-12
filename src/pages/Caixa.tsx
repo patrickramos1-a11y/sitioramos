@@ -66,13 +66,22 @@ const unidadeLabels: Record<string, string> = {
 export default function Caixa() {
   const [searchParams, setSearchParams] = useSearchParams();
   const areaFromUrl = searchParams.get("area");
+  const viewFromUrl = searchParams.get("view") || "visao_geral";
   const tabFromUrl = searchParams.get("tab") || "todos";
-  
-  const [activeTab, setActiveTab] = useState(tabFromUrl);
-  const [filters, setFilters] = useState<CashFilters>(() => ({
+
+  // Backwards-compat: if old `tab` is one of legacy values, force view=lancamentos
+  const legacyTabs = ["todos", "custos", "investimentos", "receitas"];
+  const initialView = legacyTabs.includes(viewFromUrl) ? "lancamentos" : viewFromUrl;
+
+  const [mainView, setMainView] = useState(initialView);
+  const [activeTab, setActiveTab] = useState(legacyTabs.includes(viewFromUrl) ? viewFromUrl : tabFromUrl);
+  // Pull all transactions (analytics filtering is in-memory). Keep server filter only for area URL deep-link.
+  const [filters, setFilters] = useState<CashFilters>(() => ({}));
+  const [analyticsFilters, setAnalyticsFilters] = useState<CashAnalyticsFilters>(() => ({
     areaId: areaFromUrl || undefined,
   }));
   const { transactions, balance, filteredTotals, isLoading, createTransaction, updateTransaction, bulkUpdateTransactions, deleteTransaction } = useCashTransactions(filters);
+  const analytics = useCashAnalytics(transactions, analyticsFilters);
   const { costs, createCost, updateCost, deleteCost } = useCosts();
   const { investments, createInvestment, updateInvestment, deleteInvestment } = useInvestments();
   const { revenues, createRevenue, updateRevenue, deleteRevenue } = useRevenues();
