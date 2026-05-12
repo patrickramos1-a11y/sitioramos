@@ -518,7 +518,7 @@ export default function Caixa() {
               </Card>
             ) : (
               <CashTransactionsTable
-                transactions={transactions}
+                transactions={analytics.filtered}
                 areas={areas}
                 onDelete={(id) => handleDeleteClick(id, "transaction")}
                 onEdit={(t) => setEditingTransaction(t)}
