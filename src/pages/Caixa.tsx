@@ -14,6 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCashTransactions, CashTransactionInsert, CashFilters } from "@/hooks/useCashTransactions";
+import { useCashAnalytics, CashAnalyticsFilters } from "@/hooks/useCashAnalytics";
+import { GlobalFiltersBar } from "@/components/caixa/GlobalFiltersBar";
+import { OverviewTab } from "@/components/caixa/OverviewTab";
+import { ByAreaTab } from "@/components/caixa/ByAreaTab";
+import { ByCycleTab } from "@/components/caixa/ByCycleTab";
+import { BarChart3, MapPin, Sprout } from "lucide-react";
 import { useCosts, Cost, CostInsert } from "@/hooks/useCosts";
 import { useInvestments, Investment, InvestmentInsert } from "@/hooks/useInvestments";
 import { useRevenues, Revenue, RevenueInsert } from "@/hooks/useRevenues";
@@ -60,13 +66,22 @@ const unidadeLabels: Record<string, string> = {
 export default function Caixa() {
   const [searchParams, setSearchParams] = useSearchParams();
   const areaFromUrl = searchParams.get("area");
+  const viewFromUrl = searchParams.get("view") || "visao_geral";
   const tabFromUrl = searchParams.get("tab") || "todos";
-  
-  const [activeTab, setActiveTab] = useState(tabFromUrl);
-  const [filters, setFilters] = useState<CashFilters>(() => ({
+
+  // Backwards-compat: if old `tab` is one of legacy values, force view=lancamentos
+  const legacyTabs = ["todos", "custos", "investimentos", "receitas"];
+  const initialView = legacyTabs.includes(viewFromUrl) ? "lancamentos" : viewFromUrl;
+
+  const [mainView, setMainView] = useState(initialView);
+  const [activeTab, setActiveTab] = useState(legacyTabs.includes(viewFromUrl) ? viewFromUrl : tabFromUrl);
+  // Pull all transactions (analytics filtering is in-memory). Keep server filter only for area URL deep-link.
+  const [filters, setFilters] = useState<CashFilters>(() => ({}));
+  const [analyticsFilters, setAnalyticsFilters] = useState<CashAnalyticsFilters>(() => ({
     areaId: areaFromUrl || undefined,
   }));
   const { transactions, balance, filteredTotals, isLoading, createTransaction, updateTransaction, bulkUpdateTransactions, deleteTransaction } = useCashTransactions(filters);
+  const analytics = useCashAnalytics(transactions, analyticsFilters);
   const { costs, createCost, updateCost, deleteCost } = useCosts();
   const { investments, createInvestment, updateInvestment, deleteInvestment } = useInvestments();
   const { revenues, createRevenue, updateRevenue, deleteRevenue } = useRevenues();
@@ -105,24 +120,32 @@ export default function Caixa() {
   });
 
   const saldoAtual = balance?.saldo_atual || 0;
-  const hasFilters = filters.categoria || filters.areaId || filters.cycleId || filters.tipo;
+  const hasAnalyticsFilters =
+    !!analyticsFilters.startDate || !!analyticsFilters.endDate || !!analyticsFilters.areaId ||
+    !!analyticsFilters.cycleId || !!analyticsFilters.categoria || !!analyticsFilters.subcategoria ||
+    !!analyticsFilters.tipo || !!analyticsFilters.withoutCycle || !!analyticsFilters.withoutArea;
+  const hasFilters = hasAnalyticsFilters;
 
-  // Sync URL params with tab
-  useEffect(() => {
-    if (tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [tabFromUrl]);
+  const handleViewChange = (value: string) => {
+    setMainView(value);
+    const newParams = new URLSearchParams(searchParams);
+    if (value === "visao_geral") newParams.delete("view");
+    else newParams.set("view", value);
+    setSearchParams(newParams);
+  };
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     const newParams = new URLSearchParams(searchParams);
-    if (value === "todos") {
-      newParams.delete("tab");
-    } else {
-      newParams.set("tab", value);
-    }
+    if (value === "todos") newParams.delete("tab");
+    else newParams.set("tab", value);
     setSearchParams(newParams);
+  };
+
+  const goToLancamentosWithFilter = (patch: Partial<CashAnalyticsFilters>) => {
+    setAnalyticsFilters((f) => ({ ...f, ...patch }));
+    handleViewChange("lancamentos");
+    setActiveTab("todos");
   };
 
   // Determine which subtypes to show based on selected category
@@ -213,37 +236,37 @@ export default function Caixa() {
   };
 
   const clearFilters = () => {
-    setFilters({});
+    setAnalyticsFilters({});
     const newParams = new URLSearchParams();
-    if (activeTab !== "todos") {
-      newParams.set("tab", activeTab);
-    }
+    if (mainView !== "visao_geral") newParams.set("view", mainView);
+    if (activeTab !== "todos") newParams.set("tab", activeTab);
     setSearchParams(newParams);
   };
 
   // Sync URL params with filters
   useEffect(() => {
-    if (areaFromUrl && areaFromUrl !== filters.areaId) {
-      setFilters(f => ({ ...f, areaId: areaFromUrl }));
+    if (areaFromUrl && areaFromUrl !== analyticsFilters.areaId) {
+      setAnalyticsFilters(f => ({ ...f, areaId: areaFromUrl }));
     }
   }, [areaFromUrl]);
 
-  const selectedArea = filters.areaId ? areas.find(a => a.id === filters.areaId) : null;
+  const selectedArea = analyticsFilters.areaId ? areas.find(a => a.id === analyticsFilters.areaId) : null;
 
   const availableCycles = formData.area_id
     ? cycles.filter(c => c.area_id === formData.area_id)
     : cycles;
 
-  // Filter data based on selected area
-  const filteredCosts = filters.areaId 
-    ? costs.filter((c: any) => c.area_id === filters.areaId)
-    : costs;
-  const filteredInvestments = filters.areaId
-    ? investments.filter((i: any) => i.area_id === filters.areaId)
-    : investments;
-  const filteredRevenues = filters.areaId
-    ? revenues.filter((r: any) => r.area_id === filters.areaId)
-    : revenues;
+  // Filter source-table data using analyticsFilters (area + cycle + date range)
+  const matchesSource = (item: any) => {
+    if (analyticsFilters.areaId && item.area_id !== analyticsFilters.areaId) return false;
+    if (analyticsFilters.cycleId && item.cycle_id !== analyticsFilters.cycleId) return false;
+    if (analyticsFilters.startDate && item.data < analyticsFilters.startDate) return false;
+    if (analyticsFilters.endDate && item.data > analyticsFilters.endDate) return false;
+    return true;
+  };
+  const filteredCosts = costs.filter(matchesSource);
+  const filteredInvestments = investments.filter(matchesSource);
+  const filteredRevenues = revenues.filter(matchesSource);
 
   const totalCosts = filteredCosts.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
   const totalInvestments = filteredInvestments.reduce((sum: number, i: any) => sum + Number(i.valor), 0);
@@ -370,7 +393,7 @@ export default function Caixa() {
             </CardHeader>
             <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
               <div className="text-base md:text-2xl font-bold text-success leading-tight">
-                {formatCurrency(hasFilters ? filteredTotals.totalEntradas : (balance?.total_entradas || 0))}
+                {formatCurrency(hasFilters ? analytics.totals.entradas : (balance?.total_entradas || 0))}
               </div>
             </CardContent>
           </Card>
@@ -384,48 +407,106 @@ export default function Caixa() {
             </CardHeader>
             <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
               <div className="text-base md:text-2xl font-bold text-destructive leading-tight">
-                {formatCurrency(hasFilters ? filteredTotals.totalSaidas : (balance?.total_saidas || 0))}
+                {formatCurrency(hasFilters ? analytics.totals.saidas : (balance?.total_saidas || 0))}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Area Filter (if active) */}
-        {hasFilters && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="gap-1">
-              <Filter className="h-3 w-3" />
-              Filtrado por: {selectedArea?.nome || "Área"}
-            </Badge>
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground h-8">
-              <X className="h-4 w-4 mr-1" />
-              Limpar
-            </Button>
-          </div>
-        )}
+        {/* Global filters bar */}
+        <GlobalFiltersBar
+          value={analyticsFilters}
+          onChange={setAnalyticsFilters}
+          areas={areas}
+          cycles={cycles as any}
+        />
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+        {/* Outer tabs (analytical views) */}
+        <Tabs value={mainView} onValueChange={handleViewChange} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4 h-11 md:h-10">
-            <TabsTrigger value="todos" className="gap-1.5 text-xs md:text-sm">
+            <TabsTrigger value="visao_geral" className="gap-1.5 text-xs md:text-sm">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Visão Geral</span>
+              <span className="sm:hidden">Geral</span>
+            </TabsTrigger>
+            <TabsTrigger value="lancamentos" className="gap-1.5 text-xs md:text-sm">
               <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">Todos</span>
-              <span className="sm:hidden">Tudo</span>
+              <span className="hidden sm:inline">Lançamentos</span>
+              <span className="sm:hidden">Lanç.</span>
             </TabsTrigger>
-            <TabsTrigger value="custos" className="gap-1.5 text-xs md:text-sm">
-              <DollarSign className="h-4 w-4" />
-              Custos
+            <TabsTrigger value="areas" className="gap-1.5 text-xs md:text-sm">
+              <MapPin className="h-4 w-4" />
+              <span className="hidden sm:inline">Por Área</span>
+              <span className="sm:hidden">Áreas</span>
             </TabsTrigger>
-            <TabsTrigger value="investimentos" className="gap-1.5 text-xs md:text-sm">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Implantação</span>
-              <span className="sm:hidden">Impl.</span>
-            </TabsTrigger>
-            <TabsTrigger value="receitas" className="gap-1.5 text-xs md:text-sm">
-              <TrendingUp className="h-4 w-4" />
-              Receitas
+            <TabsTrigger value="ciclos" className="gap-1.5 text-xs md:text-sm">
+              <Sprout className="h-4 w-4" />
+              <span className="hidden sm:inline">Por Ciclo</span>
+              <span className="sm:hidden">Ciclos</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Visão Geral */}
+          <TabsContent value="visao_geral">
+            {isLoading ? (
+              <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+            ) : (
+              <OverviewTab
+                analytics={analytics}
+                onSelectSubcategoria={(categoria, subcategoria) =>
+                  goToLancamentosWithFilter({ categoria: categoria as any, subcategoria: subcategoria || undefined })
+                }
+              />
+            )}
+          </TabsContent>
+
+          {/* Por Área */}
+          <TabsContent value="areas">
+            {isLoading ? (
+              <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+            ) : (
+              <ByAreaTab
+                analytics={analytics}
+                onSelectArea={(areaId) => goToLancamentosWithFilter({ areaId: areaId || undefined })}
+              />
+            )}
+          </TabsContent>
+
+          {/* Por Ciclo */}
+          <TabsContent value="ciclos">
+            {isLoading ? (
+              <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+            ) : (
+              <ByCycleTab
+                analytics={analytics}
+                onSelectCycle={(cycleId) => goToLancamentosWithFilter({ cycleId: cycleId || undefined })}
+              />
+            )}
+          </TabsContent>
+
+          {/* Lançamentos (with sub-tabs for detailed source tables) */}
+          <TabsContent value="lancamentos" className="space-y-4">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-4 h-10">
+                <TabsTrigger value="todos" className="gap-1.5 text-xs">
+                  <Wallet className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Todos</span>
+                  <span className="sm:hidden">Tudo</span>
+                </TabsTrigger>
+                <TabsTrigger value="custos" className="gap-1.5 text-xs">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Custos
+                </TabsTrigger>
+                <TabsTrigger value="investimentos" className="gap-1.5 text-xs">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Implantação</span>
+                  <span className="sm:hidden">Impl.</span>
+                </TabsTrigger>
+                <TabsTrigger value="receitas" className="gap-1.5 text-xs">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Receitas
+                </TabsTrigger>
+              </TabsList>
 
           {/* All Transactions Tab */}
           <TabsContent value="todos">
@@ -437,7 +518,7 @@ export default function Caixa() {
               </Card>
             ) : (
               <CashTransactionsTable
-                transactions={transactions}
+                transactions={analytics.filtered}
                 areas={areas}
                 onDelete={(id) => handleDeleteClick(id, "transaction")}
                 onEdit={(t) => setEditingTransaction(t)}
@@ -907,6 +988,8 @@ export default function Caixa() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>
