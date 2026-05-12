@@ -249,17 +249,18 @@ export function JournalPointsManager({
 
       <Button
         type="button"
-        onClick={captureCurrent}
-        disabled={locating}
+        onClick={openCapture}
         className="w-full h-14 bg-brand-leaf hover:bg-brand-leaf/90 text-primary-foreground text-base font-display"
       >
-        {locating ? (
-          <Loader2 className="h-5 w-5 animate-spin mr-2" />
-        ) : (
-          <MapPin className="h-5 w-5 mr-2" />
-        )}
-        {locating ? "Buscando GPS..." : "Adicionar ponto atual"}
+        <MapPin className="h-5 w-5 mr-2" />
+        Bater ponto GPS
       </Button>
+
+      <GpsCaptureDialog
+        open={captureOpen}
+        onOpenChange={setCaptureOpen}
+        onSave={handleCaptured}
+      />
 
       <button
         type="button"
