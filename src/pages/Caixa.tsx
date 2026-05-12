@@ -245,7 +245,13 @@ export default function Caixa() {
 
   const totalCosts = filteredCosts.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
   const totalInvestments = filteredInvestments.reduce((sum: number, i: any) => sum + Number(i.valor), 0);
-  const totalRevenues = filteredRevenues.reduce((sum: number, r: any) => sum + (Number(r.quantidade) * Number(r.preco_unitario)), 0);
+  const totalRevenues = filteredRevenues.reduce((sum: number, r: any) => {
+    const tipo = r.tipo_receita || "venda";
+    const total = tipo === "venda"
+      ? Number(r.quantidade || 0) * Number(r.preco_unitario || 0)
+      : Number(r.valor_total || 0);
+    return sum + total;
+  }, 0);
 
   const handleCostSubmit = (data: CostInsert) => {
     if (editingCost) {
