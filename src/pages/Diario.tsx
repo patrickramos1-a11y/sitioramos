@@ -362,7 +362,16 @@ export default function Diario() {
         geometry_type: d.geometry_type,
         coordinates: d.coordinates,
       }));
-      enqueueJournalEntry(entryPayload, attachments, queuedPoints).then(() => {
+      const queuedGeometries = draftGeometries.map((g, i) => ({
+        geometry_type: g.geometry_type,
+        name: g.name,
+        description: g.description,
+        geojson: g.geojson,
+        area_m2: g.area_m2,
+        length_m: g.length_m,
+        ordem: i,
+      }));
+      enqueueJournalEntry(entryPayload, attachments, queuedPoints, queuedGeometries).then(() => {
         toast.success("Salvo offline — sincroniza quando voltar a internet");
         reset();
       });
