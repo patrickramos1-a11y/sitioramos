@@ -23,12 +23,23 @@ export interface QueuedJournalPoint {
   coordinates: any | null;
 }
 
+export interface QueuedDiaryGeometry {
+  geometry_type: string;
+  name: string | null;
+  description: string | null;
+  geojson: any;
+  area_m2: number | null;
+  length_m: number | null;
+  ordem: number;
+}
+
 export interface QueuedJournalEntry {
   id: string;
   createdAt: number;
   entry: Record<string, any>;
   attachments: QueuedAttachment[];
   points?: QueuedJournalPoint[];
+  geometries?: QueuedDiaryGeometry[];
 }
 
 interface OfflineDB extends DBSchema {
@@ -58,10 +69,11 @@ export async function enqueueJournalEntry(
   entry: Record<string, any>,
   attachments: QueuedAttachment[],
   points: QueuedJournalPoint[] = [],
+  geometries: QueuedDiaryGeometry[] = [],
 ): Promise<string> {
   const db = await getDb();
   const id = `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  await db.put("journal_queue", { id, createdAt: Date.now(), entry, attachments, points });
+  await db.put("journal_queue", { id, createdAt: Date.now(), entry, attachments, points, geometries });
   notify();
   return id;
 }
@@ -127,6 +139,22 @@ async function uploadOne(item: QueuedJournalEntry) {
     }));
     const { error: ptErr } = await supabase.from("journal_points" as any).insert(rows as any);
     if (ptErr) throw ptErr;
+  }
+
+  if (item.geometries && item.geometries.length) {
+    const grows = item.geometries.map((g, i) => ({
+      entry_id: entryId,
+      geometry_type: g.geometry_type,
+      name: g.name,
+      description: g.description,
+      geojson: g.geojson,
+      area_m2: g.area_m2,
+      length_m: g.length_m,
+      ordem: i,
+      responsavel_id: null,
+    }));
+    const { error: gErr } = await supabase.from("diary_geometries" as any).insert(grows as any);
+    if (gErr) throw gErr;
   }
 }
 
