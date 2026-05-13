@@ -140,6 +140,22 @@ async function uploadOne(item: QueuedJournalEntry) {
     const { error: ptErr } = await supabase.from("journal_points" as any).insert(rows as any);
     if (ptErr) throw ptErr;
   }
+
+  if (item.geometries && item.geometries.length) {
+    const grows = item.geometries.map((g, i) => ({
+      entry_id: entryId,
+      geometry_type: g.geometry_type,
+      name: g.name,
+      description: g.description,
+      geojson: g.geojson,
+      area_m2: g.area_m2,
+      length_m: g.length_m,
+      ordem: i,
+      responsavel_id: null,
+    }));
+    const { error: gErr } = await supabase.from("diary_geometries" as any).insert(grows as any);
+    if (gErr) throw gErr;
+  }
 }
 
 let syncing = false;
