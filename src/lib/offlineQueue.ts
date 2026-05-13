@@ -69,10 +69,11 @@ export async function enqueueJournalEntry(
   entry: Record<string, any>,
   attachments: QueuedAttachment[],
   points: QueuedJournalPoint[] = [],
+  geometries: QueuedDiaryGeometry[] = [],
 ): Promise<string> {
   const db = await getDb();
   const id = `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  await db.put("journal_queue", { id, createdAt: Date.now(), entry, attachments, points });
+  await db.put("journal_queue", { id, createdAt: Date.now(), entry, attachments, points, geometries });
   notify();
   return id;
 }
