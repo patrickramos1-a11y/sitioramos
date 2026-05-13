@@ -23,12 +23,23 @@ export interface QueuedJournalPoint {
   coordinates: any | null;
 }
 
+export interface QueuedDiaryGeometry {
+  geometry_type: string;
+  name: string | null;
+  description: string | null;
+  geojson: any;
+  area_m2: number | null;
+  length_m: number | null;
+  ordem: number;
+}
+
 export interface QueuedJournalEntry {
   id: string;
   createdAt: number;
   entry: Record<string, any>;
   attachments: QueuedAttachment[];
   points?: QueuedJournalPoint[];
+  geometries?: QueuedDiaryGeometry[];
 }
 
 interface OfflineDB extends DBSchema {
