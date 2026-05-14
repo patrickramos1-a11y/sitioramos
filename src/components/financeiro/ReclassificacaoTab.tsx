@@ -56,6 +56,7 @@ export function ReclassificacaoTab() {
   const { areas = [] } = useAreas();
   const { cycles = [] } = useCycles();
   const { loans = [] } = useLoans();
+  const { data: responsaveis = [] } = useResponsaveis();
 
   const upsert = useUpsertClassificacao();
   const del = useDeleteClassificacao();
