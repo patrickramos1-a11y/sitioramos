@@ -291,14 +291,23 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
               </div>
               <div className="md:col-span-3">
                 <Label className="mb-1 block">Valor (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                  className={cn("font-semibold", isEntrada ? "text-emerald-700" : "text-rose-700")}
-                />
+                <div className="relative">
+                  <span className={cn(
+                    "absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold pointer-events-none",
+                    isEntrada ? "text-emerald-600" : "text-rose-600"
+                  )}>R$</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={valorFormatted}
+                    onChange={handleValorChange}
+                    placeholder="0,00"
+                    className={cn(
+                      "pl-10 text-right font-semibold tabular-nums",
+                      isEntrada ? "text-emerald-700" : "text-rose-700"
+                    )}
+                  />
+                </div>
               </div>
               <div className="md:col-span-3">
                 <Label className="mb-1 block">Descrição *</Label>
