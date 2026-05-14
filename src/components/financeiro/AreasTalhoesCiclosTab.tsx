@@ -7,10 +7,10 @@ import { usePropriedade } from "@/hooks/usePropriedade";
 import { Sprout, MapPin, Layers } from "lucide-react";
 
 export function AreasTalhoesCiclosTab() {
-  const { data: propriedade } = usePropriedade();
-  const { data: areas = [] } = useAreas();
-  const { data: talhoes = [] } = useTalhoes();
-  const { data: cycles = [] } = useCycles();
+  const { propriedade } = usePropriedade();
+  const { areas = [] } = useAreas();
+  const { talhoes = [] } = useTalhoes();
+  const { cycles = [] } = useCycles();
 
   return (
     <div className="space-y-4">

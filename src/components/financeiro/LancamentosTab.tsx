@@ -4,7 +4,7 @@ import { useCashTransactions } from "@/hooks/useCashTransactions";
 import { useFinClassificacoes } from "@/hooks/financeiro/useFinClassificacoes";
 
 export function LancamentosTab() {
-  const { data: txs = [], isLoading } = useCashTransactions();
+  const { transactions: txs = [], isLoading } = useCashTransactions();
   const { data: classifs = [] } = useFinClassificacoes();
   const classifiedIds = new Set(classifs.map((c) => c.cash_transaction_id));
 
