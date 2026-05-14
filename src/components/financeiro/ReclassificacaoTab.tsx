@@ -383,6 +383,16 @@ function ClassificacaoRow({
             options={cycles.map((c: any) => ({ ...c, nome: c.cultura }))}
           />
         </Field>
+        <div className="col-span-2 md:col-span-4 flex items-start gap-2 rounded border border-dashed bg-muted/30 p-2 text-[11px] text-muted-foreground">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div>
+            <strong className="text-foreground">Vínculo com empréstimo</strong> — preencha apenas se este lançamento se refere a um empréstimo (recebimento do crédito ou pagamento de uma parcela).
+            <div className="mt-0.5">
+              <b>Empréstimo:</b> qual contrato. <b>Parcela:</b> qual nº de parcela está sendo paga (deixe vazio em recebimentos/juros avulsos). <b>Evento:</b> o que esta transação representa — <i>Recebimento</i> (crédito do empréstimo entrou no caixa), <i>Pagamento parcela</i> (saída pagando uma parcela), <i>Juros/Tarifa/Amortização</i>.
+            </div>
+            <div className="mt-0.5">Para uma despesa comum (insumos, mão de obra), deixe os três campos como “—”.</div>
+          </div>
+        </div>
         <Field label="Empréstimo">
           <Select value={loanId} onValueChange={(v) => { setLoanId(v); setInstallmentId(NONE); }}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
