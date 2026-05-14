@@ -127,6 +127,7 @@ export function ReclassificacaoTab() {
               areas={areas}
               cycles={cycles}
               loans={loans}
+              responsaveis={responsaveis}
               natByCode={natByCode}
               catByCode={catByCode}
               ccByCode={ccByCode}
