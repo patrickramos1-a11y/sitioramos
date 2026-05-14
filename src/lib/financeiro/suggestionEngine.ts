@@ -101,8 +101,8 @@ const RULES: Rule[] = [
   { keywords: ["tarifa"], match: SAIDA, result: { categoriaCodigo: "adm_tarifas", centroCustoCodigo: "administracao", naturezaCodigo: "despesa_geral", confianca: "media" }, motivo: "Tarifa bancária" },
   { keywords: ["juros"], match: SAIDA, result: { categoriaCodigo: "adm_juros", centroCustoCodigo: "administracao", naturezaCodigo: "despesa_geral", confianca: "media" }, motivo: "Juros bancários" },
 
-  // Revenue
-  { keywords: ["aporte"], match: ENTRADA, result: { categoriaCodigo: "rc_aporte_socios", centroCustoCodigo: "comercializacao", naturezaCodigo: "receita", confianca: "alta" }, motivo: "Aporte dos sócios" },
+  // Revenue — aporte (alta prioridade, antes de "venda")
+  { keywords: ["aporte", "aporte socio", "aporte sócio", "aporte de socio", "aporte de sócio", "patrick", "william", "reforco de caixa", "reforço de caixa"], match: ENTRADA, result: { categoriaCodigo: "rc_aporte_socios", centroCustoCodigo: "propriedade_geral", naturezaCodigo: "receita", confianca: "alta" }, motivo: "Aporte dos sócios" },
   { keywords: ["venda"], match: ENTRADA, result: { categoriaCodigo: "rc_venda_produto", centroCustoCodigo: "comercializacao", naturezaCodigo: "receita", confianca: "media" }, motivo: "Venda de produto" },
 
   // Plantation costs

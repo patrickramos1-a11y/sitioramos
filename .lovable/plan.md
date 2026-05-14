@@ -1,95 +1,120 @@
-## Objetivo
+# Dashboard + Relatórios da página Financeiro
 
-Criar a nova página **Financeiro** no menu lateral, totalmente isolada da página atual **Fluxo de Caixa** (que permanece intacta). A nova página oferece estrutura modular de classificação financeira (naturezas, centros de custo, categorias, projetos de investimento, ciclos), reutilizando as estruturas territoriais já existentes no sistema (`propriedade`, `areas`, `talhoes`, `cycles`).
+Objetivo: transformar a camada de classificação (`fin_classificacoes`) em indicadores gerenciais reais, **sem tocar em** Fluxo de Caixa, lançamentos antigos, módulo de Empréstimos ou nas categorias legadas.
 
-## Reaproveitamento de dados existentes (confirmado no schema)
+## 1. Ajuste conceitual — "grupo gerencial"
 
-O sistema **já possui** estrutura territorial e produtiva consolidada:
-- `propriedade` — propriedade geral
-- `areas` — áreas produtivas (com `tamanho_hectares`, `tipo`, `status`, `cultura_principal`)
-- `talhoes` — talhões vinculados a áreas
-- `cycles` — ciclos produtivos (cultura, datas, status, vínculo área/talhão)
-- `cash_transactions` — lançamentos financeiros (fonte única)
+Hoje só temos `fin_naturezas` (receita / custo_plantacao / investimento / despesa_geral / ajuste). Isso não distingue **receita operacional × aporte × empréstimo × outras entradas** nem **despesa operacional × pagamento de empréstimo × juros/tarifas**.
 
-**Decisão**: NÃO criar tabelas duplicadas de áreas/talhões/ciclos. A página Financeiro consome essas tabelas em modo leitura para vínculo. Apenas o ciclo ganha um novo cadastro se necessário (tabela `cycles` já existe e será reutilizada).
+Solução **sem alterar banco**: criar um derivador puro em `src/lib/financeiro/managementGroup.ts` que, para cada lançamento, devolve um **grupo gerencial** a partir da classificação existente (categoria + natureza + `tipo_evento_emprestimo` + `loan_id`):
 
-## Etapa 1 — Migração de banco (estrutura nova, sem tocar dados antigos)
+- `receita_operacional` — categoria `rc_venda_produto`, `rc_aluguel_equip` (sem `loan_id`)
+- `aporte_socios` — categoria `rc_aporte_socios`
+- `entrada_emprestimo` — `loan_id` presente E `tipo_evento_emprestimo = 'recebimento'` (ou categoria `rc_emprestimo`)
+- `outras_entradas` — `rc_reembolso`, `rc_venda_ativo`, `rc_outras`
+- `custo_plantacao` — natureza `custo_plantacao`
+- `investimento` — natureza `investimento`
+- `pagamento_emprestimo` — `tipo_evento_emprestimo ∈ {pagamento_parcela, amortizacao}` ou categoria `de_pagamento_emprestimo` / `de_amortizacao_emprestimo`
+- `juros_tarifas` — `tipo_evento_emprestimo ∈ {juros, tarifa}` ou categorias `adm_juros` / `adm_tarifas`
+- `despesa_geral` — natureza `despesa_geral` (que sobrar)
+- `nao_classificado` — sem registro em `fin_classificacoes`
 
-Novas tabelas (todas com RLS pública igual ao padrão atual):
+Esse derivador é a fonte única de verdade para Dashboard e Relatórios.
 
-1. **`fin_naturezas`** — naturezas financeiras
-   - `codigo` (unique), `nome`, `tipo` (entrada/saida/ajuste), `descricao`, `ativo`, `ordem`
-   - Seed: Receita, Custo de Plantação, Investimento/Benfeitoria, Despesa Geral, Transferência/Ajuste
+## 2. Ajustes finos no `suggestionEngine`
 
-2. **`fin_centros_custo`** — centros de custo
-   - `codigo` (unique), `nome`, `descricao`, `ativo`, `ordem`
-   - Seed: Produção Agrícola, Beneficiamento, Infraestrutura, Equipamentos, Regularização/Ambiental, Administração, Comercialização, Propriedade Geral
+- "aporte", "patrick", "william", "aporte sócio" → categoria `rc_aporte_socios`, **centro de custo `propriedade_geral`** (hoje sugere `comercializacao`, corrigir).
+- Reordenar para "aporte" ter prioridade antes de "venda".
 
-3. **`fin_categorias`** — categorias financeiras configuráveis
-   - `codigo` (unique), `nome`, `natureza_id` (FK lógica → fin_naturezas), `centro_custo_id` (FK lógica, opcional), `ativo`, `ordem`
-   - Seed completo: 12 categorias de plantação, 7 de entrada, 10 de investimento, 7 administrativas
+Sem mexer no banco — só ajustes em `src/lib/financeiro/suggestionEngine.ts`.
 
-4. **`fin_projetos_investimento`** — projetos de investimento/benfeitoria
-   - `nome`, `tipo` (infraestrutura/equipamento/ferramentas/regularizacao/energia/agua/transporte/benfeitoria/outros), `descricao`, `status` (planejado/em_andamento/concluido/pausado/cancelado), `data_inicio`, `data_conclusao`, `valor_previsto`, `ativo`
-   - Seed sugerido: Legalização da Terra, Galpão, Carretinha, Energia, Caixa d'água e Bomba, Ferramentas e Equipamentos Manuais
+## 3. Novo hook agregador
 
-5. **`fin_classificacoes`** — **camada complementar de classificação** (1:1 opcional com `cash_transactions`)
-   - `cash_transaction_id` (unique), `natureza_id`, `categoria_id`, `centro_custo_id`, `propriedade_id`, `area_id`, `talhao_id`, `cycle_id`, `projeto_investimento_id`, `origem` (manual/automatica/sugerida), `confianca` (alta/media/baixa), `revisado` (bool), `observacao`
-   - **Não altera** `cash_transactions`. Cada lançamento sem registro aqui aparece como "Não classificado".
+`src/hooks/financeiro/useFinanceiroAnalytics.ts` — recebe filtros globais e devolve:
 
-Todas as tabelas têm RLS público (padrão do projeto), `created_at`, `updated_at` com trigger.
+- listas indexadas por grupo gerencial
+- totais por mês, categoria, centro de custo, área/talhão, ciclo, projeto
+- métricas de empréstimos consultando `useLoans()` (contratado, recebido, pago, juros, saldo devedor, parcelas pendentes futuras a partir de `installments`)
+- KPIs de qualidade (classificados, não classificados, revisados, confiança alta/média/baixa)
 
-## Etapa 2 — Frontend (página e navegação)
+Usa apenas SELECT — nenhum write.
 
-### Arquivos novos
+## 4. Filtros globais
+
+Componente `FinanceiroFilters` (em `src/components/financeiro/FinanceiroFilters.tsx`) reutilizável por Dashboard e Relatórios:
+
+período (preset + custom), mês, ano, tipo, natureza, categoria, centro de custo, área/talhão, ciclo, projeto, empréstimo, classificado/não, revisado/não, "incluir não revisados".
+
+Estado mantido via `useState` no `Financeiro.tsx` e passado como contexto leve.
+
+## 5. Reescrita do `DashboardTab`
+
+Layout:
+
 ```text
-src/pages/Financeiro.tsx                      # página principal com tabs
-src/components/financeiro/
-  ├── DashboardTab.tsx                        # placeholder com KPIs básicos a partir de cash_transactions + fin_classificacoes
-  ├── LancamentosTab.tsx                      # lista cash_transactions + status de classificação (read-only nesta etapa)
-  ├── ReclassificacaoTab.tsx                  # placeholder "Em construção" (próxima etapa)
-  ├── CategoriasTab.tsx                       # CRUD de fin_categorias
-  ├── CentrosCustoTab.tsx                     # CRUD de fin_centros_custo
-  ├── NaturezasTab.tsx                        # listar/ativar fin_naturezas
-  ├── AreasTalhoesCiclosTab.tsx               # consome areas/talhoes/cycles existentes + CRUD ciclo
-  ├── InvestimentosTab.tsx                    # CRUD de fin_projetos_investimento
-  └── RelatoriosTab.tsx                       # placeholder
-
-src/hooks/financeiro/
-  ├── useFinNaturezas.ts
-  ├── useFinCategorias.ts
-  ├── useFinCentrosCusto.ts
-  ├── useFinProjetos.ts
-  └── useFinClassificacoes.ts
+[ Filtros globais ]
+[ Cards KPI — linha 1 ]  Saldo atual | Entradas mês | Saídas mês | Resultado operacional mês
+[ Cards KPI — linha 2 ]  Resultado de caixa | Custos plantação mês | Investimentos andamento | Não classificados
+[ Cards KPI — linha 3 ]  Contas a pagar | Contas a receber | Empréstimos ativos | % classificação
+[ Gráficos ]             Entradas×Saídas mensal · Composição entradas · Composição saídas
+                         Despesas por categoria · Custos por centro · Custos por área · Custos por ciclo
+                         Investimentos por projeto · Classificados×Não · Empréstimos
 ```
 
-### Arquivos editados (mínimo)
-- `src/App.tsx` — adicionar rota `/financeiro`
-- `src/components/layout/AppSidebar.tsx` — adicionar item "Financeiro" (ícone Wallet/PieChart)
-- `src/components/layout/MobileBottomNav.tsx` — avaliar inclusão (já tem 4 pilares; adicionar como item secundário se houver espaço, senão deixar acessível só via sidebar/menu desktop)
+Fórmulas conforme especificação:
+- **Resultado operacional** = receita_operacional − custo_plantacao − despesa_geral *operacional* (exclui aportes, empréstimos, investimentos, juros).
+- **Resultado de caixa** = todas entradas pagas − todas saídas pagas.
+- Cards com aviso quando `nao_classificado > 0`: "Este indicador considera apenas lançamentos classificados...".
 
-### Página Fluxo de Caixa
-**Não tocada**. `/caixa`, hooks e componentes permanecem como estão.
+Gráficos com `recharts` (já no projeto).
 
-## Etapa 3 — Comportamento desta entrega
+## 6. Reescrita do `RelatoriosTab`
 
-- Todas as abas de configuração (Categorias, Centros de Custo, Naturezas, Investimentos) já operacionais (CRUD básico).
-- Aba **Áreas/Talhões/Ciclos**: lista as áreas/talhões/propriedade existentes (read-only) + CRUD na tabela `cycles` existente.
-- Aba **Lançamentos**: lista `cash_transactions` com badge "Classificado" / "Não classificado" via join com `fin_classificacoes` — sem permitir editar nesta etapa.
-- Aba **Reclassificação** e **Relatórios**: placeholders preparados para a próxima etapa.
-- Aba **Dashboard**: KPIs simples (total classificado vs não classificado, totais por natureza).
+Sub-abas verticais (lista lateral em desktop, accordion em mobile):
 
-## Garantias de segurança
+1. Mensal — colunas conforme spec (entradas detalhadas, saídas detalhadas, resultado operacional, resultado de caixa, não classificados).
+2. Por área/talhão — hectares + custo total plantação + custo/ha (omite cálculo se `tamanho_hectares` nulo) + ciclos vinculados.
+3. Por ciclo — cultura, área, datas, status, custos, receitas, resultado.
+4. Por projeto de investimento — previsto × realizado × diferença.
+5. Por categoria — totais.
+6. Por centro de custo — totais.
+7. Empréstimos — consulta `loans` + `installments`: contratado, recebido, total pago, juros pagos, tarifas pagas, parcelas pagas/futuras, saldo devedor, lançamentos vinculados, lançamentos sugeridos sem vínculo (loan_id na cash_transaction mas sem classificação).
+8. Não classificados — tabela com sugestão e atalho que abre a aba **Reclassificação** com o id selecionado.
+9. Qualidade da classificação — totais por estado e confiança.
 
-- ❌ Nenhum `UPDATE`/`DELETE` em `cash_transactions`, `costs`, `investments`, `revenues`, `loans`, `areas`, `talhoes`, `propriedade`.
-- ❌ Nenhuma alteração em `/caixa` ou hooks atuais (`useCashTransactions`, `useCashAnalytics`, etc.).
-- ✅ Todas as novas tabelas começam vazias (exceto seeds de configuração).
-- ✅ Reclassificação automática **não acontece** nesta etapa.
-- ✅ Vínculos via `fin_classificacoes` são reversíveis (basta deletar o registro complementar).
+Cada relatório respeita os filtros globais e o toggle "incluir não revisados".
 
-## Próximos passos (fora desta etapa)
+## 7. Garantias de não regressão
 
-- Tela de reclassificação em massa.
-- Sugestões automáticas baseadas em descrição/categoria_legada.
-- Relatórios DRE, fluxo previsto vs realizado.
-- Avaliar migração progressiva de `/caixa` → `/financeiro`.
+- Página **Fluxo de Caixa** (`src/pages/Caixa.tsx`) **não é tocada**.
+- `cash_transactions` lida apenas em SELECT.
+- Módulo Empréstimos lido apenas em SELECT.
+- Sem migrations, sem seeds, sem updates de dados.
+- Lançamentos sem `fin_classificacoes` ficam isolados em `nao_classificado` e **nunca** entram em relatórios de custo/investimento/resultado operacional.
+
+## 8. Arquivos previstos
+
+Novos:
+- `src/lib/financeiro/managementGroup.ts`
+- `src/lib/financeiro/finCalc.ts` (helpers de soma/agrupamento)
+- `src/hooks/financeiro/useFinanceiroAnalytics.ts`
+- `src/components/financeiro/FinanceiroFilters.tsx`
+- `src/components/financeiro/dashboard/KpiCards.tsx`
+- `src/components/financeiro/dashboard/CompositionCharts.tsx`
+- `src/components/financeiro/dashboard/CostBreakdownCharts.tsx`
+- `src/components/financeiro/dashboard/LoanWidget.tsx`
+- `src/components/financeiro/relatorios/Report{Mensal,Area,Ciclo,Projeto,Categoria,CentroCusto,Emprestimo,NaoClassificado,Qualidade}.tsx`
+
+Editados:
+- `src/components/financeiro/DashboardTab.tsx`
+- `src/components/financeiro/RelatoriosTab.tsx`
+- `src/lib/financeiro/suggestionEngine.ts` (apenas regra de aporte)
+- `src/pages/Financeiro.tsx` (estado de filtros globais)
+
+## 9. Fora de escopo (próxima etapa)
+
+- Persistir grupo gerencial no banco como nova coluna em `fin_categorias` (atualmente derivado).
+- Fluxo previsto × realizado por orçamento.
+- Exportação PDF/CSV dos relatórios.
+
+Confirma para eu implementar?
