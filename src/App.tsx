@@ -15,6 +15,7 @@ import AreaDetalhe from "./pages/AreaDetalhe";
 import TalhaoDetalhe from "./pages/TalhaoDetalhe";
 import Emprestimos from "./pages/Emprestimos";
 import Caixa from "./pages/Caixa";
+import Financeiro from "./pages/Financeiro";
 import Propriedade from "./pages/Propriedade";
 import Operacao from "./pages/Operacao";
 import ProjetoDetalhe from "./pages/ProjetoDetalhe";
@@ -60,6 +61,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/propriedade" element={<Propriedade />} />
             <Route path="/caixa" element={<Caixa />} />
+            <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/areas" element={<Areas />} />
             <Route path="/areas/:id" element={<AreaDetalhe />} />
             <Route path="/talhoes/:id" element={<TalhaoDetalhe />} />
