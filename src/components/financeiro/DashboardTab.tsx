@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet, Sprout, Hammer, Banknote, FileWarning, Receipt, Landmark, CheckCircle2 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
@@ -8,7 +7,7 @@ import {
 } from "recharts";
 import { FinanceiroFilters } from "./FinanceiroFilters";
 import { useFinanceiroAnalytics, defaultFilters, type FinFilters } from "@/hooks/financeiro/useFinanceiroAnalytics";
-import { fmtBRL, sumValor, sumByGrupo, monthKey, groupBy } from "@/lib/financeiro/finCalc";
+import { fmtBRL, sumValor, sumByGrupo, monthKey } from "@/lib/financeiro/finCalc";
 import { grupoColors, grupoLabels, isEntradaGrupo, isSaidaGrupo, type GrupoGerencial } from "@/lib/financeiro/managementGroup";
 
 export function DashboardTab() {
