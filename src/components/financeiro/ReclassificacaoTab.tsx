@@ -463,8 +463,9 @@ function ClassificacaoRow({
             </Button>
           </>
         )}
-        <Button size="sm" className="h-7 text-[11px]" onClick={handleSave}>
-          <Check className="h-3 w-3 mr-1" /> Salvar
+        <Button size="sm" className="h-7 text-[11px]" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+          {saving ? "Salvando..." : "Salvar e marcar revisado"}
         </Button>
       </div>
     </Card>
