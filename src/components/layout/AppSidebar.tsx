@@ -138,6 +138,18 @@ export function AppSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+              {/* Financeiro (nova área) */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname.startsWith("/financeiro")}
+                >
+                  <NavLink to="/financeiro">
+                    <PieChart className="h-4 w-4" />
+                    <span>Financeiro</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* Empréstimos */}
               <SidebarMenuItem>
