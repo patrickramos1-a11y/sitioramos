@@ -37,6 +37,7 @@ export function LancamentosTab() {
   const { areas = [] } = useAreas();
   const { cycles = [] } = useCycles();
   const { loans = [] } = useLoans();
+  const { data: responsaveis = [] } = useResponsaveis();
 
   const classifByTx = useMemo(() => {
     const m = new Map<string, (typeof classifs)[number]>();
