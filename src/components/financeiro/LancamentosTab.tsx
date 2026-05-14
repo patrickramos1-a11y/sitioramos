@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Pencil } from "lucide-react";
+import { EditValorDialog } from "./EditValorDialog";
+import type { CashTransaction } from "@/hooks/useCashTransactions";
 import {
   Select,
   SelectContent,
@@ -78,6 +82,7 @@ export function LancamentosTab() {
   const [loanId, setLoanId] = useState(ALL);
   const [respId, setRespId] = useState(ALL);
   const [classifFilter, setClassifFilter] = useState(ALL); // all / classified / unclassified / revisado / nao_revisado
+  const [editingTx, setEditingTx] = useState<CashTransaction | null>(null);
 
   const filtered = useMemo(() => {
     return txs.filter((t) => {
@@ -177,8 +182,10 @@ export function LancamentosTab() {
         <table className="w-full text-xs">
           <thead className="bg-muted/50 text-left">
             <tr>
+              <th className="px-2 py-2 w-10"></th>
               <th className="px-2 py-2">Data</th>
               <th className="px-2 py-2">Tipo</th>
+              <th className="px-2 py-2 text-right">Valor</th>
               <th className="px-2 py-2">Descrição</th>
               <th className="px-2 py-2">Responsável</th>
               <th className="px-2 py-2">Cat. antiga</th>
@@ -190,7 +197,6 @@ export function LancamentosTab() {
               <th className="px-2 py-2">Projeto</th>
               <th className="px-2 py-2">Empréstimo</th>
               <th className="px-2 py-2">Status</th>
-              <th className="px-2 py-2 text-right">Valor</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -217,6 +223,17 @@ export function LancamentosTab() {
                 });
               return (
                 <tr key={t.id} className="hover:bg-muted/30">
+                  <td className="px-2 py-1.5">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => setEditingTx(t as CashTransaction)}
+                      title="Editar lançamento"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
                   <td className="px-2 py-1.5 whitespace-nowrap">
                     {new Date(t.data).toLocaleDateString("pt-BR")}
                   </td>
@@ -224,6 +241,11 @@ export function LancamentosTab() {
                     <Badge variant={t.tipo === "entrada" ? "default" : "secondary"} className="text-[10px]">
                       {t.tipo}
                     </Badge>
+                  </td>
+                  <td className={`px-2 py-1.5 text-right font-medium whitespace-nowrap ${
+                    t.tipo === "entrada" ? "text-emerald-600" : "text-rose-600"
+                  }`}>
+                    {fmt(Number(t.valor))}
                   </td>
                   <td className="px-2 py-1.5 max-w-[260px] truncate" title={t.descricao ?? ""}>
                     {t.descricao || <span className="text-muted-foreground">(sem descrição)</span>}
@@ -284,11 +306,6 @@ export function LancamentosTab() {
                       <Badge variant="secondary" className="text-[10px]">Classificado</Badge>
                     )}
                   </td>
-                  <td className={`px-2 py-1.5 text-right font-medium whitespace-nowrap ${
-                    t.tipo === "entrada" ? "text-emerald-600" : "text-rose-600"
-                  }`}>
-                    {fmt(Number(t.valor))}
-                  </td>
                 </tr>
               );
             })}
@@ -300,6 +317,12 @@ export function LancamentosTab() {
           </div>
         )}
       </Card>
+
+      <EditValorDialog
+        open={!!editingTx}
+        onOpenChange={(v) => !v && setEditingTx(null)}
+        transaction={editingTx}
+      />
     </div>
   );
 }
