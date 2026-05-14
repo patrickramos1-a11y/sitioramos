@@ -104,7 +104,7 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
     } else {
       setData(new Date().toISOString().slice(0, 10));
       setTipo("saida");
-      setValor("");
+      setValorCents(0);
       setDescricao("");
       setVals({} as any);
       setNa({} as any);
