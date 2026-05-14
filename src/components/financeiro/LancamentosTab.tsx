@@ -317,7 +317,7 @@ export function LancamentosTab() {
         )}
       </Card>
 
-      <EditValorDialog
+      <NovoLancamentoDialog
         open={!!editingTx}
         onOpenChange={(v) => !v && setEditingTx(null)}
         transaction={editingTx}
