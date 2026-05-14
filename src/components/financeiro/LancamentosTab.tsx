@@ -317,6 +317,12 @@ export function LancamentosTab() {
           </div>
         )}
       </Card>
+
+      <EditValorDialog
+        open={!!editingTx}
+        onOpenChange={(v) => !v && setEditingTx(null)}
+        transaction={editingTx}
+      />
     </div>
   );
 }
