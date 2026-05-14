@@ -1,17 +1,12 @@
-import { useState } from "react";
-import { 
-  LayoutDashboard, 
-  MapPin, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  LayoutDashboard,
+  MapPin,
   Landmark,
-  Wallet,
   PieChart,
-  ChevronDown,
-  FileText,
   Home,
   ClipboardList,
-  Users
+  Users,
+  PanelLeftClose,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -23,172 +18,74 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
+  useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { Button } from "@/components/ui/button";
 
 const navigationItems = [
-  {
-    title: "Visão Geral",
-    url: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Propriedade",
-    url: "/propriedade",
-    icon: Home,
-  },
-  {
-    title: "Áreas",
-    url: "/areas",
-    icon: MapPin,
-  },
-  {
-    title: "Operação",
-    url: "/operacao",
-    icon: ClipboardList,
-  },
-];
-
-const caixaSubmenu = [
-  { title: "Todas as Movimentações", url: "/caixa" },
-  { title: "Lançamentos", url: "/lancamentos" },
-  { title: "Custos", url: "/caixa?tab=custos" },
-  { title: "Implantação", url: "/caixa?tab=investimentos" },
-  { title: "Receitas", url: "/caixa?tab=receitas" },
+  { title: "Visão Geral", url: "/", icon: LayoutDashboard },
+  { title: "Propriedade", url: "/propriedade", icon: Home },
+  { title: "Áreas", url: "/areas", icon: MapPin },
+  { title: "Operação", url: "/operacao", icon: ClipboardList },
+  { title: "Financeiro", url: "/financeiro", icon: PieChart },
+  { title: "Empréstimos", url: "/emprestimos", icon: Landmark },
+  { title: "Contatos", url: "/contatos", icon: Users },
+  { title: "Responsáveis", url: "/responsaveis", icon: Users },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
-  const isCaixaActive = location.pathname === "/caixa" || location.pathname === "/lancamentos";
-  const [caixaOpen, setCaixaOpen] = useState(isCaixaActive);
+  const { toggleSidebar, setOpen, isMobile, setOpenMobile } = useSidebar();
+
+  const handleNavigate = () => {
+    if (isMobile) setOpenMobile(false);
+    else setOpen(false);
+  };
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border bg-gradient-forest p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl overflow-hidden bg-brand-paper shadow-sun shrink-0">
-            <BrandLogo variant="mono" className="h-8 w-8" />
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border bg-gradient-forest p-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden bg-brand-paper shadow-sun shrink-0">
+            <BrandLogo variant="mono" className="h-7 w-7" />
           </div>
-          <div className="min-w-0">
-            <h1 className="font-display text-lg font-semibold text-sidebar-foreground leading-tight truncate">Sítio Ramos</h1>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-brand-sun/90 leading-tight">Onde a terra produz futuro</p>
+          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+            <h1 className="font-display text-base font-semibold text-sidebar-foreground leading-tight truncate">Sítio Ramos</h1>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-brand-sun/90 leading-tight truncate">Onde a terra produz futuro</p>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-8 w-8 text-sidebar-foreground/90 hover:bg-sidebar-accent/30 group-data-[collapsible=icon]:hidden"
+            aria-label="Recolher menu"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {/* Simple navigation items */}
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === item.url}
-                  >
-                    <NavLink to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-
-              {/* Caixa with submenu */}
-              <Collapsible
-                open={caixaOpen}
-                onOpenChange={setCaixaOpen}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton isActive={isCaixaActive}>
-                      <Wallet className="h-4 w-4" />
-                      <span>Fluxo de Caixa</span>
-                      <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+              {navigationItems.map((item) => {
+                const isActive =
+                  item.url === "/"
+                    ? location.pathname === "/"
+                    : location.pathname.startsWith(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+                      <NavLink to={item.url} onClick={handleNavigate}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
                     </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {caixaSubmenu.map((subItem) => {
-                        const isSubActive = location.pathname + location.search === subItem.url ||
-                          (subItem.url === "/caixa" && location.pathname === "/caixa" && !location.search);
-                        return (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton asChild isActive={isSubActive}>
-                              <NavLink to={subItem.url}>
-                                {subItem.title === "Custos" && <DollarSign className="h-3 w-3 mr-1" />}
-                                {subItem.title === "Investimentos" && <FileText className="h-3 w-3 mr-1" />}
-                                {subItem.title === "Receitas" && <TrendingUp className="h-3 w-3 mr-1" />}
-                                <span>{subItem.title}</span>
-                              </NavLink>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        );
-                      })}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-              {/* Financeiro (nova área) */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname.startsWith("/financeiro")}
-                >
-                  <NavLink to="/financeiro">
-                    <PieChart className="h-4 w-4" />
-                    <span>Financeiro</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Empréstimos */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === "/emprestimos"}
-                >
-                  <NavLink to="/emprestimos">
-                    <Landmark className="h-4 w-4" />
-                    <span>Empréstimos</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Contatos */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === "/contatos"}
-                >
-                  <NavLink to="/contatos">
-                    <Users className="h-4 w-4" />
-                    <span>Contatos</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Responsáveis */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname === "/responsaveis"}
-                >
-                  <NavLink to="/responsaveis">
-                    <Users className="h-4 w-4" />
-                    <span>Responsáveis</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

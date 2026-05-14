@@ -63,7 +63,16 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
 
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [tipo, setTipo] = useState<"entrada" | "saida">("saida");
-  const [valor, setValor] = useState("");
+  const [valorCents, setValorCents] = useState(0);
+  const valor = (valorCents / 100).toString();
+  const valorFormatted = (valorCents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 12);
+    setValorCents(digits ? parseInt(digits, 10) : 0);
+  };
   const [descricao, setDescricao] = useState("");
   const [na, setNa] = useState<Record<FieldKey, boolean>>({} as any);
   const [vals, setVals] = useState<Record<FieldKey, string>>({} as any);
@@ -74,7 +83,7 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
     if (transaction) {
       setData(transaction.data);
       setTipo(transaction.tipo);
-      setValor(String(transaction.valor));
+      setValorCents(Math.round(Number(transaction.valor) * 100));
       setDescricao(transaction.descricao || "");
       const tAny: any = transaction;
       const seed: Record<FieldKey, string> = {
@@ -95,7 +104,7 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
     } else {
       setData(new Date().toISOString().slice(0, 10));
       setTipo("saida");
-      setValor("");
+      setValorCents(0);
       setDescricao("");
       setVals({} as any);
       setNa({} as any);
@@ -231,7 +240,7 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-4xl w-[95vw] p-0">
         <DialogHeader
           className={cn(
             "px-6 py-4 border-b sticky top-0 z-10 backdrop-blur",
@@ -282,14 +291,23 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
               </div>
               <div className="md:col-span-3">
                 <Label className="mb-1 block">Valor (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                  className={cn("font-semibold", isEntrada ? "text-emerald-700" : "text-rose-700")}
-                />
+                <div className="relative">
+                  <span className={cn(
+                    "absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold pointer-events-none",
+                    isEntrada ? "text-emerald-600" : "text-rose-600"
+                  )}>R$</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={valorFormatted}
+                    onChange={handleValorChange}
+                    placeholder="0,00"
+                    className={cn(
+                      "pl-10 text-right font-semibold tabular-nums",
+                      isEntrada ? "text-emerald-700" : "text-rose-700"
+                    )}
+                  />
+                </div>
               </div>
               <div className="md:col-span-3">
                 <Label className="mb-1 block">Descrição *</Label>
