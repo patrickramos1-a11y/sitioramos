@@ -308,6 +308,28 @@ function ClassificacaoRow({
 
       {/* Editor grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <Field label="Responsável">
+          <Select
+            value={responsavelId}
+            onValueChange={(v) => {
+              setResponsavelId(v);
+              onUpdateResponsavel(v === NONE ? null : v);
+            }}
+          >
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>—</SelectItem>
+              {(responsaveis ?? []).map((r: any) => (
+                <SelectItem key={r.id} value={r.id}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.cor }} />
+                    {r.nome}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label="Natureza">
           <PickSelect value={naturezaId} onChange={setNaturezaId} options={naturezas} />
         </Field>
