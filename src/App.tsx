@@ -23,6 +23,7 @@ import Lancamentos from "./pages/Lancamentos";
 import Contatos from "./pages/Contatos";
 import Responsaveis from "./pages/Responsaveis";
 import Diario from "./pages/Diario";
+import Ciclos from "./pages/Ciclos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
