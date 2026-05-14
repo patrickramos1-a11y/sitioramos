@@ -265,6 +265,15 @@ function ClassificacaoRow({
               </Badge>
             )}
             {cls?.revisado && <Badge className="text-[10px]">Revisado</Badge>}
+            {responsavelAtual && (
+              <Badge variant="outline" className="text-[10px] gap-1">
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: (responsavelAtual as any).cor }}
+                />
+                {(responsavelAtual as any).nome}
+              </Badge>
+            )}
           </div>
           <div className="font-medium mt-0.5">{tx.descricao || "(sem descrição)"}</div>
           {tx.subcategoria && (
