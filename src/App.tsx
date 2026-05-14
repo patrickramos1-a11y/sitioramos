@@ -74,6 +74,7 @@ const App = () => {
             <Route path="/contatos" element={<Contatos />} />
             <Route path="/responsaveis" element={<Responsaveis />} />
             <Route path="/diario" element={<Diario />} />
+            <Route path="/ciclos" element={<Ciclos />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
