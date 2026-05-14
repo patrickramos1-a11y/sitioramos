@@ -1,4 +1,4 @@
-import { useState, ReactNode } from "react";
+import { useState, useEffect, ReactNode, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Circle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCashTransactions } from "@/hooks/useCashTransactions";
-import { useUpsertClassificacao } from "@/hooks/financeiro/useFinClassificacoes";
+import { useCashTransactions, CashTransaction } from "@/hooks/useCashTransactions";
+import { useUpsertClassificacao, useFinClassificacoes } from "@/hooks/financeiro/useFinClassificacoes";
 import { useFinNaturezas } from "@/hooks/financeiro/useFinNaturezas";
 import { useFinCategorias } from "@/hooks/financeiro/useFinCategorias";
 import { useFinCentrosCusto } from "@/hooks/financeiro/useFinCentrosCusto";
@@ -28,10 +28,25 @@ const ALL_FIELDS: FieldKey[] = [
   "area_id", "cycle_id", "projeto_investimento_id", "loan_id", "observacoes",
 ];
 
-export function NovoLancamentoDialog({ trigger }: { trigger?: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const { createTransaction } = useCashTransactions();
+interface Props {
+  trigger?: ReactNode;
+  transaction?: CashTransaction | null;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+}
+
+export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onOpenChange }: Props) {
+  const isEdit = !!transaction;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setInternalOpen(v);
+  };
+
+  const { createTransaction, updateTransaction } = useCashTransactions();
   const upsertClass = useUpsertClassificacao();
+  const { data: classifs = [] } = useFinClassificacoes();
   const { data: naturezas = [] } = useFinNaturezas();
   const { data: categorias = [] } = useFinCategorias();
   const { data: centros = [] } = useFinCentrosCusto();
@@ -41,27 +56,54 @@ export function NovoLancamentoDialog({ trigger }: { trigger?: ReactNode }) {
   const { loans = [] } = useLoans();
   const { data: responsaveis = [] } = useResponsaveis();
 
-  // mandatory base
+  const existingClass = useMemo(
+    () => (transaction ? classifs.find((c) => c.cash_transaction_id === transaction.id) : null),
+    [classifs, transaction]
+  );
+
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [tipo, setTipo] = useState<"entrada" | "saida">("saida");
   const [valor, setValor] = useState("");
   const [descricao, setDescricao] = useState("");
-
-  // optional with N/A
   const [na, setNa] = useState<Record<FieldKey, boolean>>({} as any);
   const [vals, setVals] = useState<Record<FieldKey, string>>({} as any);
 
+  // Seed state when opening / transaction changes
+  useEffect(() => {
+    if (!open) return;
+    if (transaction) {
+      setData(transaction.data);
+      setTipo(transaction.tipo);
+      setValor(String(transaction.valor));
+      setDescricao(transaction.descricao || "");
+      const tAny: any = transaction;
+      const seed: Record<FieldKey, string> = {
+        responsavel_id: tAny.responsavel_id || "",
+        natureza_id: existingClass?.natureza_id || "",
+        categoria_id: existingClass?.categoria_id || "",
+        centro_custo_id: existingClass?.centro_custo_id || "",
+        area_id: existingClass?.area_id || tAny.area_id || "",
+        cycle_id: existingClass?.cycle_id || tAny.cycle_id || "",
+        projeto_investimento_id: existingClass?.projeto_investimento_id || "",
+        loan_id: existingClass?.loan_id || tAny.loan_id || "",
+        observacoes: tAny.observacoes || "",
+      };
+      const seedNa: Record<FieldKey, boolean> = {} as any;
+      ALL_FIELDS.forEach((k) => { seedNa[k] = !seed[k]; });
+      setVals(seed);
+      setNa(seedNa);
+    } else {
+      setData(new Date().toISOString().slice(0, 10));
+      setTipo("saida");
+      setValor("");
+      setDescricao("");
+      setVals({} as any);
+      setNa({} as any);
+    }
+  }, [open, transaction?.id, existingClass?.id]);
+
   const setVal = (k: FieldKey, v: string) => setVals((s) => ({ ...s, [k]: v }));
   const toggleNa = (k: FieldKey) => setNa((s) => ({ ...s, [k]: !s[k] }));
-
-  const reset = () => {
-    setData(new Date().toISOString().slice(0, 10));
-    setTipo("saida");
-    setValor("");
-    setDescricao("");
-    setNa({} as any);
-    setVals({} as any);
-  };
 
   const validate = () => {
     if (!data) return "Informe a data";
@@ -77,10 +119,9 @@ export function NovoLancamentoDialog({ trigger }: { trigger?: ReactNode }) {
     const err = validate();
     if (err) { toast.error(err); return; }
     try {
-      const tx: any = await createTransaction.mutateAsync({
+      const basePayload = {
         data,
         tipo,
-        categoria: tipo === "entrada" ? "receita" : "financeiro",
         valor: Number(valor),
         descricao: descricao.trim(),
         responsavel_id: na.responsavel_id ? null : (vals.responsavel_id || null),
@@ -88,14 +129,23 @@ export function NovoLancamentoDialog({ trigger }: { trigger?: ReactNode }) {
         cycle_id: na.cycle_id ? null : (vals.cycle_id || null),
         loan_id: na.loan_id ? null : (vals.loan_id || null),
         observacoes: na.observacoes ? null : (vals.observacoes || null),
-      });
+      };
 
-      const hasClass =
-        !na.natureza_id || !na.categoria_id || !na.centro_custo_id ||
-        !na.projeto_investimento_id || !na.area_id || !na.cycle_id || !na.loan_id;
-      if (hasClass && tx?.id) {
+      let txId: string | undefined;
+      if (isEdit && transaction) {
+        await updateTransaction.mutateAsync({ id: transaction.id, ...basePayload } as any);
+        txId = transaction.id;
+      } else {
+        const tx: any = await createTransaction.mutateAsync({
+          ...basePayload,
+          categoria: tipo === "entrada" ? "receita" : "financeiro",
+        } as any);
+        txId = tx?.id;
+      }
+
+      if (txId) {
         await upsertClass.mutateAsync({
-          cash_transaction_id: tx.id,
+          cash_transaction_id: txId,
           natureza_id: na.natureza_id ? null : (vals.natureza_id || null),
           categoria_id: na.categoria_id ? null : (vals.categoria_id || null),
           centro_custo_id: na.centro_custo_id ? null : (vals.centro_custo_id || null),
@@ -108,25 +158,28 @@ export function NovoLancamentoDialog({ trigger }: { trigger?: ReactNode }) {
           confianca: "alta",
         });
       }
-      reset();
       setOpen(false);
     } catch (e: any) {
       toast.error(e.message);
     }
   };
 
+  const pending = createTransaction.isPending || updateTransaction.isPending || upsertClass.isPending;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm" className="h-8">
-            <Plus className="h-4 w-4 mr-1" /> Novo lançamento
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isEdit && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" className="h-8">
+              <Plus className="h-4 w-4 mr-1" /> Novo lançamento
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo lançamento</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-3 text-sm">
@@ -219,8 +272,8 @@ export function NovoLancamentoDialog({ trigger }: { trigger?: ReactNode }) {
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button onClick={submit} disabled={createTransaction.isPending}>
-            Salvar lançamento
+          <Button onClick={submit} disabled={pending}>
+            {pending ? "Salvando..." : isEdit ? "Salvar alterações" : "Salvar lançamento"}
           </Button>
         </DialogFooter>
       </DialogContent>
