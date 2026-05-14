@@ -82,6 +82,7 @@ export function LancamentosTab() {
   const [loanId, setLoanId] = useState(ALL);
   const [respId, setRespId] = useState(ALL);
   const [classifFilter, setClassifFilter] = useState(ALL); // all / classified / unclassified / revisado / nao_revisado
+  const [editingTx, setEditingTx] = useState<CashTransaction | null>(null);
 
   const filtered = useMemo(() => {
     return txs.filter((t) => {
