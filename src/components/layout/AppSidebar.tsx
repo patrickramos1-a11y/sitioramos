@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  MapPin,
   Landmark,
   PieChart,
   Home,
