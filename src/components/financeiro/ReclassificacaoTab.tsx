@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, Sparkles, Trash2, X } from "lucide-react";
+import { Check, Sparkles, Trash2, X, Loader2, Pencil, Info } from "lucide-react";
 import { useCashTransactions } from "@/hooks/useCashTransactions";
 import {
   useFinClassificacoes,
