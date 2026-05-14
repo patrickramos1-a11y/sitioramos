@@ -180,6 +180,7 @@ export function LancamentosTab() {
               <th className="px-2 py-2">Data</th>
               <th className="px-2 py-2">Tipo</th>
               <th className="px-2 py-2">Descrição</th>
+              <th className="px-2 py-2">Responsável</th>
               <th className="px-2 py-2">Cat. antiga</th>
               <th className="px-2 py-2">Natureza</th>
               <th className="px-2 py-2">Categoria</th>
