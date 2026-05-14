@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, Sparkles, Trash2, X } from "lucide-react";
+import { Check, Sparkles, Trash2, X, Loader2, Pencil, Info } from "lucide-react";
 import { useCashTransactions } from "@/hooks/useCashTransactions";
 import {
   useFinClassificacoes,
@@ -132,7 +132,7 @@ export function ReclassificacaoTab() {
               catByCode={catByCode}
               ccByCode={ccByCode}
               fmt={fmt}
-              onSave={(payload) => upsert.mutate(payload)}
+              onSave={(payload) => upsert.mutateAsync(payload)}
               onDelete={() => del.mutate(t.id)}
               onToggleRevisado={(id, rev) => toggleRev.mutate({ id, revisado: rev })}
               onUpdateResponsavel={(rid) => updateTransaction.mutate({ id: t.id, responsavel_id: rid })}
@@ -203,6 +203,8 @@ function ClassificacaoRow({
   const [observacao, setObservacao] = useState<string>(cls?.observacao ?? "");
   const [responsavelId, setResponsavelId] = useState<string>(txAny.responsavel_id ?? NONE);
   const responsavelAtual = (responsaveis ?? []).find((r: any) => r.id === txAny.responsavel_id);
+  const [saving, setSaving] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(!!cls?.revisado);
 
   const installments = useMemo(() => {
     if (loanId === NONE) return [];
@@ -212,22 +214,29 @@ function ClassificacaoRow({
     );
   }, [loanId, loans]);
 
-  const handleSave = () => {
-    onSave({
-      cash_transaction_id: tx.id,
-      natureza_id: naturezaId === NONE ? null : naturezaId,
-      categoria_id: categoriaId === NONE ? null : categoriaId,
-      centro_custo_id: centroId === NONE ? null : centroId,
-      area_id: areaId === NONE ? null : areaId,
-      cycle_id: cycleId === NONE ? null : cycleId,
-      projeto_investimento_id: projetoId === NONE ? null : projetoId,
-      loan_id: loanId === NONE ? null : loanId,
-      installment_id: installmentId === NONE ? null : installmentId,
-      tipo_evento_emprestimo: loanEvent === NONE ? null : (loanEvent as LoanEvent),
-      observacao: observacao || null,
-      origem: "manual",
-      confianca: suggestion ? suggestion.confianca : "alta",
-    });
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await onSave({
+        cash_transaction_id: tx.id,
+        natureza_id: naturezaId === NONE ? null : naturezaId,
+        categoria_id: categoriaId === NONE ? null : categoriaId,
+        centro_custo_id: centroId === NONE ? null : centroId,
+        area_id: areaId === NONE ? null : areaId,
+        cycle_id: cycleId === NONE ? null : cycleId,
+        projeto_investimento_id: projetoId === NONE ? null : projetoId,
+        loan_id: loanId === NONE ? null : loanId,
+        installment_id: installmentId === NONE ? null : installmentId,
+        tipo_evento_emprestimo: loanEvent === NONE ? null : (loanEvent as LoanEvent),
+        observacao: observacao || null,
+        origem: "manual",
+        confianca: suggestion ? suggestion.confianca : "alta",
+        revisado: true,
+      });
+      setCollapsed(true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const applySuggestion = () => {
@@ -246,6 +255,22 @@ function ClassificacaoRow({
     }
     if (suggestion.loanEvent) setLoanEvent(suggestion.loanEvent);
   };
+
+  if (collapsed) {
+    return (
+      <Card className="p-3 text-xs flex items-center gap-3">
+        <Badge className="text-[10px]"><Check className="h-3 w-3 mr-1" />Revisado</Badge>
+        <span className="text-muted-foreground">{new Date(tx.data).toLocaleDateString("pt-BR")}</span>
+        <span className="font-medium flex-1 truncate">{tx.descricao || "(sem descrição)"}</span>
+        <span className={`text-sm font-semibold ${tx.tipo === "entrada" ? "text-emerald-600" : "text-rose-600"}`}>
+          {fmt(Number(tx.valor))}
+        </span>
+        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setCollapsed(false)}>
+          <Pencil className="h-3 w-3 mr-1" /> Editar
+        </Button>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-3 space-y-2 text-xs">
@@ -358,6 +383,16 @@ function ClassificacaoRow({
             options={cycles.map((c: any) => ({ ...c, nome: c.cultura }))}
           />
         </Field>
+        <div className="col-span-2 md:col-span-4 flex items-start gap-2 rounded border border-dashed bg-muted/30 p-2 text-[11px] text-muted-foreground">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div>
+            <strong className="text-foreground">Vínculo com empréstimo</strong> — preencha apenas se este lançamento se refere a um empréstimo (recebimento do crédito ou pagamento de uma parcela).
+            <div className="mt-0.5">
+              <b>Empréstimo:</b> qual contrato. <b>Parcela:</b> qual nº de parcela está sendo paga (deixe vazio em recebimentos/juros avulsos). <b>Evento:</b> o que esta transação representa — <i>Recebimento</i> (crédito do empréstimo entrou no caixa), <i>Pagamento parcela</i> (saída pagando uma parcela), <i>Juros/Tarifa/Amortização</i>.
+            </div>
+            <div className="mt-0.5">Para uma despesa comum (insumos, mão de obra), deixe os três campos como “—”.</div>
+          </div>
+        </div>
         <Field label="Empréstimo">
           <Select value={loanId} onValueChange={(v) => { setLoanId(v); setInstallmentId(NONE); }}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
@@ -428,8 +463,9 @@ function ClassificacaoRow({
             </Button>
           </>
         )}
-        <Button size="sm" className="h-7 text-[11px]" onClick={handleSave}>
-          <Check className="h-3 w-3 mr-1" /> Salvar
+        <Button size="sm" className="h-7 text-[11px]" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+          {saving ? "Salvando..." : "Salvar e marcar revisado"}
         </Button>
       </div>
     </Card>
