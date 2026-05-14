@@ -28,6 +28,7 @@ import { useFinProjetos } from "@/hooks/financeiro/useFinProjetos";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
 import { useLoans } from "@/hooks/useLoans";
+import { useResponsaveis } from "@/hooks/useResponsaveis";
 import {
   detectLoanEventFromTx,
   loanEventLabel,
@@ -46,7 +47,7 @@ const LOAN_EVENTS: { value: LoanEvent; label: string }[] = [
 ];
 
 export function ReclassificacaoTab() {
-  const { transactions: txs = [] } = useCashTransactions();
+  const { transactions: txs = [], updateTransaction } = useCashTransactions();
   const { data: classifs = [] } = useFinClassificacoes();
   const { data: naturezas = [] } = useFinNaturezas();
   const { data: categorias = [] } = useFinCategorias();
@@ -55,6 +56,7 @@ export function ReclassificacaoTab() {
   const { areas = [] } = useAreas();
   const { cycles = [] } = useCycles();
   const { loans = [] } = useLoans();
+  const { data: responsaveis = [] } = useResponsaveis();
 
   const upsert = useUpsertClassificacao();
   const del = useDeleteClassificacao();
@@ -125,6 +127,7 @@ export function ReclassificacaoTab() {
               areas={areas}
               cycles={cycles}
               loans={loans}
+              responsaveis={responsaveis}
               natByCode={natByCode}
               catByCode={catByCode}
               ccByCode={ccByCode}
@@ -132,6 +135,7 @@ export function ReclassificacaoTab() {
               onSave={(payload) => upsert.mutate(payload)}
               onDelete={() => del.mutate(t.id)}
               onToggleRevisado={(id, rev) => toggleRev.mutate({ id, revisado: rev })}
+              onUpdateResponsavel={(rid) => updateTransaction.mutate({ id: t.id, responsavel_id: rid })}
             />
           );
         })}
@@ -156,6 +160,7 @@ function ClassificacaoRow({
   areas,
   cycles,
   loans,
+  responsaveis,
   natByCode,
   catByCode,
   ccByCode,
@@ -163,6 +168,7 @@ function ClassificacaoRow({
   onSave,
   onDelete,
   onToggleRevisado,
+  onUpdateResponsavel,
 }: any) {
   const txAny = tx;
   // Auto-detect existing loan link from cash_transactions
@@ -195,6 +201,8 @@ function ClassificacaoRow({
     cls?.tipo_evento_emprestimo ?? suggestion?.loanEvent ?? autoLoanEvent ?? NONE
   );
   const [observacao, setObservacao] = useState<string>(cls?.observacao ?? "");
+  const [responsavelId, setResponsavelId] = useState<string>(txAny.responsavel_id ?? NONE);
+  const responsavelAtual = (responsaveis ?? []).find((r: any) => r.id === txAny.responsavel_id);
 
   const installments = useMemo(() => {
     if (loanId === NONE) return [];
@@ -257,6 +265,15 @@ function ClassificacaoRow({
               </Badge>
             )}
             {cls?.revisado && <Badge className="text-[10px]">Revisado</Badge>}
+            {responsavelAtual && (
+              <Badge variant="outline" className="text-[10px] gap-1">
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: (responsavelAtual as any).cor }}
+                />
+                {(responsavelAtual as any).nome}
+              </Badge>
+            )}
           </div>
           <div className="font-medium mt-0.5">{tx.descricao || "(sem descrição)"}</div>
           {tx.subcategoria && (
@@ -291,6 +308,28 @@ function ClassificacaoRow({
 
       {/* Editor grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <Field label="Responsável">
+          <Select
+            value={responsavelId}
+            onValueChange={(v) => {
+              setResponsavelId(v);
+              onUpdateResponsavel(v === NONE ? null : v);
+            }}
+          >
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>—</SelectItem>
+              {(responsaveis ?? []).map((r: any) => (
+                <SelectItem key={r.id} value={r.id}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.cor }} />
+                    {r.nome}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label="Natureza">
           <PickSelect value={naturezaId} onChange={setNaturezaId} options={naturezas} />
         </Field>
