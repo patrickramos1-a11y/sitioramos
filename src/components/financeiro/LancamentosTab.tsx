@@ -182,8 +182,10 @@ export function LancamentosTab() {
         <table className="w-full text-xs">
           <thead className="bg-muted/50 text-left">
             <tr>
+              <th className="px-2 py-2 w-10"></th>
               <th className="px-2 py-2">Data</th>
               <th className="px-2 py-2">Tipo</th>
+              <th className="px-2 py-2 text-right">Valor</th>
               <th className="px-2 py-2">Descrição</th>
               <th className="px-2 py-2">Responsável</th>
               <th className="px-2 py-2">Cat. antiga</th>
@@ -195,7 +197,6 @@ export function LancamentosTab() {
               <th className="px-2 py-2">Projeto</th>
               <th className="px-2 py-2">Empréstimo</th>
               <th className="px-2 py-2">Status</th>
-              <th className="px-2 py-2 text-right">Valor</th>
             </tr>
           </thead>
           <tbody className="divide-y">
