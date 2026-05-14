@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FinanceiroFilters } from "./FinanceiroFilters";
 import { defaultFilters, type FinFilters } from "@/hooks/financeiro/useFinanceiroAnalytics";
 import { VisaoGeralSubTab } from "./dashboard/VisaoGeralSubTab";
@@ -9,65 +7,61 @@ import { PorCicloSubTab } from "./dashboard/PorCicloSubTab";
 import { PorCategoriaSubTab } from "./dashboard/PorCategoriaSubTab";
 import { InvestimentosSubTab } from "./dashboard/InvestimentosSubTab";
 import { EmprestimosSubTab } from "./dashboard/EmprestimosSubTab";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { LayoutDashboard, MapPin, Sprout, Tag, Hammer, Landmark } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const SUB = [
-  { value: "overview", label: "Visão Geral" },
-  { value: "por-area", label: "Por Área" },
-  { value: "por-ciclo", label: "Por Ciclo" },
-  { value: "por-categoria", label: "Por Categoria" },
-  { value: "investimentos", label: "Investimentos" },
-  { value: "emprestimos", label: "Empréstimos" },
+  { value: "overview",     label: "Visão Geral",  short: "Geral",   icon: LayoutDashboard, color: "hsl(190 80% 45%)", comp: VisaoGeralSubTab },
+  { value: "por-area",     label: "Por Área",     short: "Áreas",   icon: MapPin,          color: "hsl(142 65% 45%)", comp: PorAreaSubTab },
+  { value: "por-ciclo",    label: "Por Ciclo",    short: "Ciclos",  icon: Sprout,          color: "hsl(28 75% 50%)",  comp: PorCicloSubTab },
+  { value: "por-categoria",label: "Por Categoria",short: "Categ.",  icon: Tag,             color: "hsl(265 65% 58%)", comp: PorCategoriaSubTab },
+  { value: "investimentos",label: "Investimentos",short: "Invest.", icon: Hammer,          color: "hsl(45 90% 50%)",  comp: InvestimentosSubTab },
+  { value: "emprestimos",  label: "Empréstimos",  short: "Empr.",   icon: Landmark,        color: "hsl(355 65% 55%)", comp: EmprestimosSubTab },
 ];
 
 export function DashboardTab() {
   const [filters, setFilters] = useState<FinFilters>(defaultFilters);
   const [view, setView] = useState("overview");
-  const isMobile = useIsMobile();
+  const Active = SUB.find((s) => s.value === view)?.comp ?? VisaoGeralSubTab;
+  const activeColor = SUB.find((s) => s.value === view)?.color;
 
   return (
     <div className="space-y-3 md:space-y-4">
       <FinanceiroFilters value={filters} onChange={setFilters} />
 
-      <Tabs value={view} onValueChange={setView}>
-        {isMobile ? (
-          <Select value={view} onValueChange={setView}>
-            <SelectTrigger className="w-full h-11 bg-card border-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SUB.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <TabsList className="flex flex-wrap h-auto">
-            {SUB.map((s) => (
-              <TabsTrigger key={s.value} value={s.value}>{s.label}</TabsTrigger>
-            ))}
-          </TabsList>
-        )}
+      {/* Colored chip nav — horizontal scroll on mobile */}
+      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 scrollbar-thin md:flex-wrap md:overflow-visible">
+        {SUB.map((s) => {
+          const Icon = s.icon;
+          const active = view === s.value;
+          return (
+            <button
+              key={s.value}
+              onClick={() => setView(s.value)}
+              className={cn(
+                "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all",
+                active
+                  ? "text-white shadow-sm"
+                  : "bg-card text-foreground border-border hover:border-foreground/20"
+              )}
+              style={active ? { background: s.color, borderColor: s.color } : undefined}
+            >
+              <Icon className="h-3.5 w-3.5" style={!active ? { color: s.color } : undefined} />
+              <span className="md:hidden">{s.short}</span>
+              <span className="hidden md:inline">{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        <TabsContent value="overview" className="mt-4">
-          <VisaoGeralSubTab filters={filters} />
-        </TabsContent>
-        <TabsContent value="por-area" className="mt-4">
-          <PorAreaSubTab filters={filters} />
-        </TabsContent>
-        <TabsContent value="por-ciclo" className="mt-4">
-          <PorCicloSubTab filters={filters} />
-        </TabsContent>
-        <TabsContent value="por-categoria" className="mt-4">
-          <PorCategoriaSubTab filters={filters} />
-        </TabsContent>
-        <TabsContent value="investimentos" className="mt-4">
-          <InvestimentosSubTab filters={filters} />
-        </TabsContent>
-        <TabsContent value="emprestimos" className="mt-4">
-          <EmprestimosSubTab filters={filters} />
-        </TabsContent>
-      </Tabs>
+      <div
+        className="rounded-md"
+        style={activeColor ? { boxShadow: `inset 3px 0 0 0 ${activeColor}` } : undefined}
+      >
+        <div className="pl-1 md:pl-2">
+          <Active filters={filters} />
+        </div>
+      </div>
     </div>
   );
 }
