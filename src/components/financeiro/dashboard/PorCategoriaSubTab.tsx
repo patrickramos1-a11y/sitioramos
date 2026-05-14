@@ -1,52 +1,35 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinanceiroAnalytics, type FinFilters } from "@/hooks/financeiro/useFinanceiroAnalytics";
 import { fmtBRL } from "@/lib/financeiro/finCalc";
 import { colorForEntity } from "@/lib/financeiro/entityColors";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import { ChartCard } from "./ChartCard";
+
+const ALL = "__all__";
 
 export function PorCategoriaSubTab({ filters }: { filters: FinFilters }) {
   const a = useFinanceiroAnalytics(filters);
+  const [cicloFilter, setCicloFilter] = useState<string>(ALL);
 
-  // Heatmap categoria × ciclo
-  const { matriz, ciclos, categorias } = useMemo(() => {
-    const cycleIds = new Set<string>();
-    const catIds = new Set<string>();
-    const cell = new Map<string, number>();
+  const ciclosOpts = useMemo(() => {
+    const ids = new Set<string>();
     for (const r of a.filtered) {
-      if (r.tx.tipo !== "saida") continue;
       const cid = r.classif?.cycle_id ?? r.tx.cycle_id;
-      const catId = r.classif?.categoria_id;
-      if (!cid || !catId) continue;
-      cycleIds.add(cid);
-      catIds.add(catId);
-      const k = `${catId}|${cid}`;
-      cell.set(k, (cell.get(k) || 0) + Number(r.tx.valor));
+      if (cid) ids.add(cid);
     }
-    const ciclos = Array.from(cycleIds).map((id) => {
+    return Array.from(ids).map((id) => {
       const c: any = (a.cycles as any[]).find((x) => x.id === id);
       return { id, nome: c ? `${c.cultura} — ${c.areas?.nome ?? "—"}` : "—", color: colorForEntity("cycle", id) };
     });
-    const categorias = Array.from(catIds).map((id) => {
-      const c = a.cats.find((x) => x.id === id);
-      return { id, nome: c?.nome ?? "—" };
-    });
-    // ordenar categorias pelo total (desc)
-    categorias.sort((x, y) => {
-      const sx = ciclos.reduce((s, c) => s + (cell.get(`${x.id}|${c.id}`) || 0), 0);
-      const sy = ciclos.reduce((s, c) => s + (cell.get(`${y.id}|${c.id}`) || 0), 0);
-      return sy - sx;
-    });
-    return { matriz: cell, ciclos, categorias };
-  }, [a.filtered, a.cycles, a.cats]);
+  }, [a.filtered, a.cycles]);
 
-  const max = Math.max(1, ...Array.from(matriz.values()));
-
-  // Top 15 categorias do período
   const top = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of a.filtered) {
       if (r.tx.tipo !== "saida" || !r.classif?.categoria_id) continue;
+      const cid = r.classif?.cycle_id ?? r.tx.cycle_id;
+      if (cicloFilter !== ALL && cid !== cicloFilter) continue;
       m.set(r.classif.categoria_id, (m.get(r.classif.categoria_id) || 0) + Number(r.tx.valor));
     }
     const total = Array.from(m.values()).reduce((s, v) => s + v, 0);
@@ -58,83 +41,88 @@ export function PorCategoriaSubTab({ filters }: { filters: FinFilters }) {
         share: total > 0 ? valor / total : 0,
         color: colorForEntity("categoria", id),
       }))
-      .sort((x, y) => y.valor - x.valor)
-      .slice(0, 15);
-  }, [a.filtered, a.cats]);
+      .sort((x, y) => y.valor - x.valor);
+  }, [a.filtered, a.cats, cicloFilter]);
+
+  const totalGeral = top.reduce((s, t) => s + t.valor, 0);
+  const max = Math.max(1, ...top.map((t) => t.valor));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-4">
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Top 15 categorias do período</CardTitle></CardHeader>
-        <CardContent>
-          {top.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">Sem dados no período.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={Math.max(280, top.length * 28)}>
-              <BarChart data={top} layout="vertical" margin={{ left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <YAxis type="category" dataKey="nome" width={150} tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: number, _n, p: any) => [`${fmtBRL(v)} (${(p.payload.share * 100).toFixed(1)}%)`, "Total"]} />
-                <Bar dataKey="valor">
-                  {top.map((t) => <Cell key={t.id} fill={t.color} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+        <CardContent className="p-3 grid gap-2 grid-cols-2 sm:grid-cols-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Total saídas</p>
+            <p className="text-base font-semibold tabular-nums">{fmtBRL(totalGeral)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Categorias</p>
+            <p className="text-base font-semibold tabular-nums">{top.length}</p>
+          </div>
+          <div className="col-span-2 sm:col-span-1">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Filtrar por ciclo</p>
+            <Select value={cicloFilter} onValueChange={setCicloFilter}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Todos os ciclos</SelectItem>
+                {ciclosOpts.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Heatmap — Categoria × Ciclo</CardTitle></CardHeader>
-        <CardContent className="overflow-x-auto">
-          {ciclos.length === 0 || categorias.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">Sem cruzamento de categoria × ciclo. Classifique os lançamentos.</p>
-          ) : (
-            <table className="text-[10px] border-separate border-spacing-0.5">
-              <thead>
-                <tr>
-                  <th className="text-left px-2 py-1 sticky left-0 bg-background"></th>
-                  {ciclos.map((c) => (
-                    <th key={c.id} className="px-2 py-1 text-left whitespace-nowrap" style={{ minWidth: 100 }}>
-                      <div className="flex items-center gap-1">
-                        <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: c.color }} />
-                        <span className="truncate max-w-[120px]" title={c.nome}>{c.nome}</span>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {categorias.map((cat) => (
-                  <tr key={cat.id}>
-                    <td className="px-2 py-1 sticky left-0 bg-background font-medium whitespace-nowrap">{cat.nome}</td>
-                    {ciclos.map((c) => {
-                      const v = matriz.get(`${cat.id}|${c.id}`) || 0;
-                      const intensity = v / max;
-                      return (
-                        <td
-                          key={c.id}
-                          className="px-2 py-1 text-right tabular-nums"
-                          style={{
-                            background: v > 0
-                              ? `hsl(from ${c.color} h s l / ${0.15 + intensity * 0.65})`
-                              : "transparent",
-                            color: intensity > 0.5 ? "white" : undefined,
-                          }}
-                          title={`${cat.nome} × ${c.nome}: ${fmtBRL(v)}`}
-                        >
-                          {v > 0 ? `${(v / 1000).toFixed(1)}k` : "—"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </CardContent>
-      </Card>
+      <ChartCard title="Categorias por gasto" accent="hsl(265 65% 58%)" table={<CategTable rows={top} totalGeral={totalGeral} />}>
+        {top.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-8 text-center">Sem dados no período.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {top.map((t) => {
+              const w = (t.valor / max) * 100;
+              return (
+                <div key={t.id} className="space-y-0.5">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ background: t.color }} />
+                      <span className="truncate" title={t.nome}>{t.nome}</span>
+                    </span>
+                    <span className="tabular-nums shrink-0 font-medium">{fmtBRL(t.valor)}</span>
+                    <span className="tabular-nums shrink-0 text-[10px] text-muted-foreground w-10 text-right">{(t.share * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${w}%`, background: t.color }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </ChartCard>
+    </div>
+  );
+}
+
+function CategTable({ rows, totalGeral }: { rows: any[]; totalGeral: number }) {
+  return (
+    <div className="overflow-auto max-h-[60vh]">
+      <table className="w-full text-[11px]">
+        <thead className="sticky top-0 bg-background"><tr>
+          <th className="text-left px-2 py-1">Categoria</th>
+          <th className="text-right px-2 py-1">Valor</th>
+          <th className="text-right px-2 py-1">%</th>
+        </tr></thead>
+        <tbody>
+          {rows.map((t) => (
+            <tr key={t.id} className="border-t">
+              <td className="px-2 py-1 flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: t.color }} />{t.nome}</td>
+              <td className="text-right px-2 py-1 tabular-nums">{fmtBRL(t.valor)}</td>
+              <td className="text-right px-2 py-1 tabular-nums">{totalGeral ? ((t.valor / totalGeral) * 100).toFixed(1) : 0}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
