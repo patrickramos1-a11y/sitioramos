@@ -159,10 +159,16 @@ export function LancamentosTab() {
             <SelectItem key={l.id} value={l.id}>{l.origem_credor}</SelectItem>
           ))}
         </FilterSelect>
+        <FilterSelect value={respId} onChange={setRespId} placeholder="Responsável">
+          {responsaveis.map((r) => (
+            <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+          ))}
+        </FilterSelect>
       </Card>
 
-      <div className="text-xs text-muted-foreground">
-        {filtered.length} de {txs.length} lançamentos
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          {filtered.length} de {txs.length} lançamentos
       </div>
 
       <Card className="overflow-x-auto">
