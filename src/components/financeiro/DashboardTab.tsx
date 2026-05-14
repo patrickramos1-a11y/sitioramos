@@ -5,7 +5,7 @@ import { useCashTransactions } from "@/hooks/useCashTransactions";
 import { CheckCircle2, AlertCircle, Wallet } from "lucide-react";
 
 export function DashboardTab() {
-  const { data: txs = [] } = useCashTransactions();
+  const { transactions: txs = [] } = useCashTransactions();
   const { data: classifs = [] } = useFinClassificacoes();
   const { data: naturezas = [] } = useFinNaturezas();
 
