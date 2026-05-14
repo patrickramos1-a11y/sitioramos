@@ -76,6 +76,7 @@ export function LancamentosTab() {
   const [cycleId, setCycleId] = useState(ALL);
   const [projetoId, setProjetoId] = useState(ALL);
   const [loanId, setLoanId] = useState(ALL);
+  const [respId, setRespId] = useState(ALL);
   const [classifFilter, setClassifFilter] = useState(ALL); // all / classified / unclassified / revisado / nao_revisado
 
   const filtered = useMemo(() => {
