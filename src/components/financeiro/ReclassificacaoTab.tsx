@@ -160,6 +160,7 @@ function ClassificacaoRow({
   areas,
   cycles,
   loans,
+  responsaveis,
   natByCode,
   catByCode,
   ccByCode,
@@ -167,6 +168,7 @@ function ClassificacaoRow({
   onSave,
   onDelete,
   onToggleRevisado,
+  onUpdateResponsavel,
 }: any) {
   const txAny = tx;
   // Auto-detect existing loan link from cash_transactions
