@@ -18,6 +18,8 @@ import { useFinProjetos } from "@/hooks/financeiro/useFinProjetos";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
 import { useLoans } from "@/hooks/useLoans";
+import { useResponsaveis } from "@/hooks/useResponsaveis";
+import { NovoLancamentoDialog } from "./NovoLancamentoDialog";
 import {
   detectLoanEventFromTx,
   loanEventLabel,
