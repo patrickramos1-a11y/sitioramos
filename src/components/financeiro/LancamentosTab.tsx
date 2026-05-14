@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Pencil } from "lucide-react";
+import { EditValorDialog } from "./EditValorDialog";
+import type { CashTransaction } from "@/hooks/useCashTransactions";
 import {
   Select,
   SelectContent,
