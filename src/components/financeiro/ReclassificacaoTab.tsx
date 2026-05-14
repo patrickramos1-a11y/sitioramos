@@ -256,6 +256,22 @@ function ClassificacaoRow({
     if (suggestion.loanEvent) setLoanEvent(suggestion.loanEvent);
   };
 
+  if (collapsed) {
+    return (
+      <Card className="p-3 text-xs flex items-center gap-3">
+        <Badge className="text-[10px]"><Check className="h-3 w-3 mr-1" />Revisado</Badge>
+        <span className="text-muted-foreground">{new Date(tx.data).toLocaleDateString("pt-BR")}</span>
+        <span className="font-medium flex-1 truncate">{tx.descricao || "(sem descrição)"}</span>
+        <span className={`text-sm font-semibold ${tx.tipo === "entrada" ? "text-emerald-600" : "text-rose-600"}`}>
+          {fmt(Number(tx.valor))}
+        </span>
+        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setCollapsed(false)}>
+          <Pencil className="h-3 w-3 mr-1" /> Editar
+        </Button>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-3 space-y-2 text-xs">
       {/* Header */}
