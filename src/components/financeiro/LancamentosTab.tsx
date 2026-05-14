@@ -169,6 +169,8 @@ export function LancamentosTab() {
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
           {filtered.length} de {txs.length} lançamentos
+        </div>
+        <NovoLancamentoDialog />
       </div>
 
       <Card className="overflow-x-auto">
