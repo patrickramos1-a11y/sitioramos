@@ -1,126 +1,99 @@
+# Plano — Dashboard Financeiro Mobile-First
 
-# Dashboard Financeiro 2.0 — Sub-abas, Comparações e Custo/ha
+Refatoração completa do Dashboard e suas 6 sub-abas para resolver: filtros muito grandes, dropdown minimalista, KPIs longos demais, gráficos pouco legíveis no celular e tabelas inadequadas.
 
-Hoje o `DashboardTab` é uma única tela densa (KPIs + grade de gráficos), tudo na mesma paleta verde. Vamos transformar em uma central analítica com sub-abas focadas, comparações lado a lado, métricas por hectare e cores únicas por entidade.
+## 1. Barra de filtros retrátil (`FinanceiroFilters`)
 
-## 1. Estrutura de sub-abas
+- **Modo colapsado por padrão no mobile**: mostra apenas 1 chip resumo ("Mês atual · Todos os tipos · 3 filtros") + botão `Filtros`.
+- Ao tocar, abre `Sheet` (drawer lateral) no mobile com todos os filtros organizados em seções (Período, Classificação, Dimensões).
+- **Chips de período rápido** viram pílulas coloridas selecionáveis (Hoje, 7d, Mês, Trim., Ano, Tudo) ao invés de 4 botões enfileirados.
+- Desktop: mantém comportamento atual mas com `Mais filtros` retrátil.
+- Badge no botão `Filtros` mostrando quantos filtros ativos.
 
-Nova navegação dentro de **Financeiro → Dashboard** (Tabs aninhadas, mantendo os filtros globais no topo):
+## 2. Sub-navegação (Visão Geral, Por Área, etc.)
 
-```text
-Financeiro › Dashboard
-├── Visão Geral      (KPIs macro + entradas×saídas + composições)
-├── Por Área         (custo, receita, resultado, R$/ha por área/talhão)
-├── Por Ciclo        (custos, receitas, R$/ha, duração, comparador)
-├── Por Categoria    (heatmap categoria × ciclo, top gastos)
-├── Investimentos    (R$/ha investido, projetos, evolução)
-└── Empréstimos      (saldo devedor, juros pagos, fluxo)
-```
+- Substituir o `Select` minimalista por **chips horizontais com scroll** (`overflow-x-auto snap-x`) — mais visual, mostra ícone + label, com indicador da aba ativa.
+- Cada chip ganha cor própria (azul para Visão Geral, verde para Área, âmbar para Ciclo, roxo para Categoria, dourado para Investimentos, vermelho para Empréstimos).
 
-Filtros globais (período, área, ciclo, natureza, etc.) ficam acima das sub-abas e se aplicam a todas.
+## 3. KPIs compactos e roláveis
 
-## 2. O que cada sub-aba mostra
+- Hoje: 12 `KpiCard`s grandes empilhados — muito longo no mobile.
+- Novo layout mobile: **carrosséis horizontais agrupados por tema** (`snap-x`):
+  - Linha 1 — Resultado: Saldo, Resultado Op., Margem %, Resultado Caixa
+  - Linha 2 — Fluxo: Entradas, Saídas, Burn, Runway
+  - Linha 3 — Operação: Custos Plant., Investimentos, Empréstimos, % Class.
+- KpiCard mobile: altura ~80px, número grande, hint colapsado num ícone `i` (popover) — elimina os "balões cansativos".
+- Desktop: grid 4 colunas mantida, mas com altura reduzida e cor de borda lateral por categoria.
 
-### 2.1 Visão Geral
-- KPIs atuais reorganizados em 3 linhas mais limpas, com ícones coloridos.
-- Novos KPIs: **Margem operacional %**, **Custo médio R$/ha (período)**, **Receita média R$/ha**, **Burn mensal médio**.
-- Gráficos: Entradas×Saídas mensal, composição entradas, composição saídas, evolução de saldo acumulado (linha).
+## 4. Gráficos — versão mobile
 
-### 2.2 Por Área
-- Tabela/cards por área e por talhão com: hectares, custo total, receita total, resultado, **R$/ha custo**, **R$/ha receita**, **resultado/ha**.
-- Gráfico de barras horizontais: custo por área (cor única por área).
-- Gráfico empilhado: composição de custos (categorias) dentro de cada área.
-- Toggle "agrupar por talhão".
+Problemas atuais: legendas estouram, labels de pizza se sobrepõem, alturas fixas pequenas demais.
 
-### 2.3 Por Ciclo (o ponto principal)
-- Lista de ciclos com: cultura, área, hectares, dias decorridos, **custo total**, **R$/ha**, receita, resultado.
-- **Comparador de ciclos**: multi-select (até 4 ciclos) → renderiza:
-  - Cards lado a lado com KPIs (custo, R$/ha, receita, dias, status).
-  - Gráfico de barras agrupadas por **categoria** (mostra quanto cada ciclo gastou em Adubo, Mudas, Mão de obra, etc.).
-  - Gráfico radar opcional comparando perfil de gasto (% por categoria).
-  - Linha temporal acumulada de custo por dia decorrido (normaliza ciclos com durações diferentes).
-- Cada ciclo recebe sua cor única (ver §4) usada em todos os gráficos.
+- **Pizza → Donut com legenda lateral/abaixo** com top 5 + "Outros", percentuais grandes no centro.
+- **Bar/Line**: altura adaptativa (`h-[220px]` mobile, `h-[280px]` desktop), eixo Y oculto no mobile (mostrar valores no tooltip), `interval="preserveStartEnd"` no eixo X.
+- Adicionar **toggle "ver tabela"** em cada gráfico — abre lista compacta dos mesmos dados (acessibilidade + alternativa ao gráfico no celular).
+- Tooltip customizado com cores dos grupos.
+- Cores: aplicar paleta determinística do `entityColors.ts` em séries de Ciclos/Áreas/Projetos para consistência cross-aba.
 
-### 2.4 Por Categoria
-- Heatmap **Categoria × Ciclo** (intensidade = R$).
-- Top 15 categorias do período com barra horizontal e share %.
-- Drill: clicar em uma categoria filtra a tabela de lançamentos abaixo.
+## 5. Tabelas → Cards no mobile
 
-### 2.5 Investimentos
-- KPIs: total investido período, investido acumulado, projetos ativos, **R$/ha investido na propriedade**.
-- Barras por projeto (cor única por projeto), linha de evolução mensal.
-- Tabela: projeto, valor previsto, realizado, % execução, R$/ha (quando o projeto tiver área vinculada).
+Tabelas presentes em Por Área, Por Ciclo, Por Categoria, Investimentos, Empréstimos.
 
-### 2.6 Empréstimos
-- KPIs: saldo devedor total, juros pagos no período, parcelas próximas 30/60/90 dias.
-- Barras por banco/credor (cor única), linha de cronograma de parcelas futuras.
+- **Mobile (<768px)**: substituir cada linha por `Card` vertical com:
+  - Cabeçalho colorido (cor da entidade)
+  - 2-3 KPIs principais em grid 2 colunas
+  - Mini barra de progresso (% do total) no rodapé
+  - Tap → `Sheet` com detalhe completo
+- **Desktop**: tabelas mantidas mas com cabeçalho sticky, zebra-stripe e cor da entidade na primeira célula.
 
-## 3. Métricas R$/hectare (cálculo)
+## 6. Sub-abas específicas
 
-Adicionar helpers em `src/lib/financeiro/finCalc.ts`:
+### Visão Geral
+- Hero card no topo: Saldo atual em destaque + delta vs mês anterior.
+- Banner de não-classificados vira mais sutil (apenas ícone + número clicável que filtra).
 
-- `custoPorHectareArea(areaId, txs, areas)` → soma custos da área / `tamanho_hectares`.
-- `custoPorHectareCiclo(cycleId, txs, cycles, areas)` → soma custos do ciclo / hectares da área do ciclo.
-- `investimentoPorHectarePropriedade(txs, propriedade)` → total investimento / `area_total_hectares`.
-- Considera `classif.area_id`/`classif.cycle_id` quando presente, senão `tx.area_id`/`tx.cycle_id` (mesma regra dos gráficos atuais).
+### Por Área
+- Cards por área com mini-sparkline mensal embutido.
+- Ordenação rápida (Maior custo / Maior receita / Maior margem).
 
-## 4. Sistema de cores único por entidade
+### Por Ciclo
+- Seletor de ciclos compacto: chips com cor + checkbox (max 4).
+- Comparativo lado-a-lado vira **stacked horizontal** no mobile (1 ciclo por linha).
 
-Hoje quase tudo é verde. Vamos gerar **uma cor estável por ID** para ciclos, áreas, talhões, projetos e centros de custo.
+### Por Categoria
+- Heatmap atual quebra no mobile → substituir por **lista ordenada com barra horizontal proporcional** e filtro por ciclo.
 
-- Novo arquivo `src/lib/financeiro/entityColors.ts`:
-  - `colorForId(id: string, palette: Palette)` → hash do UUID → índice na paleta.
-  - Paletas separadas por tipo de entidade (todas em HSL via tokens), para que um ciclo nunca colida visualmente com um talhão na mesma tela:
-    - **Ciclos**: paleta vibrante (ciano, violeta, âmbar, rosa, lima, coral, índigo, teal…).
-    - **Áreas/Talhões**: paleta terrosa (terracota, oliva, ocre, mostarda, sépia…).
-    - **Centros de Custo**: paleta fria (azul, roxo, turquesa, slate…).
-    - **Projetos**: paleta quente (laranja, magenta, dourado…).
-  - Cores armazenadas como tokens HSL em `index.css` (`--chart-cycle-1`…`--chart-cycle-12`, etc.) e expostas no `tailwind.config.ts` para reuso.
-- Hook `useEntityColor(kind, id)` para componentes consumirem direto.
-- Legendas e badges (`ResponsavelBadge`-style) passam a usar a cor da entidade.
+### Investimentos
+- Cards de projeto: cor própria + barra de execução % + valores compactos.
 
-## 5. KPIs sugeridos (consolidado)
+### Empréstimos
+- Card por credor com saldo devedor em destaque + mini cronograma 6 meses.
 
-| Categoria | KPI | Fórmula resumida |
-|---|---|---|
-| Resultado | Margem operacional % | (Receita Op − Custo Plant − Despesa) / Receita Op |
-| Eficiência | Custo R$/ha (período) | Σ custos plantação / Σ ha das áreas com custo |
-| Eficiência | Receita R$/ha | Σ receitas / Σ ha produtivos |
-| Eficiência | Resultado R$/ha | (Receita − Custo) / ha |
-| Ciclo | Custo R$/ha do ciclo | Σ custos ciclo / ha da área |
-| Ciclo | Custo/dia decorrido | Σ custos ciclo / dias desde plantio |
-| Ciclo | Top 3 categorias | Categorias com maior share dentro do ciclo |
-| Investimento | R$/ha investido | Σ investimentos / área total propriedade |
-| Investimento | % execução projeto | Realizado / Previsto |
-| Caixa | Burn mensal médio | Σ saídas / nº meses no período |
-| Caixa | Runway (meses) | Saldo atual / burn mensal |
-| Empréstimos | Saldo devedor / Receita ano | indicador de alavancagem |
-| Qualidade | % classificação | Classificados / total (já existe) |
+## 7. Design tokens / estética
 
-## 6. Detalhes técnicos
+- Aumentar uso de cores semânticas (entradas = verde, saídas = vermelho, investimento = âmbar, empréstimo = vinho, neutro = azul).
+- Bordas laterais coloridas (`border-l-4`) em cards para identidade visual rápida.
+- Tipografia: números tabulares (`tabular-nums`), labels em `text-[10px]` uppercase, valores em `text-lg font-semibold`.
+- Espaçamento: gap-2 mobile, gap-3 desktop (mais denso).
 
-- **Arquivos novos**:
-  - `src/components/financeiro/dashboard/VisaoGeralSubTab.tsx`
-  - `src/components/financeiro/dashboard/PorAreaSubTab.tsx`
-  - `src/components/financeiro/dashboard/PorCicloSubTab.tsx`
-  - `src/components/financeiro/dashboard/CompararCiclos.tsx`
-  - `src/components/financeiro/dashboard/PorCategoriaSubTab.tsx`
-  - `src/components/financeiro/dashboard/InvestimentosSubTab.tsx`
-  - `src/components/financeiro/dashboard/EmprestimosSubTab.tsx`
-  - `src/components/financeiro/dashboard/KpiCard.tsx` (versão colorida com accent)
-  - `src/lib/financeiro/entityColors.ts`
-  - `src/lib/financeiro/perHectare.ts`
-- **Arquivos editados**:
-  - `src/components/financeiro/DashboardTab.tsx` → vira shell de sub-abas + filtros.
-  - `src/index.css` e `tailwind.config.ts` → tokens de paleta multi-cor.
-- **Bibliotecas**: continuamos com Recharts (já no projeto). Heatmap implementado como grid CSS para não adicionar dependência.
-- **Performance**: memoizar agregados pesados em `useFinanceiroAnalytics` ou em hooks dedicados (`useCustosPorArea`, `useCustosPorCiclo`).
-- **Mobile-first**: sub-abas viram um `Select` em telas <640px; cards empilhados; comparador de ciclos limita a 2 colunas no mobile.
+## Detalhes técnicos
 
-## 7. Entrega em fases
+Arquivos a modificar:
+- `src/components/financeiro/FinanceiroFilters.tsx` — drawer mobile + chips de período
+- `src/components/financeiro/DashboardTab.tsx` — chips de sub-aba colorida
+- `src/components/financeiro/dashboard/KpiCard.tsx` — variante compacta com popover de hint
+- `src/components/financeiro/dashboard/VisaoGeralSubTab.tsx` — hero + carrosséis de KPIs + donut
+- `src/components/financeiro/dashboard/PorAreaSubTab.tsx` — cards mobile + sparklines
+- `src/components/financeiro/dashboard/PorCicloSubTab.tsx` — seletor compacto + comparativo stacked
+- `src/components/financeiro/dashboard/PorCategoriaSubTab.tsx` — substituir heatmap
+- `src/components/financeiro/dashboard/InvestimentosSubTab.tsx` — cards de projeto coloridos
+- `src/components/financeiro/dashboard/EmprestimosSubTab.tsx` — cards por credor
+- Novo `src/components/financeiro/dashboard/ChartCard.tsx` — wrapper com toggle gráfico/tabela e altura responsiva
+- Novo `src/components/financeiro/dashboard/MobileKpiRow.tsx` — carrossel snap-x de KPIs
 
-1. **Fase 1 — Fundamentos**: paleta de cores por entidade + helpers R$/ha + shell de sub-abas (Visão Geral migrada).
-2. **Fase 2 — Por Área e Por Ciclo** (incluindo comparador de ciclos).
-3. **Fase 3 — Por Categoria (heatmap) + Investimentos + Empréstimos** com KPIs avançados.
+Sem mudanças em hooks/lógica de negócio — apenas camada de apresentação.
 
-Cada fase é entregável independente e mantém o dashboard atual funcionando durante a transição.
+## Fora deste plano
+
+- Lançamentos e Configurações (já refatorados anteriormente).
+- Mudanças no schema do banco ou nos cálculos analíticos.
