@@ -1,130 +1,95 @@
+## Objetivo
 
-# Refatoração Completa do Fluxo de Caixa — Estrutura + Indicadores
+Criar a nova página **Financeiro** no menu lateral, totalmente isolada da página atual **Fluxo de Caixa** (que permanece intacta). A nova página oferece estrutura modular de classificação financeira (naturezas, centros de custo, categorias, projetos de investimento, ciclos), reutilizando as estruturas territoriais já existentes no sistema (`propriedade`, `areas`, `talhoes`, `cycles`).
 
-## Diagnóstico da divergência atual
+## Reaproveitamento de dados existentes (confirmado no schema)
 
-Hoje o sistema mistura **3 conceitos diferentes** chamando todos de "categoria", o que gera confusão e travamentos de totais:
+O sistema **já possui** estrutura territorial e produtiva consolidada:
+- `propriedade` — propriedade geral
+- `areas` — áreas produtivas (com `tamanho_hectares`, `tipo`, `status`, `cultura_principal`)
+- `talhoes` — talhões vinculados a áreas
+- `cycles` — ciclos produtivos (cultura, datas, status, vínculo área/talhão)
+- `cash_transactions` — lançamentos financeiros (fonte única)
 
-| Conceito | Onde vive | Exemplos |
-|---|---|---|
-| **Natureza** (entrada/saída) | `cash_transactions.tipo` | entrada, saida |
-| **Categoria macro** | `cash_transactions.categoria` | custo_operacional, investimento, receita_venda, aporte, parcela_emprestimo... |
-| **Subtipo (tipo de gasto)** | `costs.tipo` / `investments.tipo` | trator, mão de obra, adubação / legalização, infraestrutura |
+**Decisão**: NÃO criar tabelas duplicadas de áreas/talhões/ciclos. A página Financeiro consome essas tabelas em modo leitura para vínculo. Apenas o ciclo ganha um novo cadastro se necessário (tabela `cycles` já existe e será reutilizada).
 
-Problemas concretos:
-- Quando um custo é criado em `costs`, ele gera uma `cash_transaction` com `categoria='custo_operacional'`, mas o **subtipo se perde no campo `descricao`** (string livre). Por isso "Custo Operacional" trava em R$ 94.000 sem permitir abrir a composição (trator, mudas, etc.).
-- Lançamentos diretos em `cash_transactions` (sem passar por `costs`) **não têm subtipo nenhum**, criando uma classe de "saídas órfãs".
-- Investimentos e Receitas têm a mesma doença: o tipo (legalização, venda, aporte, etc.) só aparece em tabelas paralelas, não na transação.
-- A página tem 4 abas (Todos, Custos, Implantação, Receitas) que escondem essa duplicidade — o usuário não sabe se edita em "Custos" ou em "Lançamentos".
+## Etapa 1 — Migração de banco (estrutura nova, sem tocar dados antigos)
 
-## Decisão de arquitetura
+Novas tabelas (todas com RLS pública igual ao padrão atual):
 
-Adotar um modelo **único e plano** para classificação financeira, mantendo a regra de ouro do projeto (`cash_transactions` é a fonte única). Toda transação passa a ter:
+1. **`fin_naturezas`** — naturezas financeiras
+   - `codigo` (unique), `nome`, `tipo` (entrada/saida/ajuste), `descricao`, `ativo`, `ordem`
+   - Seed: Receita, Custo de Plantação, Investimento/Benfeitoria, Despesa Geral, Transferência/Ajuste
 
+2. **`fin_centros_custo`** — centros de custo
+   - `codigo` (unique), `nome`, `descricao`, `ativo`, `ordem`
+   - Seed: Produção Agrícola, Beneficiamento, Infraestrutura, Equipamentos, Regularização/Ambiental, Administração, Comercialização, Propriedade Geral
+
+3. **`fin_categorias`** — categorias financeiras configuráveis
+   - `codigo` (unique), `nome`, `natureza_id` (FK lógica → fin_naturezas), `centro_custo_id` (FK lógica, opcional), `ativo`, `ordem`
+   - Seed completo: 12 categorias de plantação, 7 de entrada, 10 de investimento, 7 administrativas
+
+4. **`fin_projetos_investimento`** — projetos de investimento/benfeitoria
+   - `nome`, `tipo` (infraestrutura/equipamento/ferramentas/regularizacao/energia/agua/transporte/benfeitoria/outros), `descricao`, `status` (planejado/em_andamento/concluido/pausado/cancelado), `data_inicio`, `data_conclusao`, `valor_previsto`, `ativo`
+   - Seed sugerido: Legalização da Terra, Galpão, Carretinha, Energia, Caixa d'água e Bomba, Ferramentas e Equipamentos Manuais
+
+5. **`fin_classificacoes`** — **camada complementar de classificação** (1:1 opcional com `cash_transactions`)
+   - `cash_transaction_id` (unique), `natureza_id`, `categoria_id`, `centro_custo_id`, `propriedade_id`, `area_id`, `talhao_id`, `cycle_id`, `projeto_investimento_id`, `origem` (manual/automatica/sugerida), `confianca` (alta/media/baixa), `revisado` (bool), `observacao`
+   - **Não altera** `cash_transactions`. Cada lançamento sem registro aqui aparece como "Não classificado".
+
+Todas as tabelas têm RLS público (padrão do projeto), `created_at`, `updated_at` com trigger.
+
+## Etapa 2 — Frontend (página e navegação)
+
+### Arquivos novos
 ```text
-tipo          → entrada | saida          (natureza contábil)
-categoria     → custo | investimento | receita | financeiro
-                                          (4 grandes blocos — substitui os 12 atuais)
-subcategoria  → trator, mao_obra, legalizacao, venda, aporte_socio,
-                parcela_emprestimo, juros, ...   (NOVO campo na transação)
+src/pages/Financeiro.tsx                      # página principal com tabs
+src/components/financeiro/
+  ├── DashboardTab.tsx                        # placeholder com KPIs básicos a partir de cash_transactions + fin_classificacoes
+  ├── LancamentosTab.tsx                      # lista cash_transactions + status de classificação (read-only nesta etapa)
+  ├── ReclassificacaoTab.tsx                  # placeholder "Em construção" (próxima etapa)
+  ├── CategoriasTab.tsx                       # CRUD de fin_categorias
+  ├── CentrosCustoTab.tsx                     # CRUD de fin_centros_custo
+  ├── NaturezasTab.tsx                        # listar/ativar fin_naturezas
+  ├── AreasTalhoesCiclosTab.tsx               # consome areas/talhoes/cycles existentes + CRUD ciclo
+  ├── InvestimentosTab.tsx                    # CRUD de fin_projetos_investimento
+  └── RelatoriosTab.tsx                       # placeholder
+
+src/hooks/financeiro/
+  ├── useFinNaturezas.ts
+  ├── useFinCategorias.ts
+  ├── useFinCentrosCusto.ts
+  ├── useFinProjetos.ts
+  └── useFinClassificacoes.ts
 ```
 
-### Mapeamento das 12 categorias atuais → novo modelo
+### Arquivos editados (mínimo)
+- `src/App.tsx` — adicionar rota `/financeiro`
+- `src/components/layout/AppSidebar.tsx` — adicionar item "Financeiro" (ícone Wallet/PieChart)
+- `src/components/layout/MobileBottomNav.tsx` — avaliar inclusão (já tem 4 pilares; adicionar como item secundário se houver espaço, senão deixar acessível só via sidebar/menu desktop)
 
-| Categoria atual | Nova categoria | Nova subcategoria |
-|---|---|---|
-| custo_operacional | custo | (vem de `costs.tipo`: trator, mao_obra, adubacao...) |
-| investimento | investimento | (vem de `investments.tipo`: legalizacao, infraestrutura...) |
-| receita_venda | receita | venda |
-| receita_aporte_socio | receita | aporte_socio |
-| receita_emprestimo_bancario | receita | emprestimo_bancario |
-| receita_outra | receita | outra |
-| aporte | receita | aporte_socio |
-| emprestimo_entrada | financeiro | recebimento_emprestimo |
-| parcela_emprestimo | financeiro | parcela_emprestimo |
-| quitacao_emprestimo | financeiro | quitacao_emprestimo |
-| despesa_financeira | financeiro | juros / tarifa |
-| transferencia | financeiro | transferencia |
+### Página Fluxo de Caixa
+**Não tocada**. `/caixa`, hooks e componentes permanecem como estão.
 
-Resultado: **4 categorias macro + ~25 subcategorias bem definidas**, compartilhando o mesmo dicionário visual (`costTypeConfig`, `investmentTypeConfig`, novo `revenueSubtypeConfig`, novo `financeiroSubtypeConfig`).
+## Etapa 3 — Comportamento desta entrega
 
-## Backend (migração)
+- Todas as abas de configuração (Categorias, Centros de Custo, Naturezas, Investimentos) já operacionais (CRUD básico).
+- Aba **Áreas/Talhões/Ciclos**: lista as áreas/talhões/propriedade existentes (read-only) + CRUD na tabela `cycles` existente.
+- Aba **Lançamentos**: lista `cash_transactions` com badge "Classificado" / "Não classificado" via join com `fin_classificacoes` — sem permitir editar nesta etapa.
+- Aba **Reclassificação** e **Relatórios**: placeholders preparados para a próxima etapa.
+- Aba **Dashboard**: KPIs simples (total classificado vs não classificado, totais por natureza).
 
-1. **Adicionar coluna** `subcategoria text` em `cash_transactions` (nullable inicialmente).
-2. **Backfill** automático:
-   - Para transações ligadas a `cost_id`: copia `costs.tipo`.
-   - Para transações ligadas a `investment_id`: copia `investments.tipo`.
-   - Para transações ligadas a `revenue_id`: copia `revenues.tipo_receita`.
-   - Para `parcela_emprestimo` / `quitacao_emprestimo`: subcategoria = própria categoria.
-   - Para receitas no modelo antigo (`receita_aporte_socio` etc.): extrai do nome.
-3. **Renomear** as 12 categorias para as 4 novas via UPDATE em massa (sem perder dados — cria coluna `categoria_legada` para auditoria).
-4. **Atualizar `cash_transactions_categoria_check`** para o novo enum (custo, investimento, receita, financeiro).
-5. **Triggers de sincronização**: ao inserir/editar em `costs`, `investments`, `revenues`, propagar `tipo` para `cash_transactions.subcategoria` automaticamente.
-6. **Views agregadas** (com `security_invoker = on`) — opcional, para acelerar dashboards:
-   - `vw_cash_by_subcategoria`
-   - `vw_cash_by_cycle`
-   - `vw_cash_by_area`
+## Garantias de segurança
 
-## Frontend — estrutura da página
+- ❌ Nenhum `UPDATE`/`DELETE` em `cash_transactions`, `costs`, `investments`, `revenues`, `loans`, `areas`, `talhoes`, `propriedade`.
+- ❌ Nenhuma alteração em `/caixa` ou hooks atuais (`useCashTransactions`, `useCashAnalytics`, etc.).
+- ✅ Todas as novas tabelas começam vazias (exceto seeds de configuração).
+- ✅ Reclassificação automática **não acontece** nesta etapa.
+- ✅ Vínculos via `fin_classificacoes` são reversíveis (basta deletar o registro complementar).
 
-Plano anterior preservado, **agora alimentado pelo novo modelo**:
+## Próximos passos (fora desta etapa)
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│ KPIs: Saldo · Entradas · Saídas · Custo/ha · % órfãos  │
-├─────────────────────────────────────────────────────────┤
-│ Filtros globais: Período · Área · Ciclo · Categoria ·   │
-│                  Subcategoria · "Apenas sem ciclo/área" │
-├─────────────────────────────────────────────────────────┤
-│ Abas:                                                   │
-│  ▸ Visão Geral   — donut por categoria + drill por sub │
-│  ▸ Por Área      — drill com composição por subcategoria│
-│  ▸ Por Ciclo     — comparativo entre 2-4 ciclos         │
-│  ▸ Lançamentos   — lista única, badge de órfãos,        │
-│                    atribuição rápida de ciclo/área      │
-│  ▸ Cadastros     — entrada estruturada (custos /        │
-│                    investimentos / receitas)            │
-└─────────────────────────────────────────────────────────┘
-```
-
-Mudanças sobre o plano anterior:
-
-- **Donut "Composição de Saídas por Tipo"** agora opera sobre `subcategoria` (resolve o problema do "custo travado em 94k").
-- **Comparativo de Ciclos** mostra barras agrupadas por subcategoria — exatamente o pedido "trator vs mão de obra vs manutenção".
-- **Formulário único de lançamento** passa a exigir subcategoria sempre que `categoria` for `custo` ou `investimento` (substitui o campo livre `descricao` como classificador).
-- **Atribuição rápida** na lista permite trocar não só ciclo/área, mas também **subcategoria** (ex.: "esse lançamento foi mão de obra, não outros").
-
-## Detalhes técnicos
-
-### Migrações
-- `supabase/migrations/...add_subcategoria_to_cash_transactions.sql` — coluna + backfill + atualização do CHECK constraint.
-- `..._sync_subcategoria_triggers.sql` — triggers em `costs`, `investments`, `revenues`.
-- `..._cash_summary_views.sql` — views opcionais com `security_invoker = on`.
-
-### Frontend
-- **`src/lib/categoryConfig.ts`**: refatorar para novo modelo de 4 categorias + dicionário unificado de subcategorias.
-- **Novos**:
-  - `src/components/caixa/analytics/OverviewTab.tsx`, `ByAreaTab.tsx`, `ByCycleTab.tsx`, `CycleComparator.tsx`
-  - `src/components/caixa/analytics/CompositionDonut.tsx` (categoria → subcategoria)
-  - `src/components/caixa/analytics/MonthlyEvolutionChart.tsx`
-  - `src/components/caixa/GlobalFiltersBar.tsx`
-  - `src/components/caixa/QuickReassignPopover.tsx` (área/ciclo/subcategoria)
-  - `src/hooks/useCashAnalytics.ts`
-- **Modificados**:
-  - `src/pages/Caixa.tsx` — nova estrutura de abas + filtros globais.
-  - `src/components/caixa/CashTransactionsTable.tsx` — coluna de subcategoria + badge "sem ciclo/área/subcategoria".
-  - `src/components/caixa/EditTransactionDialog.tsx` + `BulkEditDialog.tsx` — campo subcategoria.
-  - `src/hooks/useCashTransactions.ts` — filtros `subcategoria`, `withoutCycle`, `withoutArea`.
-  - `src/components/costs/CostForm.tsx`, `investments/InvestmentForm.tsx`, `revenues/RevenueForm.tsx` — alinham com novo dicionário.
-- **Memória** (`mem://features/cash-flow/transaction-structure`): atualizar para refletir 4 categorias + subcategoria obrigatória.
-
-## Entregáveis em ordem
-
-1. **Migração de schema** + backfill + triggers (sem quebrar UI atual — abas continuam funcionando).
-2. **Refatoração do `categoryConfig`** + filtros globais por subcategoria.
-3. **Aba Visão Geral** com donut de composição (resolve o "custo travado").
-4. **Aba Por Ciclo** com comparativo entre culturas.
-5. **Aba Por Área** com drill-down.
-6. **Atribuição rápida** + indicadores de órfãos na lista.
-
-Cada etapa é entregável independentemente. Posso aprovar e seguir.
+- Tela de reclassificação em massa.
+- Sugestões automáticas baseadas em descrição/categoria_legada.
+- Relatórios DRE, fluxo previsto vs realizado.
+- Avaliar migração progressiva de `/caixa` → `/financeiro`.

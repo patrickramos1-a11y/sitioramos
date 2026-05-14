@@ -479,6 +479,254 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_categorias: {
+        Row: {
+          ativo: boolean
+          centro_custo_id: string | null
+          codigo: string
+          created_at: string
+          id: string
+          natureza_id: string | null
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          centro_custo_id?: string | null
+          codigo: string
+          created_at?: string
+          id?: string
+          natureza_id?: string | null
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          centro_custo_id?: string | null
+          codigo?: string
+          created_at?: string
+          id?: string
+          natureza_id?: string | null
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_categorias_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "fin_centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_categorias_natureza_id_fkey"
+            columns: ["natureza_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_centros_custo: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fin_classificacoes: {
+        Row: {
+          area_id: string | null
+          cash_transaction_id: string
+          categoria_id: string | null
+          centro_custo_id: string | null
+          confianca: string | null
+          created_at: string
+          cycle_id: string | null
+          id: string
+          natureza_id: string | null
+          observacao: string | null
+          origem: string
+          projeto_investimento_id: string | null
+          propriedade_id: string | null
+          revisado: boolean
+          talhao_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          area_id?: string | null
+          cash_transaction_id: string
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          confianca?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          id?: string
+          natureza_id?: string | null
+          observacao?: string | null
+          origem?: string
+          projeto_investimento_id?: string | null
+          propriedade_id?: string | null
+          revisado?: boolean
+          talhao_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string | null
+          cash_transaction_id?: string
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          confianca?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          id?: string
+          natureza_id?: string | null
+          observacao?: string | null
+          origem?: string
+          projeto_investimento_id?: string | null
+          propriedade_id?: string | null
+          revisado?: boolean
+          talhao_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_classificacoes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "fin_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_classificacoes_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "fin_centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_classificacoes_natureza_id_fkey"
+            columns: ["natureza_id"]
+            isOneToOne: false
+            referencedRelation: "fin_naturezas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_classificacoes_projeto_investimento_id_fkey"
+            columns: ["projeto_investimento_id"]
+            isOneToOne: false
+            referencedRelation: "fin_projetos_investimento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_naturezas: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          ordem: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fin_projetos_investimento: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data_conclusao: string | null
+          data_inicio: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          status: string
+          tipo: string
+          updated_at: string
+          valor_previsto: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_previsto?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data_conclusao?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_previsto?: number | null
+        }
+        Relationships: []
+      }
       installments: {
         Row: {
           created_at: string
