@@ -201,6 +201,8 @@ function ClassificacaoRow({
     cls?.tipo_evento_emprestimo ?? suggestion?.loanEvent ?? autoLoanEvent ?? NONE
   );
   const [observacao, setObservacao] = useState<string>(cls?.observacao ?? "");
+  const [responsavelId, setResponsavelId] = useState<string>(txAny.responsavel_id ?? NONE);
+  const responsavelAtual = (responsaveis ?? []).find((r: any) => r.id === txAny.responsavel_id);
 
   const installments = useMemo(() => {
     if (loanId === NONE) return [];
