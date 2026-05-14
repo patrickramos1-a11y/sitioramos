@@ -2,64 +2,47 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardTab } from "@/components/financeiro/DashboardTab";
 import { LancamentosTab } from "@/components/financeiro/LancamentosTab";
-import { ReclassificacaoTab } from "@/components/financeiro/ReclassificacaoTab";
-import { CategoriasTab } from "@/components/financeiro/CategoriasTab";
-import { CentrosCustoTab } from "@/components/financeiro/CentrosCustoTab";
-import { NaturezasTab } from "@/components/financeiro/NaturezasTab";
-import { AreasTalhoesCiclosTab } from "@/components/financeiro/AreasTalhoesCiclosTab";
-import { InvestimentosTab } from "@/components/financeiro/InvestimentosTab";
-import { RelatoriosTab } from "@/components/financeiro/RelatoriosTab";
+import { ConfiguracoesTab } from "@/components/financeiro/ConfiguracoesTab";
+import { LayoutDashboard, ListChecks, Settings } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Financeiro() {
+  const isMobile = useIsMobile();
+
   return (
     <AppLayout>
-      <div className="space-y-4">
-        <div>
-          <h1 className="font-display text-xl font-semibold">Financeiro</h1>
-          <p className="text-xs text-muted-foreground">
-            Estrutura financeira modular — naturezas, centros de custo, categorias
-            e classificação dos lançamentos. A página{" "}
-            <strong>Fluxo de Caixa</strong> permanece intacta.
-          </p>
+      <div className="space-y-3 md:space-y-4">
+        <div className="px-1">
+          <h1 className="font-display text-lg md:text-xl font-semibold">Financeiro</h1>
+          {!isMobile && (
+            <p className="text-xs text-muted-foreground">
+              Dashboard analítico, lançamentos e configurações da estrutura financeira.
+            </p>
+          )}
         </div>
-        <Tabs defaultValue="dashboard">
-          <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
-            <TabsTrigger value="reclassificacao">Reclassificação</TabsTrigger>
-            <TabsTrigger value="categorias">Categorias</TabsTrigger>
-            <TabsTrigger value="centros">Centros de Custo</TabsTrigger>
-            <TabsTrigger value="naturezas">Naturezas</TabsTrigger>
-            <TabsTrigger value="areas">Áreas / Talhões / Ciclos</TabsTrigger>
-            <TabsTrigger value="investimentos">Investimentos</TabsTrigger>
-            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+        <Tabs defaultValue="dashboard" className="w-full">
+          <TabsList className="grid grid-cols-3 w-full h-auto p-1 bg-muted/50">
+            <TabsTrigger value="dashboard" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2">
+              <LayoutDashboard className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="lancamentos" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2">
+              <ListChecks className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Lançamentos</span>
+            </TabsTrigger>
+            <TabsTrigger value="configuracoes" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2">
+              <Settings className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Configurações</span>
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="dashboard" className="mt-4">
+          <TabsContent value="dashboard" className="mt-3 md:mt-4">
             <DashboardTab />
           </TabsContent>
-          <TabsContent value="lancamentos" className="mt-4">
+          <TabsContent value="lancamentos" className="mt-3 md:mt-4">
             <LancamentosTab />
           </TabsContent>
-          <TabsContent value="reclassificacao" className="mt-4">
-            <ReclassificacaoTab />
-          </TabsContent>
-          <TabsContent value="categorias" className="mt-4">
-            <CategoriasTab />
-          </TabsContent>
-          <TabsContent value="centros" className="mt-4">
-            <CentrosCustoTab />
-          </TabsContent>
-          <TabsContent value="naturezas" className="mt-4">
-            <NaturezasTab />
-          </TabsContent>
-          <TabsContent value="areas" className="mt-4">
-            <AreasTalhoesCiclosTab />
-          </TabsContent>
-          <TabsContent value="investimentos" className="mt-4">
-            <InvestimentosTab />
-          </TabsContent>
-          <TabsContent value="relatorios" className="mt-4">
-            <RelatoriosTab />
+          <TabsContent value="configuracoes" className="mt-3 md:mt-4">
+            <ConfiguracoesTab />
           </TabsContent>
         </Tabs>
       </div>
