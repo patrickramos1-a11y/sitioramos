@@ -58,18 +58,16 @@ function Wrapper({ title, children }: { title: string; children: React.ReactNode
 /* 1. Mensal */
 function RelatorioMensal({ a }: { a: A }) {
   const rows = useMemo(() => {
-    const map = new Map<string, GrupoGerencial[] extends never ? never : Record<GrupoGerencial, number> & { mes: string; entradas: number; saidas: number; nao_class: number }>();
+    const map = new Map<string, Record<string, number> & { mes: string }>();
     for (const r of a.filtered) {
       const k = monthKey(r.tx.data);
-      if (!map.has(k)) {
-        map.set(k, { mes: k, entradas: 0, saidas: 0, nao_class: 0 } as any);
-      }
-      const m = map.get(k)! as any;
-      m[r.grupo] = (m[r.grupo] || 0) + Number(r.tx.valor);
+      if (!map.has(k)) map.set(k, { mes: k, entradas: 0, saidas: 0, nao_class: 0 } as any);
+      const m = map.get(k)!;
+      (m as any)[r.grupo] = ((m as any)[r.grupo] || 0) + Number(r.tx.valor);
       if (r.tx.tipo === "entrada") m.entradas += Number(r.tx.valor); else m.saidas += Number(r.tx.valor);
       if (r.grupo === "nao_classificado") m.nao_class += Number(r.tx.valor);
     }
-    return Array.from(map.values()).sort((x: any, y: any) => x.mes.localeCompare(y.mes));
+    return Array.from(map.values()).sort((x, y) => x.mes.localeCompare(y.mes));
   }, [a.filtered]);
 
   return (
