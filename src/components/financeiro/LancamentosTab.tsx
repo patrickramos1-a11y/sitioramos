@@ -96,6 +96,7 @@ export function LancamentosTab() {
         return false;
       if (loanId !== ALL && cls?.loan_id !== loanId && (t as any).loan_id !== loanId)
         return false;
+      if (respId !== ALL && (t as any).responsavel_id !== respId) return false;
       if (classifFilter === "classified" && !cls) return false;
       if (classifFilter === "unclassified" && cls) return false;
       if (classifFilter === "revisado" && !cls?.revisado) return false;
@@ -104,7 +105,7 @@ export function LancamentosTab() {
     });
   }, [
     txs, classifByTx, q, start, end, tipo, naturezaId, categoriaId, centroId,
-    areaId, cycleId, projetoId, loanId, classifFilter,
+    areaId, cycleId, projetoId, loanId, respId, classifFilter,
   ]);
 
   const fmt = (n: number) =>
