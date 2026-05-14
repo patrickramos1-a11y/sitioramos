@@ -80,7 +80,7 @@ export function NovoLancamentoDialog({ trigger }: { trigger?: ReactNode }) {
       const tx: any = await createTransaction.mutateAsync({
         data,
         tipo,
-        categoria: tipo === "entrada" ? "outros_recebimentos" : "outros_pagamentos",
+        categoria: tipo === "entrada" ? "receita" : "financeiro",
         valor: Number(valor),
         descricao: descricao.trim(),
         responsavel_id: na.responsavel_id ? null : (vals.responsavel_id || null),
