@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlertCircle, TrendingUp, TrendingDown, Wallet, Sprout, Hammer, Banknote, FileWarning, Receipt, Landmark, CheckCircle2, Percent, Flame, Info } from "lucide-react";
+import { AlertCircle, TrendingUp, TrendingDown, Wallet, Sprout, Hammer, Banknote, FileWarning, Receipt, Landmark, CheckCircle2, Percent, Flame } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
   PieChart, Pie, Cell, CartesianGrid, LineChart, Line,
