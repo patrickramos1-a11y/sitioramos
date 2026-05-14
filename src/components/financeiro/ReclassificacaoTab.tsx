@@ -47,7 +47,7 @@ const LOAN_EVENTS: { value: LoanEvent; label: string }[] = [
 ];
 
 export function ReclassificacaoTab() {
-  const { transactions: txs = [] } = useCashTransactions();
+  const { transactions: txs = [], updateTransaction } = useCashTransactions();
   const { data: classifs = [] } = useFinClassificacoes();
   const { data: naturezas = [] } = useFinNaturezas();
   const { data: categorias = [] } = useFinCategorias();
