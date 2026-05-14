@@ -1,120 +1,126 @@
-# Dashboard + Relatórios da página Financeiro
 
-Objetivo: transformar a camada de classificação (`fin_classificacoes`) em indicadores gerenciais reais, **sem tocar em** Fluxo de Caixa, lançamentos antigos, módulo de Empréstimos ou nas categorias legadas.
+# Dashboard Financeiro 2.0 — Sub-abas, Comparações e Custo/ha
 
-## 1. Ajuste conceitual — "grupo gerencial"
+Hoje o `DashboardTab` é uma única tela densa (KPIs + grade de gráficos), tudo na mesma paleta verde. Vamos transformar em uma central analítica com sub-abas focadas, comparações lado a lado, métricas por hectare e cores únicas por entidade.
 
-Hoje só temos `fin_naturezas` (receita / custo_plantacao / investimento / despesa_geral / ajuste). Isso não distingue **receita operacional × aporte × empréstimo × outras entradas** nem **despesa operacional × pagamento de empréstimo × juros/tarifas**.
+## 1. Estrutura de sub-abas
 
-Solução **sem alterar banco**: criar um derivador puro em `src/lib/financeiro/managementGroup.ts` que, para cada lançamento, devolve um **grupo gerencial** a partir da classificação existente (categoria + natureza + `tipo_evento_emprestimo` + `loan_id`):
-
-- `receita_operacional` — categoria `rc_venda_produto`, `rc_aluguel_equip` (sem `loan_id`)
-- `aporte_socios` — categoria `rc_aporte_socios`
-- `entrada_emprestimo` — `loan_id` presente E `tipo_evento_emprestimo = 'recebimento'` (ou categoria `rc_emprestimo`)
-- `outras_entradas` — `rc_reembolso`, `rc_venda_ativo`, `rc_outras`
-- `custo_plantacao` — natureza `custo_plantacao`
-- `investimento` — natureza `investimento`
-- `pagamento_emprestimo` — `tipo_evento_emprestimo ∈ {pagamento_parcela, amortizacao}` ou categoria `de_pagamento_emprestimo` / `de_amortizacao_emprestimo`
-- `juros_tarifas` — `tipo_evento_emprestimo ∈ {juros, tarifa}` ou categorias `adm_juros` / `adm_tarifas`
-- `despesa_geral` — natureza `despesa_geral` (que sobrar)
-- `nao_classificado` — sem registro em `fin_classificacoes`
-
-Esse derivador é a fonte única de verdade para Dashboard e Relatórios.
-
-## 2. Ajustes finos no `suggestionEngine`
-
-- "aporte", "patrick", "william", "aporte sócio" → categoria `rc_aporte_socios`, **centro de custo `propriedade_geral`** (hoje sugere `comercializacao`, corrigir).
-- Reordenar para "aporte" ter prioridade antes de "venda".
-
-Sem mexer no banco — só ajustes em `src/lib/financeiro/suggestionEngine.ts`.
-
-## 3. Novo hook agregador
-
-`src/hooks/financeiro/useFinanceiroAnalytics.ts` — recebe filtros globais e devolve:
-
-- listas indexadas por grupo gerencial
-- totais por mês, categoria, centro de custo, área/talhão, ciclo, projeto
-- métricas de empréstimos consultando `useLoans()` (contratado, recebido, pago, juros, saldo devedor, parcelas pendentes futuras a partir de `installments`)
-- KPIs de qualidade (classificados, não classificados, revisados, confiança alta/média/baixa)
-
-Usa apenas SELECT — nenhum write.
-
-## 4. Filtros globais
-
-Componente `FinanceiroFilters` (em `src/components/financeiro/FinanceiroFilters.tsx`) reutilizável por Dashboard e Relatórios:
-
-período (preset + custom), mês, ano, tipo, natureza, categoria, centro de custo, área/talhão, ciclo, projeto, empréstimo, classificado/não, revisado/não, "incluir não revisados".
-
-Estado mantido via `useState` no `Financeiro.tsx` e passado como contexto leve.
-
-## 5. Reescrita do `DashboardTab`
-
-Layout:
+Nova navegação dentro de **Financeiro → Dashboard** (Tabs aninhadas, mantendo os filtros globais no topo):
 
 ```text
-[ Filtros globais ]
-[ Cards KPI — linha 1 ]  Saldo atual | Entradas mês | Saídas mês | Resultado operacional mês
-[ Cards KPI — linha 2 ]  Resultado de caixa | Custos plantação mês | Investimentos andamento | Não classificados
-[ Cards KPI — linha 3 ]  Contas a pagar | Contas a receber | Empréstimos ativos | % classificação
-[ Gráficos ]             Entradas×Saídas mensal · Composição entradas · Composição saídas
-                         Despesas por categoria · Custos por centro · Custos por área · Custos por ciclo
-                         Investimentos por projeto · Classificados×Não · Empréstimos
+Financeiro › Dashboard
+├── Visão Geral      (KPIs macro + entradas×saídas + composições)
+├── Por Área         (custo, receita, resultado, R$/ha por área/talhão)
+├── Por Ciclo        (custos, receitas, R$/ha, duração, comparador)
+├── Por Categoria    (heatmap categoria × ciclo, top gastos)
+├── Investimentos    (R$/ha investido, projetos, evolução)
+└── Empréstimos      (saldo devedor, juros pagos, fluxo)
 ```
 
-Fórmulas conforme especificação:
-- **Resultado operacional** = receita_operacional − custo_plantacao − despesa_geral *operacional* (exclui aportes, empréstimos, investimentos, juros).
-- **Resultado de caixa** = todas entradas pagas − todas saídas pagas.
-- Cards com aviso quando `nao_classificado > 0`: "Este indicador considera apenas lançamentos classificados...".
+Filtros globais (período, área, ciclo, natureza, etc.) ficam acima das sub-abas e se aplicam a todas.
 
-Gráficos com `recharts` (já no projeto).
+## 2. O que cada sub-aba mostra
 
-## 6. Reescrita do `RelatoriosTab`
+### 2.1 Visão Geral
+- KPIs atuais reorganizados em 3 linhas mais limpas, com ícones coloridos.
+- Novos KPIs: **Margem operacional %**, **Custo médio R$/ha (período)**, **Receita média R$/ha**, **Burn mensal médio**.
+- Gráficos: Entradas×Saídas mensal, composição entradas, composição saídas, evolução de saldo acumulado (linha).
 
-Sub-abas verticais (lista lateral em desktop, accordion em mobile):
+### 2.2 Por Área
+- Tabela/cards por área e por talhão com: hectares, custo total, receita total, resultado, **R$/ha custo**, **R$/ha receita**, **resultado/ha**.
+- Gráfico de barras horizontais: custo por área (cor única por área).
+- Gráfico empilhado: composição de custos (categorias) dentro de cada área.
+- Toggle "agrupar por talhão".
 
-1. Mensal — colunas conforme spec (entradas detalhadas, saídas detalhadas, resultado operacional, resultado de caixa, não classificados).
-2. Por área/talhão — hectares + custo total plantação + custo/ha (omite cálculo se `tamanho_hectares` nulo) + ciclos vinculados.
-3. Por ciclo — cultura, área, datas, status, custos, receitas, resultado.
-4. Por projeto de investimento — previsto × realizado × diferença.
-5. Por categoria — totais.
-6. Por centro de custo — totais.
-7. Empréstimos — consulta `loans` + `installments`: contratado, recebido, total pago, juros pagos, tarifas pagas, parcelas pagas/futuras, saldo devedor, lançamentos vinculados, lançamentos sugeridos sem vínculo (loan_id na cash_transaction mas sem classificação).
-8. Não classificados — tabela com sugestão e atalho que abre a aba **Reclassificação** com o id selecionado.
-9. Qualidade da classificação — totais por estado e confiança.
+### 2.3 Por Ciclo (o ponto principal)
+- Lista de ciclos com: cultura, área, hectares, dias decorridos, **custo total**, **R$/ha**, receita, resultado.
+- **Comparador de ciclos**: multi-select (até 4 ciclos) → renderiza:
+  - Cards lado a lado com KPIs (custo, R$/ha, receita, dias, status).
+  - Gráfico de barras agrupadas por **categoria** (mostra quanto cada ciclo gastou em Adubo, Mudas, Mão de obra, etc.).
+  - Gráfico radar opcional comparando perfil de gasto (% por categoria).
+  - Linha temporal acumulada de custo por dia decorrido (normaliza ciclos com durações diferentes).
+- Cada ciclo recebe sua cor única (ver §4) usada em todos os gráficos.
 
-Cada relatório respeita os filtros globais e o toggle "incluir não revisados".
+### 2.4 Por Categoria
+- Heatmap **Categoria × Ciclo** (intensidade = R$).
+- Top 15 categorias do período com barra horizontal e share %.
+- Drill: clicar em uma categoria filtra a tabela de lançamentos abaixo.
 
-## 7. Garantias de não regressão
+### 2.5 Investimentos
+- KPIs: total investido período, investido acumulado, projetos ativos, **R$/ha investido na propriedade**.
+- Barras por projeto (cor única por projeto), linha de evolução mensal.
+- Tabela: projeto, valor previsto, realizado, % execução, R$/ha (quando o projeto tiver área vinculada).
 
-- Página **Fluxo de Caixa** (`src/pages/Caixa.tsx`) **não é tocada**.
-- `cash_transactions` lida apenas em SELECT.
-- Módulo Empréstimos lido apenas em SELECT.
-- Sem migrations, sem seeds, sem updates de dados.
-- Lançamentos sem `fin_classificacoes` ficam isolados em `nao_classificado` e **nunca** entram em relatórios de custo/investimento/resultado operacional.
+### 2.6 Empréstimos
+- KPIs: saldo devedor total, juros pagos no período, parcelas próximas 30/60/90 dias.
+- Barras por banco/credor (cor única), linha de cronograma de parcelas futuras.
 
-## 8. Arquivos previstos
+## 3. Métricas R$/hectare (cálculo)
 
-Novos:
-- `src/lib/financeiro/managementGroup.ts`
-- `src/lib/financeiro/finCalc.ts` (helpers de soma/agrupamento)
-- `src/hooks/financeiro/useFinanceiroAnalytics.ts`
-- `src/components/financeiro/FinanceiroFilters.tsx`
-- `src/components/financeiro/dashboard/KpiCards.tsx`
-- `src/components/financeiro/dashboard/CompositionCharts.tsx`
-- `src/components/financeiro/dashboard/CostBreakdownCharts.tsx`
-- `src/components/financeiro/dashboard/LoanWidget.tsx`
-- `src/components/financeiro/relatorios/Report{Mensal,Area,Ciclo,Projeto,Categoria,CentroCusto,Emprestimo,NaoClassificado,Qualidade}.tsx`
+Adicionar helpers em `src/lib/financeiro/finCalc.ts`:
 
-Editados:
-- `src/components/financeiro/DashboardTab.tsx`
-- `src/components/financeiro/RelatoriosTab.tsx`
-- `src/lib/financeiro/suggestionEngine.ts` (apenas regra de aporte)
-- `src/pages/Financeiro.tsx` (estado de filtros globais)
+- `custoPorHectareArea(areaId, txs, areas)` → soma custos da área / `tamanho_hectares`.
+- `custoPorHectareCiclo(cycleId, txs, cycles, areas)` → soma custos do ciclo / hectares da área do ciclo.
+- `investimentoPorHectarePropriedade(txs, propriedade)` → total investimento / `area_total_hectares`.
+- Considera `classif.area_id`/`classif.cycle_id` quando presente, senão `tx.area_id`/`tx.cycle_id` (mesma regra dos gráficos atuais).
 
-## 9. Fora de escopo (próxima etapa)
+## 4. Sistema de cores único por entidade
 
-- Persistir grupo gerencial no banco como nova coluna em `fin_categorias` (atualmente derivado).
-- Fluxo previsto × realizado por orçamento.
-- Exportação PDF/CSV dos relatórios.
+Hoje quase tudo é verde. Vamos gerar **uma cor estável por ID** para ciclos, áreas, talhões, projetos e centros de custo.
 
-Confirma para eu implementar?
+- Novo arquivo `src/lib/financeiro/entityColors.ts`:
+  - `colorForId(id: string, palette: Palette)` → hash do UUID → índice na paleta.
+  - Paletas separadas por tipo de entidade (todas em HSL via tokens), para que um ciclo nunca colida visualmente com um talhão na mesma tela:
+    - **Ciclos**: paleta vibrante (ciano, violeta, âmbar, rosa, lima, coral, índigo, teal…).
+    - **Áreas/Talhões**: paleta terrosa (terracota, oliva, ocre, mostarda, sépia…).
+    - **Centros de Custo**: paleta fria (azul, roxo, turquesa, slate…).
+    - **Projetos**: paleta quente (laranja, magenta, dourado…).
+  - Cores armazenadas como tokens HSL em `index.css` (`--chart-cycle-1`…`--chart-cycle-12`, etc.) e expostas no `tailwind.config.ts` para reuso.
+- Hook `useEntityColor(kind, id)` para componentes consumirem direto.
+- Legendas e badges (`ResponsavelBadge`-style) passam a usar a cor da entidade.
+
+## 5. KPIs sugeridos (consolidado)
+
+| Categoria | KPI | Fórmula resumida |
+|---|---|---|
+| Resultado | Margem operacional % | (Receita Op − Custo Plant − Despesa) / Receita Op |
+| Eficiência | Custo R$/ha (período) | Σ custos plantação / Σ ha das áreas com custo |
+| Eficiência | Receita R$/ha | Σ receitas / Σ ha produtivos |
+| Eficiência | Resultado R$/ha | (Receita − Custo) / ha |
+| Ciclo | Custo R$/ha do ciclo | Σ custos ciclo / ha da área |
+| Ciclo | Custo/dia decorrido | Σ custos ciclo / dias desde plantio |
+| Ciclo | Top 3 categorias | Categorias com maior share dentro do ciclo |
+| Investimento | R$/ha investido | Σ investimentos / área total propriedade |
+| Investimento | % execução projeto | Realizado / Previsto |
+| Caixa | Burn mensal médio | Σ saídas / nº meses no período |
+| Caixa | Runway (meses) | Saldo atual / burn mensal |
+| Empréstimos | Saldo devedor / Receita ano | indicador de alavancagem |
+| Qualidade | % classificação | Classificados / total (já existe) |
+
+## 6. Detalhes técnicos
+
+- **Arquivos novos**:
+  - `src/components/financeiro/dashboard/VisaoGeralSubTab.tsx`
+  - `src/components/financeiro/dashboard/PorAreaSubTab.tsx`
+  - `src/components/financeiro/dashboard/PorCicloSubTab.tsx`
+  - `src/components/financeiro/dashboard/CompararCiclos.tsx`
+  - `src/components/financeiro/dashboard/PorCategoriaSubTab.tsx`
+  - `src/components/financeiro/dashboard/InvestimentosSubTab.tsx`
+  - `src/components/financeiro/dashboard/EmprestimosSubTab.tsx`
+  - `src/components/financeiro/dashboard/KpiCard.tsx` (versão colorida com accent)
+  - `src/lib/financeiro/entityColors.ts`
+  - `src/lib/financeiro/perHectare.ts`
+- **Arquivos editados**:
+  - `src/components/financeiro/DashboardTab.tsx` → vira shell de sub-abas + filtros.
+  - `src/index.css` e `tailwind.config.ts` → tokens de paleta multi-cor.
+- **Bibliotecas**: continuamos com Recharts (já no projeto). Heatmap implementado como grid CSS para não adicionar dependência.
+- **Performance**: memoizar agregados pesados em `useFinanceiroAnalytics` ou em hooks dedicados (`useCustosPorArea`, `useCustosPorCiclo`).
+- **Mobile-first**: sub-abas viram um `Select` em telas <640px; cards empilhados; comparador de ciclos limita a 2 colunas no mobile.
+
+## 7. Entrega em fases
+
+1. **Fase 1 — Fundamentos**: paleta de cores por entidade + helpers R$/ha + shell de sub-abas (Visão Geral migrada).
+2. **Fase 2 — Por Área e Por Ciclo** (incluindo comparador de ciclos).
+3. **Fase 3 — Por Categoria (heatmap) + Investimentos + Empréstimos** com KPIs avançados.
+
+Cada fase é entregável independente e mantém o dashboard atual funcionando durante a transição.
