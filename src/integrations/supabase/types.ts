@@ -573,6 +573,8 @@ export type Database = {
           created_at: string
           cycle_id: string | null
           id: string
+          installment_id: string | null
+          loan_id: string | null
           natureza_id: string | null
           observacao: string | null
           origem: string
@@ -580,6 +582,7 @@ export type Database = {
           propriedade_id: string | null
           revisado: boolean
           talhao_id: string | null
+          tipo_evento_emprestimo: string | null
           updated_at: string
         }
         Insert: {
@@ -591,6 +594,8 @@ export type Database = {
           created_at?: string
           cycle_id?: string | null
           id?: string
+          installment_id?: string | null
+          loan_id?: string | null
           natureza_id?: string | null
           observacao?: string | null
           origem?: string
@@ -598,6 +603,7 @@ export type Database = {
           propriedade_id?: string | null
           revisado?: boolean
           talhao_id?: string | null
+          tipo_evento_emprestimo?: string | null
           updated_at?: string
         }
         Update: {
@@ -609,6 +615,8 @@ export type Database = {
           created_at?: string
           cycle_id?: string | null
           id?: string
+          installment_id?: string | null
+          loan_id?: string | null
           natureza_id?: string | null
           observacao?: string | null
           origem?: string
@@ -616,6 +624,7 @@ export type Database = {
           propriedade_id?: string | null
           revisado?: boolean
           talhao_id?: string | null
+          tipo_evento_emprestimo?: string | null
           updated_at?: string
         }
         Relationships: [
