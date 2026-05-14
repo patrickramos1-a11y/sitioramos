@@ -203,6 +203,8 @@ function ClassificacaoRow({
   const [observacao, setObservacao] = useState<string>(cls?.observacao ?? "");
   const [responsavelId, setResponsavelId] = useState<string>(txAny.responsavel_id ?? NONE);
   const responsavelAtual = (responsaveis ?? []).find((r: any) => r.id === txAny.responsavel_id);
+  const [saving, setSaving] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(!!cls?.revisado);
 
   const installments = useMemo(() => {
     if (loanId === NONE) return [];
@@ -212,22 +214,29 @@ function ClassificacaoRow({
     );
   }, [loanId, loans]);
 
-  const handleSave = () => {
-    onSave({
-      cash_transaction_id: tx.id,
-      natureza_id: naturezaId === NONE ? null : naturezaId,
-      categoria_id: categoriaId === NONE ? null : categoriaId,
-      centro_custo_id: centroId === NONE ? null : centroId,
-      area_id: areaId === NONE ? null : areaId,
-      cycle_id: cycleId === NONE ? null : cycleId,
-      projeto_investimento_id: projetoId === NONE ? null : projetoId,
-      loan_id: loanId === NONE ? null : loanId,
-      installment_id: installmentId === NONE ? null : installmentId,
-      tipo_evento_emprestimo: loanEvent === NONE ? null : (loanEvent as LoanEvent),
-      observacao: observacao || null,
-      origem: "manual",
-      confianca: suggestion ? suggestion.confianca : "alta",
-    });
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await onSave({
+        cash_transaction_id: tx.id,
+        natureza_id: naturezaId === NONE ? null : naturezaId,
+        categoria_id: categoriaId === NONE ? null : categoriaId,
+        centro_custo_id: centroId === NONE ? null : centroId,
+        area_id: areaId === NONE ? null : areaId,
+        cycle_id: cycleId === NONE ? null : cycleId,
+        projeto_investimento_id: projetoId === NONE ? null : projetoId,
+        loan_id: loanId === NONE ? null : loanId,
+        installment_id: installmentId === NONE ? null : installmentId,
+        tipo_evento_emprestimo: loanEvent === NONE ? null : (loanEvent as LoanEvent),
+        observacao: observacao || null,
+        origem: "manual",
+        confianca: suggestion ? suggestion.confianca : "alta",
+        revisado: true,
+      });
+      setCollapsed(true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const applySuggestion = () => {
