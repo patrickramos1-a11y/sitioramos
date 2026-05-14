@@ -63,7 +63,16 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
 
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [tipo, setTipo] = useState<"entrada" | "saida">("saida");
-  const [valor, setValor] = useState("");
+  const [valorCents, setValorCents] = useState(0);
+  const valor = (valorCents / 100).toString();
+  const valorFormatted = (valorCents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 12);
+    setValorCents(digits ? parseInt(digits, 10) : 0);
+  };
   const [descricao, setDescricao] = useState("");
   const [na, setNa] = useState<Record<FieldKey, boolean>>({} as any);
   const [vals, setVals] = useState<Record<FieldKey, string>>({} as any);
