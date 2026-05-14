@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, MapPin, Wallet, ClipboardList, Menu } from "lucide-react";
+import { LayoutDashboard, Wallet, ClipboardList, Menu, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -17,7 +17,7 @@ import {
 
 const primaryItems = [
   { to: "/", label: "Início", icon: LayoutDashboard, exact: true },
-  { to: "/areas", label: "Áreas", icon: MapPin },
+  { to: "/ciclos", label: "Ciclos", icon: RefreshCw },
   { to: "/caixa", label: "Caixa", icon: Wallet },
   { to: "/operacao", label: "Operação", icon: ClipboardList },
 ];

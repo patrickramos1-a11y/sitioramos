@@ -1,99 +1,167 @@
-# Plano — Dashboard Financeiro Mobile-First
+# Refatoração: Estrutura Física × Estrutura Produtiva
 
-Refatoração completa do Dashboard e suas 6 sub-abas para resolver: filtros muito grandes, dropdown minimalista, KPIs longos demais, gráficos pouco legíveis no celular e tabelas inadequadas.
+## Visão geral
 
-## 1. Barra de filtros retrátil (`FinanceiroFilters`)
+Separar **estrutura física da terra** (Propriedade → Talhão → Área → Tarefa) da **estrutura produtiva** (Ciclos). Áreas deixam de ser item principal do menu; passam a ser acessadas via Talhão. Ciclos ganham aba própria e podem se vincular a áreas inteiras ou frações (tarefas físicas de 2.500 m²).
 
-- **Modo colapsado por padrão no mobile**: mostra apenas 1 chip resumo ("Mês atual · Todos os tipos · 3 filtros") + botão `Filtros`.
-- Ao tocar, abre `Sheet` (drawer lateral) no mobile com todos os filtros organizados em seções (Período, Classificação, Dimensões).
-- **Chips de período rápido** viram pílulas coloridas selecionáveis (Hoje, 7d, Mês, Trim., Ano, Tudo) ao invés de 4 botões enfileirados.
-- Desktop: mantém comportamento atual mas com `Mais filtros` retrátil.
-- Badge no botão `Filtros` mostrando quantos filtros ativos.
+---
 
-## 2. Sub-navegação (Visão Geral, Por Área, etc.)
+## 1. Navegação
 
-- Substituir o `Select` minimalista por **chips horizontais com scroll** (`overflow-x-auto snap-x`) — mais visual, mostra ícone + label, com indicador da aba ativa.
-- Cada chip ganha cor própria (azul para Visão Geral, verde para Área, âmbar para Ciclo, roxo para Categoria, dourado para Investimentos, vermelho para Empréstimos).
+**Remover do menu lateral:** item "Áreas".
+**Adicionar ao menu lateral:** item "Ciclos" (`/ciclos`).
+**Manter:** Propriedade (já existente).
 
-## 3. KPIs compactos e roláveis
+Nova hierarquia de navegação:
+```text
+Propriedade (/propriedade)
+  └── Talhão (/talhoes/:id)
+        └── Área (/areas/:id)        ← rota preservada
+              └── Tarefas (seção interna)
+Ciclos (/ciclos)                     ← nova aba
+  └── Ciclo (/ciclos/:id)
+```
 
-- Hoje: 12 `KpiCard`s grandes empilhados — muito longo no mobile.
-- Novo layout mobile: **carrosséis horizontais agrupados por tema** (`snap-x`):
-  - Linha 1 — Resultado: Saldo, Resultado Op., Margem %, Resultado Caixa
-  - Linha 2 — Fluxo: Entradas, Saídas, Burn, Runway
-  - Linha 3 — Operação: Custos Plant., Investimentos, Empréstimos, % Class.
-- KpiCard mobile: altura ~80px, número grande, hint colapsado num ícone `i` (popover) — elimina os "balões cansativos".
-- Desktop: grid 4 colunas mantida, mas com altura reduzida e cor de borda lateral por categoria.
+Rotas existentes de áreas continuam válidas; apenas saem do menu principal. Mobile bottom-nav recebe o mesmo tratamento (Áreas sai, Ciclos entra).
 
-## 4. Gráficos — versão mobile
+---
 
-Problemas atuais: legendas estouram, labels de pizza se sobrepõem, alturas fixas pequenas demais.
+## 2. Conceito: Tarefa física
 
-- **Pizza → Donut com legenda lateral/abaixo** com top 5 + "Outros", percentuais grandes no centro.
-- **Bar/Line**: altura adaptativa (`h-[220px]` mobile, `h-[280px]` desktop), eixo Y oculto no mobile (mostrar valores no tooltip), `interval="preserveStartEnd"` no eixo X.
-- Adicionar **toggle "ver tabela"** em cada gráfico — abre lista compacta dos mesmos dados (acessibilidade + alternativa ao gráfico no celular).
-- Tooltip customizado com cores dos grupos.
-- Cores: aplicar paleta determinística do `entityColors.ts` em séries de Ciclos/Áreas/Projetos para consistência cross-aba.
+**Regra fixa:** 1 tarefa = 2.500 m² → 1 ha = 4 tarefas.
 
-## 5. Tabelas → Cards no mobile
+Exposto via helper `src/lib/territory/tarefas.ts`:
+```ts
+export const M2_POR_TAREFA = 2500;
+export const haParaM2 = (ha:number) => ha * 10000;
+export const haParaTarefas = (ha:number) => (ha * 10000) / 2500; // = ha * 4
+```
 
-Tabelas presentes em Por Área, Por Ciclo, Por Categoria, Investimentos, Empréstimos.
+Cálculo é **derivado** (não armazenado) — sempre a partir de `tamanho_hectares`.
 
-- **Mobile (<768px)**: substituir cada linha por `Card` vertical com:
-  - Cabeçalho colorido (cor da entidade)
-  - 2-3 KPIs principais em grid 2 colunas
-  - Mini barra de progresso (% do total) no rodapé
-  - Tap → `Sheet` com detalhe completo
-- **Desktop**: tabelas mantidas mas com cabeçalho sticky, zebra-stripe e cor da entidade na primeira célula.
+---
 
-## 6. Sub-abas específicas
+## 3. Banco de dados
 
-### Visão Geral
-- Hero card no topo: Saldo atual em destaque + delta vs mês anterior.
-- Banner de não-classificados vira mais sutil (apenas ícone + número clicável que filtra).
+**Nova tabela `cycle_area_allocations`** — vínculo N:N entre ciclos e áreas com fração:
 
-### Por Área
-- Cards por área com mini-sparkline mensal embutido.
-- Ordenação rápida (Maior custo / Maior receita / Maior margem).
+| coluna | tipo | descrição |
+|---|---|---|
+| `id` | uuid | PK |
+| `cycle_id` | uuid | ciclo |
+| `area_id` | uuid | área |
+| `ocupa_area_inteira` | bool | se true, ignora `tarefas_ocupadas` |
+| `tarefas_ocupadas` | numeric | fração (ex: 1, 2,5) |
+| `percentual` | numeric | gerado/derivado para exibição |
+| `observacao` | text | opcional |
+| `created_at`/`updated_at` | timestamptz | padrão |
 
-### Por Ciclo
-- Seletor de ciclos compacto: chips com cor + checkbox (max 4).
-- Comparativo lado-a-lado vira **stacked horizontal** no mobile (1 ciclo por linha).
+RLS pública (consistente com tabelas existentes), sem FK rígida (padrão do projeto).
 
-### Por Categoria
-- Heatmap atual quebra no mobile → substituir por **lista ordenada com barra horizontal proporcional** e filtro por ciclo.
+**Migração de dados:** para todo `cycles` existente, criar 1 allocation com `area_id = cycles.area_id`, `ocupa_area_inteira = true`. Coluna `cycles.area_id` é mantida como "área principal" para compatibilidade.
 
-### Investimentos
-- Cards de projeto: cor própria + barra de execução % + valores compactos.
+---
 
-### Empréstimos
-- Card por credor com saldo devedor em destaque + mini cronograma 6 meses.
+## 4. Página da Área (`AreaDetalhe`)
 
-## 7. Design tokens / estética
+Reorganizar em blocos:
 
-- Aumentar uso de cores semânticas (entradas = verde, saídas = vermelho, investimento = âmbar, empréstimo = vinho, neutro = azul).
-- Bordas laterais coloridas (`border-l-4`) em cards para identidade visual rápida.
-- Tipografia: números tabulares (`tabular-nums`), labels em `text-[10px]` uppercase, valores em `text-lg font-semibold`.
-- Espaçamento: gap-2 mobile, gap-3 desktop (mais denso).
+**Cabeçalho** — nome, talhão vinculado (link), badge "Unidade física".
 
-## Detalhes técnicos
+**KPIs físicos** (cards):
+- Tamanho em hectares
+- Tamanho em m²
+- Total de tarefas (calculado)
+- Tarefas ocupadas / livres
 
-Arquivos a modificar:
-- `src/components/financeiro/FinanceiroFilters.tsx` — drawer mobile + chips de período
-- `src/components/financeiro/DashboardTab.tsx` — chips de sub-aba colorida
-- `src/components/financeiro/dashboard/KpiCard.tsx` — variante compacta com popover de hint
-- `src/components/financeiro/dashboard/VisaoGeralSubTab.tsx` — hero + carrosséis de KPIs + donut
-- `src/components/financeiro/dashboard/PorAreaSubTab.tsx` — cards mobile + sparklines
-- `src/components/financeiro/dashboard/PorCicloSubTab.tsx` — seletor compacto + comparativo stacked
-- `src/components/financeiro/dashboard/PorCategoriaSubTab.tsx` — substituir heatmap
-- `src/components/financeiro/dashboard/InvestimentosSubTab.tsx` — cards de projeto coloridos
-- `src/components/financeiro/dashboard/EmprestimosSubTab.tsx` — cards por credor
-- Novo `src/components/financeiro/dashboard/ChartCard.tsx` — wrapper com toggle gráfico/tabela e altura responsiva
-- Novo `src/components/financeiro/dashboard/MobileKpiRow.tsx` — carrossel snap-x de KPIs
+**Seção "Tarefas da área"** (nova):
+- Barra horizontal segmentada mostrando ocupação por ciclo (cores de cultura)
+- Lista: cada ciclo com nº de tarefas e %
+- Indicador "Livre" para o restante
 
-Sem mudanças em hooks/lógica de negócio — apenas camada de apresentação.
+**Seção "Ciclos vinculados"**:
+- Cards de ciclos (lê `cycle_area_allocations` + `cycles`)
+- Mostra cultura, status, datas, tarefas ocupadas, % da área
+- Botão "Gerenciar vínculos" abre dialog para ajustar/criar allocations
 
-## Fora deste plano
+**Seção "Custos & Receitas proporcionais"**:
+- Para cada ciclo vinculado, exibir custo total do ciclo × % de participação da área
+- Exemplo: Abóbora R$ 10.000 × 35% = R$ 3.500 atribuído a esta área
+- Receitas idem
+- Resultado da área = receitas proporcionais − custos proporcionais
 
-- Lançamentos e Configurações (já refatorados anteriormente).
-- Mudanças no schema do banco ou nos cálculos analíticos.
+**Seção existente** de cultura principal/observações mantida.
+
+Texto explícito no topo: "Esta área é uma unidade física. Os ciclos produtivos são geridos na aba Ciclos."
+
+---
+
+## 5. Página de Ciclos (`/ciclos`) — nova
+
+Lista geral de ciclos com:
+- Cultura, status, datas
+- Áreas vinculadas (chips multi-área)
+- Total de tarefas ocupadas no sistema
+- Custo acumulado e receita
+
+Detalhe do ciclo (`/ciclos/:id`):
+- Dados do ciclo
+- Seção "Alocação territorial": tabela de allocations editável (área + tarefas/inteira + %)
+- Custos, receitas, tarefas operacionais (reaproveita componentes existentes)
+
+---
+
+## 6. Página do Talhão
+
+Adicionar/garantir lista de áreas filhas com mini-cards mostrando: hectares, tarefas totais, tarefas ocupadas, ciclos ativos. Cada card é link para `/areas/:id`.
+
+---
+
+## 7. Detalhes técnicos
+
+**Arquivos novos:**
+- `src/lib/territory/tarefas.ts` — helpers de conversão
+- `src/hooks/useCycleAreaAllocations.ts` — CRUD da nova tabela
+- `src/components/areas/TarefasSection.tsx` — barra + lista de ocupação
+- `src/components/areas/CiclosVinculadosSection.tsx`
+- `src/components/areas/CustosProporcionaisSection.tsx`
+- `src/components/areas/AlocacaoCicloDialog.tsx` — criar/editar vínculo
+- `src/pages/Ciclos.tsx` + `src/pages/CicloDetalhe.tsx`
+- `src/components/cycles/AlocacaoTerritorialSection.tsx`
+
+**Arquivos editados:**
+- `src/components/layout/AppSidebar.tsx` — remover Áreas, adicionar Ciclos
+- `src/components/layout/MobileBottomNav.tsx` — mesmo ajuste
+- `src/App.tsx` — registrar rotas `/ciclos` e `/ciclos/:id`
+- `src/pages/AreaDetalhe.tsx` — reordenar blocos, adicionar seções
+- `src/pages/TalhaoDetalhe.tsx` (se existir) — listar áreas com KPIs novos
+- `src/components/layout/AppLayout.tsx` — `routeTitles` para `/ciclos`
+
+**Cálculo proporcional de custos** (fase 1, simples):
+```ts
+custoAreaProporcional = custoTotalCiclo * (tarefasOcupadasNaArea / totalTarefasDoCiclo)
+```
+Onde `totalTarefasDoCiclo` = soma de `tarefas_ocupadas` (ou tarefas totais da área quando `ocupa_area_inteira`) em todas as allocations do ciclo.
+
+**Compatibilidade:** nada é apagado. `cycles.area_id` continua válido como "área principal" e é refletido como uma allocation `ocupa_area_inteira=true` na migração.
+
+---
+
+## 8. Fora de escopo desta entrega
+
+- Editor visual de tarefas no mapa (apenas barra segmentada/lista)
+- Rateio automático retroativo de `costs`/`revenues` históricos (apenas exibição calculada)
+- Validação de soma de tarefas > total (warning visual, sem bloquear)
+
+---
+
+## 9. Critérios de aceite (do pedido)
+
+- [x] "Áreas" sai do menu principal, acessível via Propriedade → Talhão
+- [x] Cálculo automático de tarefas (1 tarefa = 2.500 m²)
+- [x] Página da área mostra ha, m² e tarefas
+- [x] Vínculo ciclo↔área com área inteira ou fração de tarefas
+- [x] Visualização de ciclos vinculados e ocupação na área
+- [x] Custos/receitas proporcionais por área
+- [x] Nova aba "Ciclos" como home da gestão produtiva
+- [x] Dados existentes preservados via migração inicial de allocations

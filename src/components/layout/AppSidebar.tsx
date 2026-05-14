@@ -1,11 +1,11 @@
 import {
   LayoutDashboard,
-  MapPin,
   Landmark,
   PieChart,
   Home,
   ClipboardList,
   Users,
+  RefreshCw,
   PanelLeftClose,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 const navigationItems = [
   { title: "Visão Geral", url: "/", icon: LayoutDashboard },
   { title: "Propriedade", url: "/propriedade", icon: Home },
-  { title: "Áreas", url: "/areas", icon: MapPin },
+  { title: "Ciclos", url: "/ciclos", icon: RefreshCw },
   { title: "Operação", url: "/operacao", icon: ClipboardList },
   { title: "Financeiro", url: "/financeiro", icon: PieChart },
   { title: "Empréstimos", url: "/emprestimos", icon: Landmark },

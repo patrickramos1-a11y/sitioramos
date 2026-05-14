@@ -21,6 +21,9 @@ import { useInvestments } from "@/hooks/useInvestments";
 import { useStages, Stage, StageInsert } from "@/hooks/useStages";
 import { useTasks, Task, TaskInsert } from "@/hooks/useTasks";
 import { useOperations, Operation, OperationInsert } from "@/hooks/useOperations";
+import { useCycleAreaAllocations } from "@/hooks/useCycleAreaAllocations";
+import { haParaM2, haParaTarefas, formatTarefas, formatM2, TAREFAS_POR_HECTARE } from "@/lib/territory/tarefas";
+import { Progress } from "@/components/ui/progress";
 import { CycleForm } from "@/components/cycles/CycleForm";
 import { StageForm } from "@/components/operacao/StageForm";
 import { TaskForm } from "@/components/operacao/TaskForm";
@@ -96,6 +99,70 @@ export default function AreaDetalhe() {
   const areaApp = Number((area as any)?.area_app_hectares || 0);
   const areaRio = Number((area as any)?.metros_rio || 0);
   const talhaoId = (area as any)?.talhao_id;
+
+  // ===== Estrutura física da área (m² e tarefas) =====
+  const areaHa = Number((area as any)?.tamanho_hectares || 0);
+  const areaM2 = haParaM2(areaHa);
+  const tarefasTotais = haParaTarefas(areaHa);
+
+  // Alocações ciclo↔área (todos os ciclos vinculados a esta área)
+  const { allocations: areaAllocations } = useCycleAreaAllocations({ areaId: id });
+  // Todas alocações do sistema (para calcular total ocupado por cada ciclo)
+  const { allocations: allAllocations } = useCycleAreaAllocations({});
+
+  const tarefasOcupadasPorAlocacao = (alloc: any) => {
+    if (alloc?.ocupa_area_inteira) return tarefasTotais;
+    return Number(alloc?.tarefas_ocupadas || 0);
+  };
+
+  const tarefasOcupadas = areaAllocations.reduce(
+    (sum: number, a: any) => sum + tarefasOcupadasPorAlocacao(a),
+    0,
+  );
+  const tarefasLivres = Math.max(0, tarefasTotais - tarefasOcupadas);
+  const ocupacaoPct = tarefasTotais > 0 ? Math.min(100, (tarefasOcupadas / tarefasTotais) * 100) : 0;
+
+  // Cores fixas para segmentos por ciclo
+  const cycleColors = [
+    "bg-emerald-500", "bg-amber-500", "bg-sky-500", "bg-rose-500",
+    "bg-violet-500", "bg-orange-500", "bg-teal-500", "bg-pink-500",
+  ];
+  const colorOf = (cycleId: string) => {
+    const list = areaAllocations;
+    const idx = list.findIndex((a: any) => a.cycle_id === cycleId);
+    return cycleColors[idx % cycleColors.length];
+  };
+
+  // Custos/receitas proporcionais por ciclo vinculado
+  const custosProporcionais = areaAllocations.map((alloc: any) => {
+    const cycle: any = cycles.find((c: any) => c.id === alloc.cycle_id);
+    const tarefasNaArea = tarefasOcupadasPorAlocacao(alloc);
+    // Soma de tarefas do ciclo em todas as áreas (para denominador)
+    const tarefasCicloTotal = allAllocations
+      .filter((a: any) => a.cycle_id === alloc.cycle_id)
+      .reduce((sum: number, a: any) => {
+        if (a.ocupa_area_inteira) {
+          const ar: any = areas.find((x: any) => x.id === a.area_id);
+          return sum + haParaTarefas(Number(ar?.tamanho_hectares || 0));
+        }
+        return sum + Number(a.tarefas_ocupadas || 0);
+      }, 0);
+    const fator = tarefasCicloTotal > 0 ? tarefasNaArea / tarefasCicloTotal : 0;
+    const custoCicloTotal = costs
+      .filter((c: any) => c.cycle_id === alloc.cycle_id)
+      .reduce((s: number, c: any) => s + Number(c.valor || 0), 0);
+    const receitaCicloTotal = revenues
+      .filter((r: any) => r.cycle_id === alloc.cycle_id)
+      .reduce((s: number, r: any) => s + Number(r.quantidade || 0) * Number(r.preco_unitario || 0), 0);
+    return {
+      alloc,
+      cycle,
+      tarefasNaArea,
+      pctArea: tarefasTotais > 0 ? (tarefasNaArea / tarefasTotais) * 100 : 0,
+      custoProporcional: custoCicloTotal * fator,
+      receitaProporcional: receitaCicloTotal * fator,
+    };
+  });
 
   const handleDeleteConfirm = () => {
     if (deleteTarget?.type === "cycle") deleteCycle.mutate(deleteTarget.item.id);
@@ -273,6 +340,149 @@ export default function AreaDetalhe() {
                 )}
               </div>
               {area.observacoes && <p className="text-sm text-muted-foreground mt-3">{area.observacoes}</p>}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ===== Estrutura física: hectares, m², tarefas, ocupação ===== */}
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader className="pb-2">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MapPin className="h-4 w-4" /> Estrutura física da área
+                </CardTitle>
+                <CardDescription>
+                  Esta área é uma <strong>unidade física</strong>. Os ciclos produtivos são geridos na aba{" "}
+                  <Link to="/ciclos" className="underline text-primary">Ciclos</Link>.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="text-[10px]">1 tarefa = 2.500 m²</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Hectares</div>
+                <div className="text-lg font-semibold tabular-nums">{areaHa.toFixed(2)} ha</div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Metros quadrados</div>
+                <div className="text-lg font-semibold tabular-nums">{formatM2(areaM2)}</div>
+              </div>
+              <div className="rounded-lg border bg-primary/5 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Tarefas totais</div>
+                <div className="text-lg font-semibold tabular-nums text-primary">{formatTarefas(tarefasTotais)}</div>
+                <div className="text-[10px] text-muted-foreground">{TAREFAS_POR_HECTARE} por hectare</div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Ocupação</div>
+                <div className="text-lg font-semibold tabular-nums">
+                  {formatTarefas(tarefasOcupadas)}<span className="text-xs text-muted-foreground"> / {formatTarefas(tarefasTotais)}</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {formatTarefas(tarefasLivres)} livre(s)
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Ocupação por ciclo</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{ocupacaoPct.toFixed(0)}%</span>
+              </div>
+              <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+                {areaAllocations.map((alloc: any) => {
+                  const t = tarefasOcupadasPorAlocacao(alloc);
+                  const w = tarefasTotais > 0 ? (t / tarefasTotais) * 100 : 0;
+                  return (
+                    <div
+                      key={alloc.id}
+                      className={colorOf(alloc.cycle_id)}
+                      style={{ width: `${w}%` }}
+                      title={`${(cycles.find((c: any) => c.id === alloc.cycle_id) as any)?.cultura || "Ciclo"} • ${formatTarefas(t)} tarefas`}
+                    />
+                  );
+                })}
+              </div>
+              {areaAllocations.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {areaAllocations.map((alloc: any) => {
+                    const c: any = cycles.find((x: any) => x.id === alloc.cycle_id);
+                    const t = tarefasOcupadasPorAlocacao(alloc);
+                    const pct = tarefasTotais > 0 ? (t / tarefasTotais) * 100 : 0;
+                    return (
+                      <div key={alloc.id} className="flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs">
+                        <span className={`h-2.5 w-2.5 rounded-full ${colorOf(alloc.cycle_id)}`} />
+                        <span className="font-medium">{c?.cultura || "Ciclo"}</span>
+                        <span className="text-muted-foreground tabular-nums">
+                          {alloc.ocupa_area_inteira ? "área inteira" : `${formatTarefas(t)} tarefas`} ({pct.toFixed(0)}%)
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {tarefasLivres > 0 && (
+                    <div className="flex items-center gap-2 rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground">
+                      <span className="h-2.5 w-2.5 rounded-full bg-muted" />
+                      Livre <span className="tabular-nums">{formatTarefas(tarefasLivres)} tarefas</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground italic">
+                  Nenhum ciclo vinculado ainda. Crie um ciclo abaixo para alocar tarefas desta área.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ===== Custos & Receitas Proporcionais por Ciclo ===== */}
+        {custosProporcionais.length > 0 && (
+          <Card className="border-l-4 border-l-amber-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart3 className="h-4 w-4" /> Custos & receitas proporcionais
+              </CardTitle>
+              <CardDescription>
+                Distribuição do valor de cada ciclo conforme as tarefas ocupadas nesta área.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="text-left py-2 font-medium">Ciclo</th>
+                      <th className="text-right py-2 font-medium">% da área</th>
+                      <th className="text-right py-2 font-medium">Custo proporcional</th>
+                      <th className="text-right py-2 font-medium">Receita proporcional</th>
+                      <th className="text-right py-2 font-medium">Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {custosProporcionais.map(({ alloc, cycle, pctArea, custoProporcional, receitaProporcional }) => {
+                      const res = receitaProporcional - custoProporcional;
+                      return (
+                        <tr key={alloc.id} className="border-b last:border-0">
+                          <td className="py-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`h-2.5 w-2.5 rounded-full ${colorOf(alloc.cycle_id)}`} />
+                              <span className="font-medium">{(cycle as any)?.cultura || "Ciclo"}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 text-right tabular-nums">{pctArea.toFixed(1)}%</td>
+                          <td className="py-2 text-right tabular-nums text-destructive">{formatCurrency(custoProporcional)}</td>
+                          <td className="py-2 text-right tabular-nums text-success">{formatCurrency(receitaProporcional)}</td>
+                          <td className={`py-2 text-right tabular-nums font-semibold ${res >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(res)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -374,6 +374,42 @@ export type Database = {
         }
         Relationships: []
       }
+      cycle_area_allocations: {
+        Row: {
+          area_id: string
+          created_at: string
+          cycle_id: string
+          id: string
+          observacao: string | null
+          ocupa_area_inteira: boolean
+          percentual: number | null
+          tarefas_ocupadas: number
+          updated_at: string
+        }
+        Insert: {
+          area_id: string
+          created_at?: string
+          cycle_id: string
+          id?: string
+          observacao?: string | null
+          ocupa_area_inteira?: boolean
+          percentual?: number | null
+          tarefas_ocupadas?: number
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string
+          created_at?: string
+          cycle_id?: string
+          id?: string
+          observacao?: string | null
+          ocupa_area_inteira?: boolean
+          percentual?: number | null
+          tarefas_ocupadas?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cycles: {
         Row: {
           area_id: string
