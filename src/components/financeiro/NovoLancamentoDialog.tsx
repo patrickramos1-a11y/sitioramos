@@ -240,7 +240,7 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-4xl w-[95vw] p-0">
         <DialogHeader
           className={cn(
             "px-6 py-4 border-b sticky top-0 z-10 backdrop-blur",
