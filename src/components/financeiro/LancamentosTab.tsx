@@ -51,6 +51,7 @@ export function LancamentosTab() {
   const projById = useMemo(() => new Map(projetos.map((p) => [p.id, p])), [projetos]);
   const areaById = useMemo(() => new Map(areas.map((a: any) => [a.id, a])), [areas]);
   const cycleById = useMemo(() => new Map(cycles.map((c: any) => [c.id, c])), [cycles]);
+  const respById = useMemo(() => new Map(responsaveis.map((r: any) => [r.id, r])), [responsaveis]);
   const loanById = useMemo(
     () => new Map<string, any>(loans.map((l: any) => [l.id, l])),
     [loans]
