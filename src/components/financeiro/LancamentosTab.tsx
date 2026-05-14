@@ -18,6 +18,8 @@ import { useFinProjetos } from "@/hooks/financeiro/useFinProjetos";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
 import { useLoans } from "@/hooks/useLoans";
+import { useResponsaveis } from "@/hooks/useResponsaveis";
+import { NovoLancamentoDialog } from "./NovoLancamentoDialog";
 import {
   detectLoanEventFromTx,
   loanEventLabel,
@@ -35,6 +37,7 @@ export function LancamentosTab() {
   const { areas = [] } = useAreas();
   const { cycles = [] } = useCycles();
   const { loans = [] } = useLoans();
+  const { data: responsaveis = [] } = useResponsaveis();
 
   const classifByTx = useMemo(() => {
     const m = new Map<string, (typeof classifs)[number]>();
@@ -48,6 +51,7 @@ export function LancamentosTab() {
   const projById = useMemo(() => new Map(projetos.map((p) => [p.id, p])), [projetos]);
   const areaById = useMemo(() => new Map(areas.map((a: any) => [a.id, a])), [areas]);
   const cycleById = useMemo(() => new Map(cycles.map((c: any) => [c.id, c])), [cycles]);
+  const respById = useMemo(() => new Map(responsaveis.map((r: any) => [r.id, r])), [responsaveis]);
   const loanById = useMemo(
     () => new Map<string, any>(loans.map((l: any) => [l.id, l])),
     [loans]
@@ -72,6 +76,7 @@ export function LancamentosTab() {
   const [cycleId, setCycleId] = useState(ALL);
   const [projetoId, setProjetoId] = useState(ALL);
   const [loanId, setLoanId] = useState(ALL);
+  const [respId, setRespId] = useState(ALL);
   const [classifFilter, setClassifFilter] = useState(ALL); // all / classified / unclassified / revisado / nao_revisado
 
   const filtered = useMemo(() => {
@@ -91,6 +96,7 @@ export function LancamentosTab() {
         return false;
       if (loanId !== ALL && cls?.loan_id !== loanId && (t as any).loan_id !== loanId)
         return false;
+      if (respId !== ALL && (t as any).responsavel_id !== respId) return false;
       if (classifFilter === "classified" && !cls) return false;
       if (classifFilter === "unclassified" && cls) return false;
       if (classifFilter === "revisado" && !cls?.revisado) return false;
@@ -99,7 +105,7 @@ export function LancamentosTab() {
     });
   }, [
     txs, classifByTx, q, start, end, tipo, naturezaId, categoriaId, centroId,
-    areaId, cycleId, projetoId, loanId, classifFilter,
+    areaId, cycleId, projetoId, loanId, respId, classifFilter,
   ]);
 
   const fmt = (n: number) =>
@@ -153,10 +159,18 @@ export function LancamentosTab() {
             <SelectItem key={l.id} value={l.id}>{l.origem_credor}</SelectItem>
           ))}
         </FilterSelect>
+        <FilterSelect value={respId} onChange={setRespId} placeholder="Responsável">
+          {responsaveis.map((r) => (
+            <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+          ))}
+        </FilterSelect>
       </Card>
 
-      <div className="text-xs text-muted-foreground">
-        {filtered.length} de {txs.length} lançamentos
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          {filtered.length} de {txs.length} lançamentos
+        </div>
+        <NovoLancamentoDialog />
       </div>
 
       <Card className="overflow-x-auto">
@@ -166,6 +180,7 @@ export function LancamentosTab() {
               <th className="px-2 py-2">Data</th>
               <th className="px-2 py-2">Tipo</th>
               <th className="px-2 py-2">Descrição</th>
+              <th className="px-2 py-2">Responsável</th>
               <th className="px-2 py-2">Cat. antiga</th>
               <th className="px-2 py-2">Natureza</th>
               <th className="px-2 py-2">Categoria</th>
@@ -212,6 +227,17 @@ export function LancamentosTab() {
                   </td>
                   <td className="px-2 py-1.5 max-w-[260px] truncate" title={t.descricao ?? ""}>
                     {t.descricao || <span className="text-muted-foreground">(sem descrição)</span>}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    {(() => {
+                      const r = (t as any).responsavel_id ? respById.get((t as any).responsavel_id) : null;
+                      return r ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: (r as any).cor }} />
+                          {(r as any).nome}
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>;
+                    })()}
                   </td>
                   <td className="px-2 py-1.5 text-muted-foreground">
                     {(t as any).subcategoria || (t as any).categoria_legada || "—"}
