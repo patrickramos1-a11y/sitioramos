@@ -2,16 +2,20 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Cell, LineChart, Line } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, LineChart, Line } from "recharts";
 import { useFinanceiroAnalytics, type FinFilters } from "@/hooks/financeiro/useFinanceiroAnalytics";
 import { fmtBRL } from "@/lib/financeiro/finCalc";
 import { custoTotalCiclo, receitaTotalCiclo, hectaresCiclo, diasDecorridos, safeDiv } from "@/lib/financeiro/perHectare";
 import { colorForEntity } from "@/lib/financeiro/entityColors";
-import { X, GitCompare } from "lucide-react";
+import { X, GitCompare, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ChartCard } from "./ChartCard";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function PorCicloSubTab({ filters }: { filters: FinFilters }) {
   const a = useFinanceiroAnalytics(filters);
   const [selecionados, setSelecionados] = useState<string[]>([]);
+  const isMobile = useIsMobile();
 
   const linhas = useMemo(() => {
     return (a.cycles as any[])
@@ -21,19 +25,10 @@ export function PorCicloSubTab({ filters }: { filters: FinFilters }) {
         const receita = receitaTotalCiclo(c.id, a.filtered);
         const dias = diasDecorridos(c);
         return {
-          id: c.id,
-          nome: `${c.cultura} — ${c.areas?.nome ?? "—"}`,
-          status: c.status,
-          ha,
-          dias,
-          custo,
-          receita,
-          resultado: receita - custo,
-          custoHa: safeDiv(custo, ha),
-          receitaHa: safeDiv(receita, ha),
-          custoDia: safeDiv(custo, dias),
-          color: colorForEntity("cycle", c.id),
-          raw: c,
+          id: c.id, nome: `${c.cultura} — ${c.areas?.nome ?? "—"}`, status: c.status,
+          ha, dias, custo, receita, resultado: receita - custo,
+          custoHa: safeDiv(custo, ha), receitaHa: safeDiv(receita, ha), custoDia: safeDiv(custo, dias),
+          color: colorForEntity("cycle", c.id), raw: c,
         };
       })
       .filter((l) => l.custo > 0 || l.receita > 0)
@@ -49,59 +44,63 @@ export function PorCicloSubTab({ filters }: { filters: FinFilters }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-4">
       <Card>
-        <CardHeader className="pb-2 flex-row items-center justify-between">
-          <CardTitle className="text-sm">Ciclos no período</CardTitle>
-          <span className="text-[11px] text-muted-foreground">
-            Selecione até 4 para comparar
-          </span>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center justify-between gap-2">
+            <span>Ciclos no período</span>
+            <span className="text-[10px] font-normal text-muted-foreground">Toque para comparar (até 4)</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left px-3 py-2"></th>
-                  <th className="text-left px-3 py-2">Ciclo</th>
-                  <th className="text-right px-3 py-2">Ha</th>
-                  <th className="text-right px-3 py-2">Dias</th>
-                  <th className="text-right px-3 py-2">Custo</th>
-                  <th className="text-right px-3 py-2">R$/ha</th>
-                  <th className="text-right px-3 py-2">R$/dia</th>
-                  <th className="text-right px-3 py-2">Receita</th>
-                  <th className="text-right px-3 py-2">Resultado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {linhas.map((l) => {
-                  const sel = selecionados.includes(l.id);
-                  return (
-                    <tr key={l.id} className={`border-t cursor-pointer hover:bg-muted/30 ${sel ? "bg-primary/5" : ""}`} onClick={() => toggleSelect(l.id)}>
-                      <td className="px-3 py-2">
-                        <input type="checkbox" checked={sel} readOnly className="pointer-events-none" />
-                      </td>
-                      <td className="px-3 py-2 flex items-center gap-2">
-                        <span className="inline-block h-3 w-3 rounded-sm" style={{ background: l.color }} />
-                        <span>{l.nome}</span>
-                        <Badge variant="outline" className="text-[9px]">{l.status}</Badge>
-                      </td>
-                      <td className="text-right px-3 py-2">{l.ha.toFixed(2)}</td>
-                      <td className="text-right px-3 py-2">{l.dias}</td>
-                      <td className="text-right px-3 py-2">{fmtBRL(l.custo)}</td>
-                      <td className="text-right px-3 py-2 text-rose-700">{fmtBRL(l.custoHa)}</td>
-                      <td className="text-right px-3 py-2">{fmtBRL(l.custoDia)}</td>
-                      <td className="text-right px-3 py-2">{fmtBRL(l.receita)}</td>
-                      <td className={`text-right px-3 py-2 font-medium ${l.resultado >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{fmtBRL(l.resultado)}</td>
-                    </tr>
-                  );
-                })}
-                {linhas.length === 0 && (
-                  <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">Sem dados no período.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <CardContent>
+          {linhas.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-8 text-center">Sem dados no período.</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {linhas.map((l) => {
+                const sel = selecionados.includes(l.id);
+                const disabled = !sel && selecionados.length >= 4;
+                return (
+                  <button
+                    key={l.id}
+                    onClick={() => toggleSelect(l.id)}
+                    disabled={disabled}
+                    className={cn(
+                      "text-left rounded-md border p-2.5 transition-all relative",
+                      sel ? "ring-2 shadow-sm" : "hover:bg-muted/30",
+                      disabled && "opacity-40"
+                    )}
+                    style={{
+                      borderLeftWidth: 3,
+                      borderLeftColor: l.color,
+                      ...(sel ? { boxShadow: `0 0 0 2px ${l.color}` } : {}),
+                    }}
+                  >
+                    {sel && (
+                      <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full flex items-center justify-center text-white" style={{ background: l.color }}>
+                        <Check className="h-3 w-3" />
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-xs font-medium truncate flex-1" title={l.nome}>{l.nome}</span>
+                      <Badge variant="outline" className="text-[9px] shrink-0">{l.status}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                      <span>Ha: <span className="text-foreground tabular-nums">{l.ha.toFixed(1)}</span></span>
+                      <span>Dias: <span className="text-foreground tabular-nums">{l.dias}</span></span>
+                      <span className="col-span-2">Custo: <span className="text-foreground font-medium tabular-nums">{fmtBRL(l.custo)}</span> · <span className="tabular-nums">{fmtBRL(l.custoHa)}/ha</span></span>
+                      {l.receita > 0 && (
+                        <span className="col-span-2 text-emerald-700">Receita: <strong className="tabular-nums">{fmtBRL(l.receita)}</strong></span>
+                      )}
+                      <span className={cn("col-span-2 font-medium", l.resultado >= 0 ? "text-emerald-700" : "text-rose-700")}>
+                        Resultado: <span className="tabular-nums">{fmtBRL(l.resultado)}</span>
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -110,36 +109,23 @@ export function PorCicloSubTab({ filters }: { filters: FinFilters }) {
           ids={selecionados}
           analytics={a}
           onClear={() => setSelecionados([])}
+          isMobile={isMobile}
         />
       )}
     </div>
   );
 }
 
-function CompararCiclos({ ids, analytics, onClear }: { ids: string[]; analytics: ReturnType<typeof useFinanceiroAnalytics>; onClear: () => void }) {
-  const ciclos = useMemo(() => {
-    return ids.map((id) => {
-      const c: any = (analytics.cycles as any[]).find((x) => x.id === id);
-      const ha = hectaresCiclo(c, analytics.areas as any);
-      const custo = custoTotalCiclo(id, analytics.filtered);
-      const receita = receitaTotalCiclo(id, analytics.filtered);
-      const dias = diasDecorridos(c);
-      return {
-        id,
-        nome: c ? `${c.cultura} — ${c.areas?.nome ?? "—"}` : "—",
-        ha,
-        dias,
-        custo,
-        receita,
-        resultado: receita - custo,
-        custoHa: safeDiv(custo, ha),
-        color: colorForEntity("cycle", id),
-        raw: c,
-      };
-    });
-  }, [ids, analytics]);
+function CompararCiclos({ ids, analytics, onClear, isMobile }: { ids: string[]; analytics: ReturnType<typeof useFinanceiroAnalytics>; onClear: () => void; isMobile: boolean }) {
+  const ciclos = useMemo(() => ids.map((id) => {
+    const c: any = (analytics.cycles as any[]).find((x) => x.id === id);
+    const ha = hectaresCiclo(c, analytics.areas as any);
+    const custo = custoTotalCiclo(id, analytics.filtered);
+    const receita = receitaTotalCiclo(id, analytics.filtered);
+    const dias = diasDecorridos(c);
+    return { id, nome: c ? `${c.cultura} — ${c.areas?.nome ?? "—"}` : "—", ha, dias, custo, receita, resultado: receita - custo, custoHa: safeDiv(custo, ha), color: colorForEntity("cycle", id), raw: c };
+  }), [ids, analytics]);
 
-  // Por categoria, dentro de cada ciclo
   const porCategoria = useMemo(() => {
     const catNames = new Map<string, string>();
     const data = new Map<string, Record<string, number>>();
@@ -148,9 +134,7 @@ function CompararCiclos({ ids, analytics, onClear }: { ids: string[]; analytics:
       if (!cid || !ids.includes(cid)) continue;
       if (r.tx.tipo !== "saida") continue;
       const catId = r.classif?.categoria_id ?? "sem_categoria";
-      const catNome = r.classif?.categoria_id
-        ? analytics.cats.find((c) => c.id === catId)?.nome ?? "—"
-        : "Sem categoria";
+      const catNome = r.classif?.categoria_id ? analytics.cats.find((c) => c.id === catId)?.nome ?? "—" : "Sem categoria";
       catNames.set(catId, catNome);
       if (!data.has(catId)) data.set(catId, {});
       const row = data.get(catId)!;
@@ -163,10 +147,9 @@ function CompararCiclos({ ids, analytics, onClear }: { ids: string[]; analytics:
         const sb = ids.reduce((s, i) => s + ((b as any)[i] || 0), 0);
         return sb - sa;
       })
-      .slice(0, 12);
+      .slice(0, 10);
   }, [ids, analytics]);
 
-  // Custo acumulado por dia decorrido (normalização)
   const acumuladoDia = useMemo(() => {
     const maxDias = Math.max(...ciclos.map((c) => c.dias), 30);
     const buckets: Record<number, Record<string, number>> = {};
@@ -182,15 +165,11 @@ function CompararCiclos({ ids, analytics, onClear }: { ids: string[]; analytics:
       if (!buckets[dia]) buckets[dia] = {};
       buckets[dia][cid] = (buckets[dia][cid] || 0) + Number(r.tx.valor);
     }
-    const acc: Record<string, number> = {};
     const arr: any[] = [];
     for (let d = 0; d <= maxDias; d += Math.max(1, Math.floor(maxDias / 60))) {
       const point: any = { dia: d };
       for (const id of ids) {
-        const dayVals = Object.entries(buckets)
-          .filter(([k]) => Number(k) <= d)
-          .reduce((s, [, v]) => s + (v[id] || 0), 0);
-        acc[id] = dayVals;
+        const dayVals = Object.entries(buckets).filter(([k]) => Number(k) <= d).reduce((s, [, v]) => s + (v[id] || 0), 0);
         point[id] = dayVals;
       }
       arr.push(point);
@@ -198,73 +177,70 @@ function CompararCiclos({ ids, analytics, onClear }: { ids: string[]; analytics:
     return arr;
   }, [ids, analytics, ciclos]);
 
+  const ChartH = isMobile ? 220 : 280;
+
   return (
-    <Card className="border-primary/30">
-      <CardHeader className="pb-2 flex-row items-center justify-between">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <GitCompare className="h-4 w-4" />
-          Comparando {ciclos.length} ciclo(s)
+    <Card className="border-primary/30 bg-primary/[0.02]">
+      <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm flex items-center gap-1.5">
+          <GitCompare className="h-4 w-4" /> Comparando {ciclos.length} ciclo(s)
         </CardTitle>
         <Button size="sm" variant="ghost" onClick={onClear}><X className="h-3.5 w-3.5 mr-1" />Limpar</Button>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className={`grid gap-3 ${ciclos.length === 1 ? "sm:grid-cols-1" : ciclos.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
+      <CardContent className="space-y-3 md:space-y-4">
+        {/* Stacked cards on mobile */}
+        <div className={cn("grid gap-2", ciclos.length === 1 ? "" : "sm:grid-cols-2 lg:grid-cols-4")}>
           {ciclos.map((c) => (
-            <Card key={c.id} style={{ borderLeftWidth: 4, borderLeftColor: c.color }}>
-              <CardContent className="p-3 space-y-1.5">
+            <Card key={c.id} className="overflow-hidden" style={{ borderLeftWidth: 4, borderLeftColor: c.color }}>
+              <CardContent className="p-2.5 space-y-1">
                 <p className="text-xs font-medium truncate" title={c.nome}>{c.nome}</p>
+                <p className="text-base font-semibold tabular-nums">{fmtBRL(c.custo)}</p>
                 <div className="grid grid-cols-2 gap-1 text-[10px] text-muted-foreground">
-                  <span>Ha: <strong className="text-foreground">{c.ha.toFixed(2)}</strong></span>
-                  <span>Dias: <strong className="text-foreground">{c.dias}</strong></span>
-                  <span>Custo: <strong className="text-foreground">{fmtBRL(c.custo)}</strong></span>
-                  <span>R$/ha: <strong className="text-foreground">{fmtBRL(c.custoHa)}</strong></span>
-                  <span>Receita: <strong className="text-foreground">{fmtBRL(c.receita)}</strong></span>
-                  <span className={c.resultado >= 0 ? "text-emerald-700" : "text-rose-700"}>Result.: <strong>{fmtBRL(c.resultado)}</strong></span>
+                  <span>{c.ha.toFixed(1)} ha · {c.dias}d</span>
+                  <span className="text-right tabular-nums">{fmtBRL(c.custoHa)}/ha</span>
+                  {c.receita > 0 && <span className="col-span-2 text-emerald-700">Receita: <strong className="tabular-nums">{fmtBRL(c.receita)}</strong></span>}
+                  <span className={cn("col-span-2 font-medium", c.resultado >= 0 ? "text-emerald-700" : "text-rose-700")}>
+                    Result.: <span className="tabular-nums">{fmtBRL(c.resultado)}</span>
+                  </span>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Gasto por categoria (top 12)</CardTitle></CardHeader>
-          <CardContent>
-            {porCategoria.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-8 text-center">Sem dados.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(260, porCategoria.length * 30)}>
-                <BarChart data={porCategoria} layout="vertical" margin={{ left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <YAxis type="category" dataKey="categoria" width={140} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => fmtBRL(v)} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {ciclos.map((c) => (
-                    <Bar key={c.id} dataKey={c.id} name={c.nome} fill={c.color} />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Custo acumulado por dia decorrido</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={acumuladoDia}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="dia" tick={{ fontSize: 10 }} label={{ value: "dias desde plantio", position: "insideBottom", offset: -2, style: { fontSize: 10 } }} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => fmtBRL(v)} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+        <ChartCard title="Gasto por categoria (top 10)" accent="hsl(265 65% 58%)">
+          {porCategoria.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-6 text-center">Sem dados.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(220, porCategoria.length * (isMobile ? 28 : 32))}>
+              <BarChart data={porCategoria} layout="vertical" margin={{ left: -5, right: 5, top: 5, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="categoria" width={isMobile ? 90 : 130} tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v: number) => fmtBRL(v)} contentStyle={{ fontSize: 11 }} />
+                <Legend wrapperStyle={{ fontSize: 10 }} iconSize={8} />
                 {ciclos.map((c) => (
-                  <Line key={c.id} type="monotone" dataKey={c.id} stroke={c.color} strokeWidth={2.5} dot={false} name={c.nome} />
+                  <Bar key={c.id} dataKey={c.id} name={c.nome.split(" — ")[0]} fill={c.color} radius={[0, 3, 3, 0]} />
                 ))}
-              </LineChart>
+              </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Custo acumulado por dia decorrido" accent="hsl(28 75% 50%)">
+          <ResponsiveContainer width="100%" height={ChartH}>
+            <LineChart data={acumuladoDia} margin={{ left: -10, right: 5, top: 5, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="dia" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} hide={isMobile} width={isMobile ? 0 : 40} />
+              <Tooltip formatter={(v: number) => fmtBRL(v)} contentStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 10 }} iconSize={8} />
+              {ciclos.map((c) => (
+                <Line key={c.id} type="monotone" dataKey={c.id} stroke={c.color} strokeWidth={2.5} dot={false} name={c.nome.split(" — ")[0]} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
       </CardContent>
     </Card>
   );
