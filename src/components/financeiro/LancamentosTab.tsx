@@ -228,6 +228,17 @@ export function LancamentosTab() {
                   <td className="px-2 py-1.5 max-w-[260px] truncate" title={t.descricao ?? ""}>
                     {t.descricao || <span className="text-muted-foreground">(sem descrição)</span>}
                   </td>
+                  <td className="px-2 py-1.5">
+                    {(() => {
+                      const r = (t as any).responsavel_id ? respById.get((t as any).responsavel_id) : null;
+                      return r ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: (r as any).cor }} />
+                          {(r as any).nome}
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>;
+                    })()}
+                  </td>
                   <td className="px-2 py-1.5 text-muted-foreground">
                     {(t as any).subcategoria || (t as any).categoria_legada || "—"}
                   </td>
