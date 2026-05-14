@@ -6,6 +6,7 @@ import {
   TrendingUp, 
   Landmark,
   Wallet,
+  PieChart,
   ChevronDown,
   FileText,
   Home,
