@@ -132,7 +132,7 @@ export function ReclassificacaoTab() {
               catByCode={catByCode}
               ccByCode={ccByCode}
               fmt={fmt}
-              onSave={(payload) => upsert.mutate(payload)}
+              onSave={(payload) => upsert.mutateAsync(payload)}
               onDelete={() => del.mutate(t.id)}
               onToggleRevisado={(id, rev) => toggleRev.mutate({ id, revisado: rev })}
               onUpdateResponsavel={(rid) => updateTransaction.mutate({ id: t.id, responsavel_id: rid })}
