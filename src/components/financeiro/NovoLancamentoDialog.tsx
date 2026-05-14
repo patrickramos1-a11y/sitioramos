@@ -83,7 +83,7 @@ export function NovoLancamentoDialog({ trigger, transaction, open: openProp, onO
     if (transaction) {
       setData(transaction.data);
       setTipo(transaction.tipo);
-      setValor(String(transaction.valor));
+      setValorCents(Math.round(Number(transaction.valor) * 100));
       setDescricao(transaction.descricao || "");
       const tAny: any = transaction;
       const seed: Record<FieldKey, string> = {
