@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 import { FinanceiroFilters } from "./FinanceiroFilters";
 import { useFinanceiroAnalytics, defaultFilters, type FinFilters } from "@/hooks/financeiro/useFinanceiroAnalytics";
-import { fmtBRL, sumValor, sumByGrupo, monthKey } from "@/lib/financeiro/finCalc";
-import { grupoLabels, type GrupoGerencial } from "@/lib/financeiro/managementGroup";
+import { fmtBRL, monthKey } from "@/lib/financeiro/finCalc";
 
 export function RelatoriosTab() {
   const [filters, setFilters] = useState<FinFilters>(defaultFilters);
