@@ -100,6 +100,70 @@ export default function AreaDetalhe() {
   const areaRio = Number((area as any)?.metros_rio || 0);
   const talhaoId = (area as any)?.talhao_id;
 
+  // ===== Estrutura física da área (m² e tarefas) =====
+  const areaHa = Number((area as any)?.tamanho_hectares || 0);
+  const areaM2 = haParaM2(areaHa);
+  const tarefasTotais = haParaTarefas(areaHa);
+
+  // Alocações ciclo↔área (todos os ciclos vinculados a esta área)
+  const { allocations: areaAllocations } = useCycleAreaAllocations({ areaId: id });
+  // Todas alocações do sistema (para calcular total ocupado por cada ciclo)
+  const { allocations: allAllocations } = useCycleAreaAllocations({});
+
+  const tarefasOcupadasPorAlocacao = (alloc: any) => {
+    if (alloc?.ocupa_area_inteira) return tarefasTotais;
+    return Number(alloc?.tarefas_ocupadas || 0);
+  };
+
+  const tarefasOcupadas = areaAllocations.reduce(
+    (sum: number, a: any) => sum + tarefasOcupadasPorAlocacao(a),
+    0,
+  );
+  const tarefasLivres = Math.max(0, tarefasTotais - tarefasOcupadas);
+  const ocupacaoPct = tarefasTotais > 0 ? Math.min(100, (tarefasOcupadas / tarefasTotais) * 100) : 0;
+
+  // Cores fixas para segmentos por ciclo
+  const cycleColors = [
+    "bg-emerald-500", "bg-amber-500", "bg-sky-500", "bg-rose-500",
+    "bg-violet-500", "bg-orange-500", "bg-teal-500", "bg-pink-500",
+  ];
+  const colorOf = (cycleId: string) => {
+    const list = areaAllocations;
+    const idx = list.findIndex((a: any) => a.cycle_id === cycleId);
+    return cycleColors[idx % cycleColors.length];
+  };
+
+  // Custos/receitas proporcionais por ciclo vinculado
+  const custosProporcionais = areaAllocations.map((alloc: any) => {
+    const cycle: any = cycles.find((c: any) => c.id === alloc.cycle_id);
+    const tarefasNaArea = tarefasOcupadasPorAlocacao(alloc);
+    // Soma de tarefas do ciclo em todas as áreas (para denominador)
+    const tarefasCicloTotal = allAllocations
+      .filter((a: any) => a.cycle_id === alloc.cycle_id)
+      .reduce((sum: number, a: any) => {
+        if (a.ocupa_area_inteira) {
+          const ar: any = areas.find((x: any) => x.id === a.area_id);
+          return sum + haParaTarefas(Number(ar?.tamanho_hectares || 0));
+        }
+        return sum + Number(a.tarefas_ocupadas || 0);
+      }, 0);
+    const fator = tarefasCicloTotal > 0 ? tarefasNaArea / tarefasCicloTotal : 0;
+    const custoCicloTotal = costs
+      .filter((c: any) => c.cycle_id === alloc.cycle_id)
+      .reduce((s: number, c: any) => s + Number(c.valor || 0), 0);
+    const receitaCicloTotal = revenues
+      .filter((r: any) => r.cycle_id === alloc.cycle_id)
+      .reduce((s: number, r: any) => s + Number(r.quantidade || 0) * Number(r.preco_unitario || 0), 0);
+    return {
+      alloc,
+      cycle,
+      tarefasNaArea,
+      pctArea: tarefasTotais > 0 ? (tarefasNaArea / tarefasTotais) * 100 : 0,
+      custoProporcional: custoCicloTotal * fator,
+      receitaProporcional: receitaCicloTotal * fator,
+    };
+  });
+
   const handleDeleteConfirm = () => {
     if (deleteTarget?.type === "cycle") deleteCycle.mutate(deleteTarget.item.id);
     if (deleteTarget?.type === "stage") deleteStage.mutate(deleteTarget.item.id);
