@@ -3,15 +3,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react";
-import type { CashTransaction } from "@/hooks/useCashTransactions";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Pencil,
+  Search,
+  X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Calendar,
+} from "lucide-react";
+import type { CashTransaction } from "@/hooks/useCashTransactions";
 import { useCashTransactions } from "@/hooks/useCashTransactions";
 import { useFinClassificacoes } from "@/hooks/financeiro/useFinClassificacoes";
 import { useFinNaturezas } from "@/hooks/financeiro/useFinNaturezas";
@@ -27,8 +28,27 @@ import {
   detectLoanEventFromTx,
   loanEventLabel,
 } from "@/lib/financeiro/suggestionEngine";
+import { ColumnFilter } from "@/components/caixa/ColumnFilter";
+import { cn } from "@/lib/utils";
 
-const ALL = "__all__";
+const NONE = "__none__";
+
+type SortKey =
+  | "data"
+  | "tipo"
+  | "valor"
+  | "descricao"
+  | "responsavel"
+  | "natureza"
+  | "categoria"
+  | "centro"
+  | "area"
+  | "ciclo"
+  | "projeto"
+  | "emprestimo"
+  | "status";
+
+type SortState = { key: SortKey; dir: "asc" | "desc" };
 
 export function LancamentosTab() {
   const { transactions: txs = [], isLoading } = useCashTransactions();
@@ -67,159 +87,365 @@ export function LancamentosTab() {
     return m;
   }, [loans]);
 
-  // filters
+  // global filters
   const [q, setQ] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [tipo, setTipo] = useState<string>(ALL);
-  const [naturezaId, setNaturezaId] = useState(ALL);
-  const [categoriaId, setCategoriaId] = useState(ALL);
-  const [centroId, setCentroId] = useState(ALL);
-  const [areaId, setAreaId] = useState(ALL);
-  const [cycleId, setCycleId] = useState(ALL);
-  const [projetoId, setProjetoId] = useState(ALL);
-  const [loanId, setLoanId] = useState(ALL);
-  const [respId, setRespId] = useState(ALL);
-  const [classifFilter, setClassifFilter] = useState(ALL); // all / classified / unclassified / revisado / nao_revisado
   const [editingTx, setEditingTx] = useState<CashTransaction | null>(null);
 
-  const filtered = useMemo(() => {
-    return txs.filter((t) => {
+  // column filters (multi-select)
+  const [fTipo, setFTipo] = useState<string[]>([]);
+  const [fStatus, setFStatus] = useState<string[]>([]);
+  const [fNatureza, setFNatureza] = useState<string[]>([]);
+  const [fCategoria, setFCategoria] = useState<string[]>([]);
+  const [fCentro, setFCentro] = useState<string[]>([]);
+  const [fArea, setFArea] = useState<string[]>([]);
+  const [fCiclo, setFCiclo] = useState<string[]>([]);
+  const [fProjeto, setFProjeto] = useState<string[]>([]);
+  const [fEmprestimo, setFEmprestimo] = useState<string[]>([]);
+  const [fResp, setFResp] = useState<string[]>([]);
+
+  // sort
+  const [sort, setSort] = useState<SortState>({ key: "data", dir: "desc" });
+
+  // build enriched rows once
+  const rows = useMemo(() => {
+    return txs.map((t) => {
       const cls = classifByTx.get(t.id);
-      if (q && !(t.descricao ?? "").toLowerCase().includes(q.toLowerCase()))
-        return false;
-      if (start && t.data < start) return false;
-      if (end && t.data > end) return false;
-      if (tipo !== ALL && t.tipo !== tipo) return false;
-      if (naturezaId !== ALL && cls?.natureza_id !== naturezaId) return false;
-      if (categoriaId !== ALL && cls?.categoria_id !== categoriaId) return false;
-      if (centroId !== ALL && cls?.centro_custo_id !== centroId) return false;
-      if (areaId !== ALL && cls?.area_id !== areaId && t.area_id !== areaId) return false;
-      if (cycleId !== ALL && cls?.cycle_id !== cycleId && t.cycle_id !== cycleId) return false;
-      if (projetoId !== ALL && cls?.projeto_investimento_id !== projetoId)
-        return false;
-      if (loanId !== ALL && cls?.loan_id !== loanId && (t as any).loan_id !== loanId)
-        return false;
-      if (respId !== ALL && (t as any).responsavel_id !== respId) return false;
-      if (classifFilter === "classified" && !cls) return false;
-      if (classifFilter === "unclassified" && cls) return false;
-      if (classifFilter === "revisado" && !cls?.revisado) return false;
-      if (classifFilter === "nao_revisado" && cls?.revisado) return false;
-      return true;
+      const txAny = t as any;
+      const natNome = cls?.natureza_id ? natById.get(cls.natureza_id)?.nome ?? "" : "";
+      const catNome = cls?.categoria_id ? catById.get(cls.categoria_id)?.nome ?? "" : "";
+      const ccNome = cls?.centro_custo_id ? ccById.get(cls.centro_custo_id)?.nome ?? "" : "";
+      const areaIdResolved = cls?.area_id ?? t.area_id ?? null;
+      const areaNome = areaIdResolved
+        ? (areaById.get(areaIdResolved) as any)?.nome ?? ""
+        : "";
+      const cycleIdResolved = cls?.cycle_id ?? t.cycle_id ?? null;
+      const cycleNome = cycleIdResolved
+        ? (cycleById.get(cycleIdResolved) as any)?.cultura ?? ""
+        : "";
+      const projNome = cls?.projeto_investimento_id
+        ? projById.get(cls.projeto_investimento_id)?.nome ?? ""
+        : "";
+      const loanIdResolved = cls?.loan_id ?? txAny.loan_id ?? null;
+      const linkedLoan = loanIdResolved ? loanById.get(loanIdResolved) : null;
+      const linkedInst = cls?.installment_id
+        ? installmentById.get(cls.installment_id)
+        : txAny.installment_id
+        ? installmentById.get(txAny.installment_id)
+        : null;
+      const loanNome = linkedLoan?.origem_credor || linkedInst?.loan?.origem_credor || "";
+      const respNome = txAny.responsavel_id
+        ? (respById.get(txAny.responsavel_id) as any)?.nome ?? ""
+        : "";
+      const status = !cls
+        ? "Não classificado"
+        : cls.revisado
+        ? "Revisado"
+        : "Classificado";
+      const loanEvent =
+        cls?.tipo_evento_emprestimo ??
+        detectLoanEventFromTx({
+          loan_id: txAny.loan_id ?? null,
+          installment_id: txAny.installment_id ?? null,
+          subcategoria: txAny.subcategoria ?? null,
+          tipo: t.tipo,
+        });
+
+      return {
+        t,
+        cls,
+        txAny,
+        natNome,
+        catNome,
+        ccNome,
+        areaIdResolved,
+        areaNome,
+        cycleIdResolved,
+        cycleNome,
+        projNome,
+        loanIdResolved,
+        loanNome,
+        linkedLoan,
+        linkedInst,
+        loanEvent,
+        respNome,
+        status,
+      };
     });
   }, [
-    txs, classifByTx, q, start, end, tipo, naturezaId, categoriaId, centroId,
-    areaId, cycleId, projetoId, loanId, respId, classifFilter,
+    txs, classifByTx, natById, catById, ccById, areaById, cycleById,
+    projById, loanById, installmentById, respById,
   ]);
+
+  const filtered = useMemo(() => {
+    const qLower = q.trim().toLowerCase();
+    return rows.filter((r) => {
+      const { t, cls, txAny, areaIdResolved, cycleIdResolved, loanIdResolved } = r;
+
+      if (start && t.data < start) return false;
+      if (end && t.data > end) return false;
+
+      // column filters
+      if (fTipo.length && !fTipo.includes(t.tipo)) return false;
+      if (fStatus.length && !fStatus.includes(r.status)) return false;
+      if (fNatureza.length && !fNatureza.includes(cls?.natureza_id ?? NONE)) return false;
+      if (fCategoria.length && !fCategoria.includes(cls?.categoria_id ?? NONE)) return false;
+      if (fCentro.length && !fCentro.includes(cls?.centro_custo_id ?? NONE)) return false;
+      if (fArea.length && !fArea.includes(areaIdResolved ?? NONE)) return false;
+      if (fCiclo.length && !fCiclo.includes(cycleIdResolved ?? NONE)) return false;
+      if (fProjeto.length && !fProjeto.includes(cls?.projeto_investimento_id ?? NONE)) return false;
+      if (fEmprestimo.length && !fEmprestimo.includes(loanIdResolved ?? NONE)) return false;
+      if (fResp.length && !fResp.includes(txAny.responsavel_id ?? NONE)) return false;
+
+      if (!qLower) return true;
+      // global search: descrição, valor, todos os nomes
+      const valorStr = Number(t.valor).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+      });
+      const valorRaw = String(t.valor);
+      const haystack = [
+        t.descricao ?? "",
+        valorStr,
+        valorRaw,
+        t.tipo,
+        new Date(t.data).toLocaleDateString("pt-BR"),
+        txAny.subcategoria ?? "",
+        txAny.categoria_legada ?? "",
+        r.respNome,
+        r.natNome,
+        r.catNome,
+        r.ccNome,
+        r.areaNome,
+        r.cycleNome,
+        r.projNome,
+        r.loanNome,
+        r.status,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(qLower);
+    });
+  }, [
+    rows, q, start, end, fTipo, fStatus, fNatureza, fCategoria, fCentro,
+    fArea, fCiclo, fProjeto, fEmprestimo, fResp,
+  ]);
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const cmp = (a: typeof arr[number], b: typeof arr[number]) => {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      const get = (r: typeof arr[number]): string | number => {
+        switch (sort.key) {
+          case "data": return r.t.data;
+          case "tipo": return r.t.tipo;
+          case "valor": return Number(r.t.valor);
+          case "descricao": return (r.t.descricao ?? "").toLowerCase();
+          case "responsavel": return r.respNome.toLowerCase();
+          case "natureza": return r.natNome.toLowerCase();
+          case "categoria": return r.catNome.toLowerCase();
+          case "centro": return r.ccNome.toLowerCase();
+          case "area": return r.areaNome.toLowerCase();
+          case "ciclo": return r.cycleNome.toLowerCase();
+          case "projeto": return r.projNome.toLowerCase();
+          case "emprestimo": return r.loanNome.toLowerCase();
+          case "status": return r.status;
+        }
+      };
+      const av = get(a);
+      const bv = get(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    };
+    arr.sort(cmp);
+    return arr;
+  }, [filtered, sort]);
 
   const fmt = (n: number) =>
     n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  // build options for column filters from current data
+  const buildOpts = (
+    pairs: { id: string | null | undefined; label: string }[],
+    includeNone = true
+  ) => {
+    const seen = new Map<string, string>();
+    pairs.forEach(({ id, label }) => {
+      const key = id ?? NONE;
+      if (!seen.has(key)) seen.set(key, label || "(vazio)");
+    });
+    const opts = Array.from(seen.entries()).map(([value, label]) => ({ value, label }));
+    opts.sort((a, b) => a.label.localeCompare(b.label));
+    if (!includeNone) return opts.filter((o) => o.value !== NONE);
+    return opts;
+  };
+
+  const optTipo = [
+    { value: "entrada", label: "Entrada" },
+    { value: "saida", label: "Saída" },
+  ];
+  const optStatus = [
+    { value: "Não classificado", label: "Não classificado" },
+    { value: "Classificado", label: "Classificado" },
+    { value: "Revisado", label: "Revisado" },
+  ];
+  const optNatureza = buildOpts(rows.map((r) => ({ id: r.cls?.natureza_id, label: r.natNome || "(sem natureza)" })));
+  const optCategoria = buildOpts(rows.map((r) => ({ id: r.cls?.categoria_id, label: r.catNome || "(sem categoria)" })));
+  const optCentro = buildOpts(rows.map((r) => ({ id: r.cls?.centro_custo_id, label: r.ccNome || "(sem centro)" })));
+  const optArea = buildOpts(rows.map((r) => ({ id: r.areaIdResolved, label: r.areaNome || "(sem área)" })));
+  const optCiclo = buildOpts(rows.map((r) => ({ id: r.cycleIdResolved, label: r.cycleNome || "(sem ciclo)" })));
+  const optProjeto = buildOpts(rows.map((r) => ({ id: r.cls?.projeto_investimento_id, label: r.projNome || "(sem projeto)" })));
+  const optEmprestimo = buildOpts(rows.map((r) => ({ id: r.loanIdResolved, label: r.loanNome || "(sem empréstimo)" })));
+  const optResp = buildOpts(rows.map((r) => ({ id: r.txAny.responsavel_id, label: r.respNome || "(sem responsável)" })));
+
+  const activeFilterCount =
+    (q ? 1 : 0) +
+    (start ? 1 : 0) +
+    (end ? 1 : 0) +
+    fTipo.length + fStatus.length + fNatureza.length + fCategoria.length +
+    fCentro.length + fArea.length + fCiclo.length + fProjeto.length +
+    fEmprestimo.length + fResp.length;
+
+  const clearAll = () => {
+    setQ(""); setStart(""); setEnd("");
+    setFTipo([]); setFStatus([]); setFNatureza([]); setFCategoria([]);
+    setFCentro([]); setFArea([]); setFCiclo([]); setFProjeto([]);
+    setFEmprestimo([]); setFResp([]);
+  };
+
+  const toggleSort = (key: SortKey) => {
+    setSort((s) =>
+      s.key === key
+        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+  };
 
   if (isLoading)
     return <p className="text-sm text-muted-foreground">Carregando...</p>;
 
   return (
     <div className="space-y-3">
-      {/* Filters */}
-      <Card className="p-3 grid gap-2 grid-cols-2 md:grid-cols-4 lg:grid-cols-6 text-xs">
-        <Input
-          placeholder="Buscar descrição..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="h-8 col-span-2"
-        />
-        <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="h-8" />
-        <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="h-8" />
-        <FilterSelect value={tipo} onChange={setTipo} placeholder="Tipo">
-          <SelectItem value="entrada">Entradas</SelectItem>
-          <SelectItem value="saida">Saídas</SelectItem>
-        </FilterSelect>
-        <FilterSelect value={classifFilter} onChange={setClassifFilter} placeholder="Status">
-          <SelectItem value="classified">Classificados</SelectItem>
-          <SelectItem value="unclassified">Não classificados</SelectItem>
-          <SelectItem value="revisado">Revisados</SelectItem>
-          <SelectItem value="nao_revisado">Não revisados</SelectItem>
-        </FilterSelect>
-        <FilterSelect value={naturezaId} onChange={setNaturezaId} placeholder="Natureza">
-          {naturezas.map((n) => <SelectItem key={n.id} value={n.id}>{n.nome}</SelectItem>)}
-        </FilterSelect>
-        <FilterSelect value={categoriaId} onChange={setCategoriaId} placeholder="Categoria">
-          {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-        </FilterSelect>
-        <FilterSelect value={centroId} onChange={setCentroId} placeholder="Centro custo">
-          {centros.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-        </FilterSelect>
-        <FilterSelect value={areaId} onChange={setAreaId} placeholder="Área">
-          {areas.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
-        </FilterSelect>
-        <FilterSelect value={cycleId} onChange={setCycleId} placeholder="Ciclo">
-          {cycles.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.cultura}</SelectItem>)}
-        </FilterSelect>
-        <FilterSelect value={projetoId} onChange={setProjetoId} placeholder="Projeto">
-          {projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-        </FilterSelect>
-        <FilterSelect value={loanId} onChange={setLoanId} placeholder="Empréstimo">
-          {loans.map((l: any) => (
-            <SelectItem key={l.id} value={l.id}>{l.origem_credor}</SelectItem>
-          ))}
-        </FilterSelect>
-        <FilterSelect value={respId} onChange={setRespId} placeholder="Responsável">
-          {responsaveis.map((r) => (
-            <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
-          ))}
-        </FilterSelect>
+      {/* Search bar */}
+      <Card className="p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5 border-primary/20 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por descrição, valor, categoria, área, responsável..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="h-10 pl-9 pr-9 bg-background/80 border-primary/20 focus-visible:ring-primary/30"
+            />
+            {q && (
+              <button
+                onClick={() => setQ("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                type="date"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className="h-10 w-[150px] pl-8 bg-background/80"
+                title="Data inicial"
+              />
+            </div>
+            <span className="text-muted-foreground text-sm">→</span>
+            <div className="relative">
+              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                type="date"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className="h-10 w-[150px] pl-8 bg-background/80"
+                title="Data final"
+              />
+            </div>
+          </div>
+          {activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAll}
+              className="h-10 text-xs gap-1"
+            >
+              <X className="h-3.5 w-3.5" />
+              Limpar ({activeFilterCount})
+            </Button>
+          )}
+        </div>
       </Card>
 
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
-          {filtered.length} de {txs.length} lançamentos
+          <span className="font-semibold text-foreground">{sorted.length}</span> de {txs.length} lançamentos
         </div>
         <NovoLancamentoDialog />
       </div>
 
       <Card className="overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="bg-muted/50 text-left">
+          <thead className="bg-muted/60 text-left sticky top-0">
             <tr>
               <th className="px-2 py-2 w-10"></th>
-              <th className="px-2 py-2">Data</th>
-              <th className="px-2 py-2">Tipo</th>
-              <th className="px-2 py-2 text-right">Valor</th>
-              <th className="px-2 py-2">Descrição</th>
-              <th className="px-2 py-2">Responsável</th>
-              <th className="px-2 py-2">Cat. antiga</th>
-              <th className="px-2 py-2">Natureza</th>
-              <th className="px-2 py-2">Categoria</th>
-              <th className="px-2 py-2">Centro custo</th>
-              <th className="px-2 py-2">Área</th>
-              <th className="px-2 py-2">Ciclo</th>
-              <th className="px-2 py-2">Projeto</th>
-              <th className="px-2 py-2">Empréstimo</th>
-              <th className="px-2 py-2">Status</th>
+              <SortHeader label="Data" k="data" sort={sort} onSort={toggleSort} />
+              <ThWithFilter
+                label="Tipo" k="tipo" sort={sort} onSort={toggleSort}
+                options={optTipo} selected={fTipo} onChange={setFTipo}
+              />
+              <SortHeader label="Valor" k="valor" sort={sort} onSort={toggleSort} align="right" />
+              <SortHeader label="Descrição" k="descricao" sort={sort} onSort={toggleSort} />
+              <ThWithFilter
+                label="Responsável" k="responsavel" sort={sort} onSort={toggleSort}
+                options={optResp} selected={fResp} onChange={setFResp}
+              />
+              <th className="px-2 py-2 text-muted-foreground">Cat. antiga</th>
+              <ThWithFilter
+                label="Natureza" k="natureza" sort={sort} onSort={toggleSort}
+                options={optNatureza} selected={fNatureza} onChange={setFNatureza}
+              />
+              <ThWithFilter
+                label="Categoria" k="categoria" sort={sort} onSort={toggleSort}
+                options={optCategoria} selected={fCategoria} onChange={setFCategoria}
+              />
+              <ThWithFilter
+                label="Centro custo" k="centro" sort={sort} onSort={toggleSort}
+                options={optCentro} selected={fCentro} onChange={setFCentro}
+              />
+              <ThWithFilter
+                label="Área" k="area" sort={sort} onSort={toggleSort}
+                options={optArea} selected={fArea} onChange={setFArea}
+              />
+              <ThWithFilter
+                label="Ciclo" k="ciclo" sort={sort} onSort={toggleSort}
+                options={optCiclo} selected={fCiclo} onChange={setFCiclo}
+              />
+              <ThWithFilter
+                label="Projeto" k="projeto" sort={sort} onSort={toggleSort}
+                options={optProjeto} selected={fProjeto} onChange={setFProjeto}
+              />
+              <ThWithFilter
+                label="Empréstimo" k="emprestimo" sort={sort} onSort={toggleSort}
+                options={optEmprestimo} selected={fEmprestimo} onChange={setFEmprestimo}
+              />
+              <ThWithFilter
+                label="Status" k="status" sort={sort} onSort={toggleSort}
+                options={optStatus} selected={fStatus} onChange={setFStatus}
+              />
             </tr>
           </thead>
           <tbody className="divide-y">
-            {filtered.slice(0, 500).map((t) => {
-              const cls = classifByTx.get(t.id);
-              const txAny = t as any;
-              const linkedLoan = cls?.loan_id
-                ? loanById.get(cls.loan_id)
-                : txAny.loan_id
-                ? loanById.get(txAny.loan_id)
-                : null;
-              const linkedInst = cls?.installment_id
-                ? installmentById.get(cls.installment_id)
-                : txAny.installment_id
-                ? installmentById.get(txAny.installment_id)
-                : null;
-              const loanEvent =
-                cls?.tipo_evento_emprestimo ??
-                detectLoanEventFromTx({
-                  loan_id: txAny.loan_id ?? null,
-                  installment_id: txAny.installment_id ?? null,
-                  subcategoria: txAny.subcategoria ?? null,
-                  tipo: t.tipo,
-                });
+            {sorted.slice(0, 500).map((r) => {
+              const { t, cls, linkedLoan, linkedInst, loanEvent } = r;
               return (
                 <tr key={t.id} className="hover:bg-muted/30">
                   <td className="px-2 py-1.5">
@@ -251,11 +477,12 @@ export function LancamentosTab() {
                   </td>
                   <td className="px-2 py-1.5">
                     {(() => {
-                      const r = (t as any).responsavel_id ? respById.get((t as any).responsavel_id) : null;
-                      return r ? (
+                      const respId = (t as any).responsavel_id;
+                      const rp = respId ? respById.get(respId) : null;
+                      return rp ? (
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: (r as any).cor }} />
-                          {(r as any).nome}
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: (rp as any).cor }} />
+                          {(rp as any).nome}
                         </span>
                       ) : <span className="text-muted-foreground">—</span>;
                     })()}
@@ -263,24 +490,12 @@ export function LancamentosTab() {
                   <td className="px-2 py-1.5 text-muted-foreground">
                     {(t as any).subcategoria || (t as any).categoria_legada || "—"}
                   </td>
-                  <td className="px-2 py-1.5">{cls?.natureza_id ? natById.get(cls.natureza_id)?.nome : "—"}</td>
-                  <td className="px-2 py-1.5">{cls?.categoria_id ? catById.get(cls.categoria_id)?.nome : "—"}</td>
-                  <td className="px-2 py-1.5">{cls?.centro_custo_id ? ccById.get(cls.centro_custo_id)?.nome : "—"}</td>
-                  <td className="px-2 py-1.5">
-                    {cls?.area_id
-                      ? (areaById.get(cls.area_id) as any)?.nome
-                      : t.area_id
-                      ? (areaById.get(t.area_id) as any)?.nome
-                      : "—"}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    {cls?.cycle_id
-                      ? (cycleById.get(cls.cycle_id) as any)?.cultura
-                      : t.cycle_id
-                      ? (cycleById.get(t.cycle_id) as any)?.cultura
-                      : "—"}
-                  </td>
-                  <td className="px-2 py-1.5">{cls?.projeto_investimento_id ? projById.get(cls.projeto_investimento_id)?.nome : "—"}</td>
+                  <td className="px-2 py-1.5">{r.natNome || "—"}</td>
+                  <td className="px-2 py-1.5">{r.catNome || "—"}</td>
+                  <td className="px-2 py-1.5">{r.ccNome || "—"}</td>
+                  <td className="px-2 py-1.5">{r.areaNome || "—"}</td>
+                  <td className="px-2 py-1.5">{r.cycleNome || "—"}</td>
+                  <td className="px-2 py-1.5">{r.projNome || "—"}</td>
                   <td className="px-2 py-1.5">
                     {linkedLoan || linkedInst ? (
                       <div className="flex flex-col gap-0.5">
@@ -288,7 +503,7 @@ export function LancamentosTab() {
                           {loanEventLabel(loanEvent)}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground">
-                          {(linkedLoan?.origem_credor || linkedInst?.loan?.origem_credor) ?? ""}
+                          {r.loanNome}
                           {linkedInst ? ` · #${linkedInst.numero_parcela}` : ""}
                         </span>
                       </div>
@@ -310,9 +525,14 @@ export function LancamentosTab() {
             })}
           </tbody>
         </table>
-        {filtered.length > 500 && (
+        {sorted.length > 500 && (
           <div className="p-3 text-xs text-muted-foreground">
             Exibindo os primeiros 500 — refine os filtros para ver os demais.
+          </div>
+        )}
+        {sorted.length === 0 && (
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            Nenhum lançamento encontrado com os filtros atuais.
           </div>
         )}
       </Card>
@@ -326,26 +546,74 @@ export function LancamentosTab() {
   );
 }
 
-function FilterSelect({
-  value,
-  onChange,
-  placeholder,
-  children,
+function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
+  if (!active) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+  return dir === "asc"
+    ? <ArrowUp className="h-3 w-3 text-primary" />
+    : <ArrowDown className="h-3 w-3 text-primary" />;
+}
+
+function SortHeader({
+  label, k, sort, onSort, align = "left",
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  children: React.ReactNode;
+  label: string;
+  k: SortKey;
+  sort: SortState;
+  onSort: (k: SortKey) => void;
+  align?: "left" | "right";
 }) {
+  const active = sort.key === k;
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8 text-xs">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>Todos · {placeholder}</SelectItem>
-        {children}
-      </SelectContent>
-    </Select>
+    <th className={cn("px-2 py-2", align === "right" && "text-right")}>
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-foreground transition-colors",
+          align === "right" && "ml-auto",
+          active ? "text-foreground font-semibold" : "text-muted-foreground"
+        )}
+      >
+        {label}
+        <SortIcon active={active} dir={sort.dir} />
+      </button>
+    </th>
+  );
+}
+
+function ThWithFilter({
+  label, k, sort, onSort, options, selected, onChange,
+}: {
+  label: string;
+  k: SortKey;
+  sort: SortState;
+  onSort: (k: SortKey) => void;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const active = sort.key === k;
+  return (
+    <th className="px-2 py-2">
+      <div className="inline-flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => onSort(k)}
+          className={cn(
+            "inline-flex items-center gap-1 hover:text-foreground transition-colors",
+            active ? "text-foreground font-semibold" : "text-muted-foreground"
+          )}
+        >
+          {label}
+          <SortIcon active={active} dir={sort.dir} />
+        </button>
+        <ColumnFilter
+          options={options}
+          selected={selected}
+          onChange={onChange}
+          searchable
+        />
+      </div>
+    </th>
   );
 }
