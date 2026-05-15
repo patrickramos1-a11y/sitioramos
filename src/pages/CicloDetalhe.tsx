@@ -291,6 +291,24 @@ export default function CicloDetalhe() {
                   cycleStartIso={cycle.data_inicio_plantio}
                   durationDias={durationDias || 1}
                   cor={cor}
+                  onConcluir={(sid) => setConfirmStageId(sid)}
+                  onEdit={(sid) => {
+                    setEditingStageId(sid);
+                    setInitialPosition(undefined);
+                    setStageFormOpen(true);
+                  }}
+                  onDelete={(sid) => {
+                    if (
+                      confirm(
+                        "Deseja excluir esta etapa? As datas das próximas etapas serão recalculadas.",
+                      )
+                    ) {
+                      remove.mutate(sid);
+                    }
+                  }}
+                  onAddBefore={(sid) => openCreate({ mode: "before", refStageId: sid })}
+                  onAddAfter={(sid) => openCreate({ mode: "after", refStageId: sid })}
+                  onAddAtEnd={() => openCreate({ mode: "after_last" })}
                 />
               </CardContent>
             </Card>
