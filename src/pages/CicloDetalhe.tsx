@@ -142,6 +142,9 @@ export default function CicloDetalhe() {
   };
 
   const handleStageSubmit = async (payload: any) => {
+    if (payload.cycleStartIso && payload.cycleStartIso !== cycle.data_inicio_plantio) {
+      await updateCycle.mutateAsync({ id, data_inicio_plantio: payload.cycleStartIso });
+    }
     if (editingStage) {
       await update.mutateAsync({
         id: editingStage.id,
