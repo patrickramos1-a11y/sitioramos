@@ -167,6 +167,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         observacoes: data.observacoes || null,
         icone: data.icone ?? null,
         cor: data.cor ?? "#22c55e",
+        duracao_total_dias: data.duracao_total_dias || null,
       } as any,
       drafts,
     );
