@@ -105,8 +105,11 @@ export function CycleStageForm({
     return 0;
   }, [stage, positionMode, refStageId, sortedOthers]);
 
-  const start = cycleStartIso ? addDays(parseISO(cycleStartIso), previewIni) : null;
-  const end = cycleStartIso ? addDays(parseISO(cycleStartIso), previewIni + Math.max(0, duracao - 1)) : null;
+  const effectiveStartIso = startIso || cycleStartIso;
+  const start = effectiveStartIso ? addDays(parseISO(effectiveStartIso), previewIni) : null;
+  const end = effectiveStartIso ? addDays(parseISO(effectiveStartIso), previewIni + Math.max(0, duracao - 1)) : null;
+
+  const isFirstStage = !stage && sortedOthers.length === 0;
 
   const handle = () => {
     if (!nome.trim() || duracao < 1) return;
@@ -117,6 +120,7 @@ export function CycleStageForm({
       observacoes: observacoes.trim() || null,
       responsavel_id: responsavelId === NONE ? null : responsavelId,
       position: stage ? undefined : { mode: positionMode, refStageId: refStageId || undefined },
+      cycleStartIso: isFirstStage && startIso && startIso !== cycleStartIso ? startIso : undefined,
     });
   };
 
