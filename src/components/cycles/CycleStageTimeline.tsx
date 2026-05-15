@@ -1,9 +1,7 @@
-import { format, differenceInCalendarDays, parseISO } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ComputedStage, STAGE_STATUS_COLOR, STAGE_STATUS_LABEL } from "@/lib/cycles/stageCalc";
-import { Badge } from "@/components/ui/badge";
+import { ComputedStage, STAGE_STATUS_LABEL } from "@/lib/cycles/stageCalc";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   computed: ComputedStage[];
@@ -12,8 +10,19 @@ interface Props {
   cor?: string;
 }
 
-export function CycleStageTimeline({ computed, cycleStartIso, durationDias, cor = "hsl(var(--primary))" }: Props) {
-  const isMobile = useIsMobile();
+// Generate distinct shades for each stage from a base color
+function shade(hex: string, idx: number, total: number): string {
+  // Use opacity variations for sequential blocks
+  const ratio = 0.55 + (idx / Math.max(1, total - 1)) * 0.45;
+  return `${hex}${Math.round(ratio * 255).toString(16).padStart(2, "0")}`;
+}
+
+export function CycleStageTimeline({
+  computed,
+  cycleStartIso,
+  durationDias,
+  cor = "#22c55e",
+}: Props) {
   const today = new Date();
 
   if (computed.length === 0) {
@@ -24,74 +33,66 @@ export function CycleStageTimeline({ computed, cycleStartIso, durationDias, cor 
     );
   }
 
-  if (isMobile) {
-    return (
+  const total = Math.max(
+    durationDias,
+    ...computed.map((c) => c.stage.inicio_relativo_dias + c.stage.duracao_dias),
+  ) || 1;
+
+  const start = parseISO(cycleStartIso);
+  const end = addDays(start, total);
+  const todayOffset = differenceInCalendarDays(today, start);
+  const todayPct = Math.max(0, Math.min(100, (todayOffset / total) * 100));
+  const showToday = todayOffset >= 0 && todayOffset <= total;
+  const tempoPct = Math.round(Math.max(0, Math.min(1, todayOffset / total)) * 100);
+
+  return (
+    <div className="space-y-4">
+      {/* Header dates */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{format(start, "dd/MM/yyyy", { locale: ptBR })}</span>
+        <span className="font-medium text-foreground">{total} dias · {tempoPct}% decorrido</span>
+        <span>{format(end, "dd/MM/yyyy", { locale: ptBR })}</span>
+      </div>
+
+      {/* Single segmented bar */}
       <div className="relative">
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
-        <div className="space-y-1">
-          {computed.map((c) => {
-            const cls = STAGE_STATUS_COLOR[c.statusEfetivo];
+        <div className="flex w-full h-12 rounded-md overflow-hidden border bg-muted/30">
+          {computed.map((c, idx) => {
+            const widthPct = (c.stage.duracao_dias / total) * 100;
+            const isRealizada = c.isRealizada;
+            const isAtual = c.isAtual;
+            const isAtrasada = c.statusEfetivo === "atrasada";
+            const bg = isRealizada
+              ? cor
+              : isAtual
+                ? `${cor}99`
+                : shade(cor, idx, computed.length);
             return (
               <div
                 key={c.stage.id}
                 className={cn(
-                  "relative flex items-start gap-3 rounded-lg p-3",
-                  c.isAtual && "ring-2 ring-primary/40 bg-primary/5",
-                  c.isRealizada && "bg-emerald-50/40 dark:bg-emerald-950/10",
+                  "relative flex flex-col items-center justify-center text-[10px] font-semibold border-r last:border-r-0 overflow-hidden transition-all",
+                  isAtual && "ring-2 ring-inset ring-primary z-10",
+                  isAtrasada && !isRealizada && "bg-destructive/30",
                 )}
+                style={{
+                  width: `${widthPct}%`,
+                  background: isAtrasada && !isRealizada ? undefined : bg,
+                  color: "#fff",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.4)",
+                }}
+                title={`${c.stage.nome} · ${c.stage.duracao_dias}d · ${STAGE_STATUS_LABEL[c.statusEfetivo]}`}
               >
-                <div
-                  className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 bg-background"
-                  style={{ borderColor: c.isAtual || c.isRealizada ? cor : undefined }}
-                >
-                  <span className="text-[10px] font-bold tabular-nums">{c.diaInicio}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-sm">{c.stage.nome}</span>
-                    <Badge variant="outline" className={cn("text-[10px]", cls)}>
-                      {STAGE_STATUS_LABEL[c.statusEfetivo]}
-                    </Badge>
-                    {c.isAtual && c.statusEfetivo !== "atrasada" && (
-                      <Badge className="text-[10px]">Atual</Badge>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    Dia {c.diaInicio}–{c.diaFim} ·{" "}
-                    {format(c.dataInicio, "dd/MM", { locale: ptBR })} a{" "}
-                    {format(c.dataFim, "dd/MM/yy", { locale: ptBR })}
-                    {c.statusEfetivo === "em_andamento" && (
-                      <> · {Math.max(0, c.diasRestantes)} dia(s) restante(s)</>
-                    )}
-                    {c.statusEfetivo === "atrasada" && (
-                      <> · Atraso {Math.abs(c.diasRestantes)}d</>
-                    )}
-                  </div>
-                </div>
+                <span className="truncate px-1 max-w-full">{c.stage.nome}</span>
+                <span className="opacity-90">{c.stage.duracao_dias}d</span>
               </div>
             );
           })}
         </div>
-      </div>
-    );
-  }
 
-  // Desktop Gantt horizontal
-  const total =
-    Math.max(durationDias, ...computed.map((c) => c.stage.inicio_relativo_dias + c.stage.duracao_dias)) || 1;
-  const todayOffset = differenceInCalendarDays(today, parseISO(cycleStartIso));
-  const todayPct = Math.max(0, Math.min(100, (todayOffset / total) * 100));
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Dia 0 — {format(parseISO(cycleStartIso), "dd/MM/yyyy", { locale: ptBR })}</span>
-        <span>Dia {total}</span>
-      </div>
-      <div className="relative space-y-1.5">
-        {todayOffset >= 0 && todayOffset <= total && (
+        {showToday && (
           <div
-            className="absolute top-0 bottom-0 w-px bg-destructive z-10 pointer-events-none"
+            className="absolute top-0 bottom-0 w-0.5 bg-destructive z-20 pointer-events-none"
             style={{ left: `${todayPct}%` }}
           >
             <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-destructive font-semibold whitespace-nowrap">
@@ -99,60 +100,22 @@ export function CycleStageTimeline({ computed, cycleStartIso, durationDias, cor 
             </span>
           </div>
         )}
+      </div>
 
-        {computed.map((c) => {
-          const leftPct = (c.stage.inicio_relativo_dias / total) * 100;
-          const widthPct = Math.max(2, (c.stage.duracao_dias / total) * 100);
-          const cls = STAGE_STATUS_COLOR[c.statusEfetivo];
-
-          let realLeftPct: number | null = null;
-          let realWidthPct: number | null = null;
-          if (c.dataInicioReal && c.dataFimReal) {
-            const ini = differenceInCalendarDays(c.dataInicioReal, parseISO(cycleStartIso));
-            const dur = differenceInCalendarDays(c.dataFimReal, c.dataInicioReal) + 1;
-            realLeftPct = (ini / total) * 100;
-            realWidthPct = Math.max(1.5, (dur / total) * 100);
-          }
-
-          return (
-            <div key={c.stage.id} className="grid grid-cols-[160px_1fr] items-center gap-3">
-              <div className="text-xs truncate">
-                <div className="font-medium truncate">{c.stage.nome}</div>
-                <div className="text-[10px] text-muted-foreground">
-                  Dia {c.diaInicio}–{c.diaFim}
-                </div>
-              </div>
-              <div className="relative h-9 bg-muted/40 rounded">
-                <div
-                  className={cn(
-                    "absolute top-0 h-4 rounded flex items-center justify-center text-[10px] font-semibold px-2 truncate border",
-                    cls,
-                    c.isAtual && "ring-2 ring-primary",
-                  )}
-                  style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                  title={`${c.stage.nome} · ${STAGE_STATUS_LABEL[c.statusEfetivo]}`}
-                >
-                  <span className="truncate">{c.stage.nome}</span>
-                </div>
-                {realLeftPct !== null && realWidthPct !== null && (
-                  <div
-                    className="absolute bottom-0 h-3 rounded bg-emerald-500/80 border border-emerald-700"
-                    style={{ left: `${realLeftPct}%`, width: `${realWidthPct}%` }}
-                    title="Execução real"
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
-        <div className="flex gap-3 text-[10px] text-muted-foreground pt-2">
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-2 bg-primary/30 border border-primary/40 rounded-sm" /> Previsto
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-2 bg-emerald-500/80 border border-emerald-700 rounded-sm" /> Realizado
-          </span>
-        </div>
+      {/* Legenda */}
+      <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: cor }} /> Concluída
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-sm ring-2 ring-primary" style={{ background: `${cor}99` }} /> Atual
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: shade(cor, 0, 8) }} /> Prevista
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-sm bg-destructive/30" /> Atrasada
+        </span>
       </div>
     </div>
   );

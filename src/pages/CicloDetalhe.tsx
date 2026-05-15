@@ -5,7 +5,6 @@ import { ptBR } from "date-fns/locale";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Plus, Sprout, AlertTriangle, Copy, MapPin } from "lucide-react";
@@ -26,8 +25,7 @@ import {
 import { CycleStageTimeline } from "@/components/cycles/CycleStageTimeline";
 import { CycleStageList } from "@/components/cycles/CycleStageList";
 import { CycleStageForm } from "@/components/cycles/CycleStageForm";
-import { ConfirmExecutionDialog } from "@/components/cycles/ConfirmExecutionDialog";
-import { RescheduleStageDialog } from "@/components/cycles/RescheduleStageDialog";
+import { ConcluirEtapaDialog } from "@/components/cycles/ConcluirEtapaDialog";
 import { DuplicateStagesDialog } from "@/components/cycles/DuplicateStagesDialog";
 import { allocOccupiedHa, formatTarefas, haParaTarefas } from "@/lib/territory/tarefas";
 
@@ -40,8 +38,7 @@ export default function CicloDetalhe() {
   const { cycles, isLoading: loadingCycle } = useCycles();
   const cycle: any = cycles.find((c: any) => c.id === id);
 
-  const { stages, create, update, remove, confirmExecution, reschedule, pushFuture } =
-    useCycleStages(id);
+  const { stages, create, update, remove, move, concluir } = useCycleStages(id);
   const { allocations } = useCycleAreaAllocations({ cycleId: id });
   const { areas } = useAreas();
   const { transactions } = useCashTransactions();
@@ -49,12 +46,13 @@ export default function CicloDetalhe() {
 
   const [stageFormOpen, setStageFormOpen] = useState(false);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [initialPosition, setInitialPosition] = useState<
+    { mode: "after_last" | "before" | "after"; refStageId?: string } | undefined
+  >(undefined);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [confirmStageId, setConfirmStageId] = useState<string | null>(null);
-  const [rescheduleStageId, setRescheduleStageId] = useState<string | null>(null);
 
   const editingStage = stages.find((s) => s.id === editingStageId) || null;
-  const reschedulingStage = stages.find((s) => s.id === rescheduleStageId) || null;
 
   const computed = useMemo(() => {
     if (!cycle) return [];
@@ -63,9 +61,12 @@ export default function CicloDetalhe() {
 
   const confirmingComputed = computed.find((c) => c.stage.id === confirmStageId) || null;
 
+  // Duração total = soma das etapas (se houver), senão valor manual do ciclo
   const durationDias = useMemo(() => {
-    if (!cycle) return 0;
-    if (cycle.duracao_total_dias) return cycle.duracao_total_dias;
+    if (stages.length > 0) {
+      return stages.reduce((s, x) => s + Math.max(1, x.duracao_dias), 0);
+    }
+    if (cycle?.duracao_total_dias) return cycle.duracao_total_dias;
     return totalDuration(stages);
   }, [cycle, stages]);
 
@@ -134,64 +135,46 @@ export default function CicloDetalhe() {
       ? addDays(parseISO(cycle.data_inicio_plantio), durationDias)
       : null;
 
+  const openCreate = (pos?: typeof initialPosition) => {
+    setEditingStageId(null);
+    setInitialPosition(pos);
+    setStageFormOpen(true);
+  };
+
   const handleStageSubmit = async (payload: any) => {
     if (editingStage) {
-      await update.mutateAsync({ id: editingStage.id, ...payload });
+      await update.mutateAsync({
+        id: editingStage.id,
+        nome: payload.nome,
+        duracao_dias: payload.duracao_dias,
+        atividade: payload.atividade,
+        observacoes: payload.observacoes,
+        responsavel_id: payload.responsavel_id,
+      });
     } else {
-      await create.mutateAsync(payload);
+      await create.mutateAsync({
+        cycle_id: id,
+        nome: payload.nome,
+        duracao_dias: payload.duracao_dias,
+        atividade: payload.atividade,
+        observacoes: payload.observacoes,
+        responsavel_id: payload.responsavel_id,
+        position: payload.position,
+      });
     }
     setStageFormOpen(false);
     setEditingStageId(null);
+    setInitialPosition(undefined);
   };
 
-  const handleConfirmExecution = async (payload: {
-    data_inicio_real: string;
-    data_fim_real: string;
+  const handleConcluir = async (p: {
+    data_real: string;
     observacao: string | null;
     responsavel_id: string | null;
-    pushNext: boolean;
-    deltaDias: number;
   }) => {
-    if (!confirmingComputed) return;
-    await confirmExecution.mutateAsync({
-      id: confirmingComputed.stage.id!,
-      data_inicio_real: payload.data_inicio_real,
-      data_fim_real: payload.data_fim_real,
-      observacao: payload.observacao,
-      responsavel_id: payload.responsavel_id,
-    });
-    if (payload.pushNext && payload.deltaDias !== 0) {
-      await pushFuture.mutateAsync({
-        cycle_id: id,
-        fromOrdem: confirmingComputed.stage.ordem,
-        deltaDias: payload.deltaDias,
-      });
-    }
+    if (!confirmStageId) return;
+    await concluir.mutateAsync({ id: confirmStageId, ...p });
     setConfirmStageId(null);
-  };
-
-  const handleReschedule = async (payload: {
-    inicio_relativo_dias: number;
-    duracao_dias: number;
-    motivo: string;
-    pushNext: boolean;
-    deltaDias: number;
-  }) => {
-    if (!reschedulingStage) return;
-    await reschedule.mutateAsync({
-      id: reschedulingStage.id,
-      inicio_relativo_dias: payload.inicio_relativo_dias,
-      duracao_dias: payload.duracao_dias,
-      motivo: payload.motivo,
-    });
-    if (payload.pushNext && payload.deltaDias !== 0) {
-      await pushFuture.mutateAsync({
-        cycle_id: id,
-        fromOrdem: reschedulingStage.ordem,
-        deltaDias: payload.deltaDias,
-      });
-    }
-    setRescheduleStageId(null);
   };
 
   const allocsHidratadas = allocations.map((a: any) => {
@@ -238,19 +221,16 @@ export default function CicloDetalhe() {
                       ? ` · atraso ${Math.abs(current.diasRestantes)}d`
                       : current.statusEfetivo === "em_andamento"
                         ? ` · ${Math.max(0, current.diasRestantes)}d restantes`
-                        : current.statusEfetivo === "nao_iniciada"
-                          ? ` · começa em ${Math.max(0, -current.diasRestantes + current.stage.duracao_dias)}d`
-                          : ""}
+                        : ""}
                   </div>
                 </div>
               )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Time indicators */}
             {progress && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                <Stat label="Previstos" value={`${progress.diaTotal}d`} />
+                <Stat label="Duração" value={`${progress.diaTotal}d`} />
                 <Stat label="Decorridos" value={`${progress.diaAtual}d`} />
                 <Stat
                   label="Restantes"
@@ -263,19 +243,13 @@ export default function CicloDetalhe() {
                 />
               </div>
             )}
-            {/* Progress bars */}
             {progress && (
               <div className="grid gap-2 sm:grid-cols-3">
                 <ProgressItem label="Tempo" value={progress.porTempo} info={`Dia ${progress.diaAtual}/${progress.diaTotal}`} />
-                <ProgressItem
-                  label="Etapas"
-                  value={progress.porEtapas}
-                  info={`${realizadas}/${stages.length}`}
-                />
+                <ProgressItem label="Etapas" value={progress.porEtapas} info={`${realizadas}/${stages.length}`} />
                 <ProgressItem label="Tarefas" value={progress.porTarefas} info={`${doneTasks}/${totalTasks}`} />
               </div>
             )}
-            {/* Financeiro resumo */}
             <div className="grid grid-cols-2 gap-3 pt-2 border-t">
               <div>
                 <div className="text-[10px] uppercase text-muted-foreground">Custos</div>
@@ -286,7 +260,6 @@ export default function CicloDetalhe() {
                 <div className="font-semibold tabular-nums text-emerald-600">{formatBRL(receitaTotal)}</div>
               </div>
             </div>
-            {/* Alertas */}
             {alerts.length > 0 && (
               <div className="space-y-1">
                 {alerts.map((a, i) => (
@@ -303,8 +276,7 @@ export default function CicloDetalhe() {
           </CardContent>
         </Card>
 
-        {/* Tabs */}
-        <Tabs defaultValue="etapas">
+        <Tabs defaultValue="timeline">
           <TabsList>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="etapas">Etapas</TabsTrigger>
@@ -326,13 +298,7 @@ export default function CicloDetalhe() {
 
           <TabsContent value="etapas" className="mt-4 space-y-3">
             <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditingStageId(null);
-                  setStageFormOpen(true);
-                }}
-              >
+              <Button size="sm" onClick={() => openCreate()}>
                 <Plus className="h-4 w-4 mr-1" /> Nova etapa
               </Button>
               <Button size="sm" variant="outline" onClick={() => setDuplicateOpen(true)}>
@@ -343,13 +309,18 @@ export default function CicloDetalhe() {
               computed={computed}
               onEdit={(sid) => {
                 setEditingStageId(sid);
+                setInitialPosition(undefined);
                 setStageFormOpen(true);
               }}
               onDelete={(sid) => {
-                if (confirm("Remover esta etapa?")) remove.mutate(sid);
+                if (confirm("Deseja excluir esta etapa? As datas das próximas etapas serão recalculadas.")) {
+                  remove.mutate(sid);
+                }
               }}
               onConfirm={(sid) => setConfirmStageId(sid)}
-              onReschedule={(sid) => setRescheduleStageId(sid)}
+              onMove={(sid, dir) => move.mutate({ id: sid, direction: dir })}
+              onAddBefore={(sid) => openCreate({ mode: "before", refStageId: sid })}
+              onAddAfter={(sid) => openCreate({ mode: "after", refStageId: sid })}
               costsByStage={costsByStage}
               tasksByStage={tasksByStage}
             />
@@ -391,31 +362,26 @@ export default function CicloDetalhe() {
         open={stageFormOpen}
         onOpenChange={(o) => {
           setStageFormOpen(o);
-          if (!o) setEditingStageId(null);
+          if (!o) {
+            setEditingStageId(null);
+            setInitialPosition(undefined);
+          }
         }}
         cycleId={id}
         cycleStartIso={cycle.data_inicio_plantio}
         stage={editingStage}
-        defaultOrdem={stages.length + 1}
         allStages={stages}
+        initialPosition={initialPosition}
         onSubmit={handleStageSubmit}
         isSubmitting={create.isPending || update.isPending}
       />
 
-      <ConfirmExecutionDialog
+      <ConcluirEtapaDialog
         open={!!confirmStageId}
         onOpenChange={(o) => !o && setConfirmStageId(null)}
         computed={confirmingComputed}
-        onConfirm={handleConfirmExecution}
-        isSubmitting={confirmExecution.isPending || pushFuture.isPending}
-      />
-
-      <RescheduleStageDialog
-        open={!!rescheduleStageId}
-        onOpenChange={(o) => !o && setRescheduleStageId(null)}
-        stage={reschedulingStage}
-        onConfirm={handleReschedule}
-        isSubmitting={reschedule.isPending || pushFuture.isPending}
+        onConfirm={handleConcluir}
+        isSubmitting={concluir.isPending}
       />
 
       <DuplicateStagesDialog open={duplicateOpen} onOpenChange={setDuplicateOpen} targetCycleId={id} />
