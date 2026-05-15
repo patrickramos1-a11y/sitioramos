@@ -334,9 +334,9 @@ export function CycleStageTimeline({
                       {c.stage.atividade && (
                         <div className="italic">{c.stage.atividade}</div>
                       )}
-                      {c.stage.observacoes && (
+                      {(c.stage as any).observacoes && (
                         <div className="text-muted-foreground/80">
-                          {c.stage.observacoes}
+                          {(c.stage as any).observacoes}
                         </div>
                       )}
                     </div>
