@@ -161,7 +161,9 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         data_real_colheita: data.data_real_colheita || null,
         status: data.status,
         observacoes: data.observacoes || null,
-      },
+        icone: data.icone ?? null,
+        cor: data.cor ?? "#22c55e",
+      } as any,
       drafts,
     );
   };
