@@ -49,7 +49,7 @@ export function ConfirmExecutionDialog({ open, onOpenChange, computed, onConfirm
     );
     setDataFimReal(computed.stage.data_fim_real || format(computed.dataFim, "yyyy-MM-dd"));
     setObservacao("");
-    setResponsavelId(computed.stage.responsavel_id ? (computed.stage as any).responsavel_id : NONE);
+    setResponsavelId(((computed.stage as any).responsavel_id as string) || NONE);
     setPushNext("nao");
   }, [open, computed]);
 
