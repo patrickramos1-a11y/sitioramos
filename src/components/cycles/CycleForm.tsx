@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,9 +11,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Cycle, CycleInsert } from "@/hooks/useCycles";
 import { Area } from "@/hooks/useAreas";
 import { Loader2 } from "lucide-react";
+import { CycleAllocationsManager, AllocationDraft } from "./CycleAllocationsManager";
+import { useCycleAreaAllocations } from "@/hooks/useCycleAreaAllocations";
+import { allocOccupiedHa, AllocationType } from "@/lib/territory/tarefas";
+import { useToast } from "@/hooks/use-toast";
 
 const cycleSchema = z.object({
-  area_id: z.string().min(1, "Área é obrigatória"),
+  area_id: z.string().min(1, "Área principal é obrigatória"),
   cultura: z.string().min(1, "Cultura é obrigatória").max(100, "Cultura muito longa"),
   data_inicio_plantio: z.string().min(1, "Data de início é obrigatória"),
   data_prevista_colheita: z.string().optional().nullable(),
@@ -35,11 +39,17 @@ interface CycleFormProps {
   onOpenChange: (open: boolean) => void;
   cycle?: Cycle | null;
   areas: Area[];
-  onSubmit: (data: CycleInsert) => void;
+  onSubmit: (data: CycleInsert, allocations: AllocationDraft[]) => void;
   isSubmitting?: boolean;
 }
 
 export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmitting }: CycleFormProps) {
+  const { toast } = useToast();
+  const { allocations: existing } = useCycleAreaAllocations(
+    cycle?.id ? { cycleId: cycle.id } : {},
+  );
+  const [drafts, setDrafts] = useState<AllocationDraft[]>([]);
+
   const form = useForm<CycleFormData>({
     resolver: zodResolver(cycleSchema),
     defaultValues: {
@@ -54,6 +64,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
   });
 
   useEffect(() => {
+    if (!open) return;
     if (cycle) {
       form.reset({
         area_id: cycle.area_id,
@@ -74,24 +85,80 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         status: "planejamento",
         observacoes: "",
       });
+      setDrafts([]);
     }
-  }, [cycle, form]);
+  }, [cycle, form, open]);
+
+  // Hidrata vínculos existentes ao abrir edição
+  useEffect(() => {
+    if (!open || !cycle) return;
+    const mapped: AllocationDraft[] = existing.map((a: any) => ({
+      id: a.id,
+      area_id: a.area_id,
+      allocation_type: (a.allocation_type as AllocationType) ||
+        (a.ocupa_area_inteira ? "full_area" : "tasks"),
+      tarefas_ocupadas: Number(a.tarefas_ocupadas || 0),
+      percentual: a.percentual !== null ? Number(a.percentual) : null,
+      hectares_ocupados: Number(a.hectares_ocupados || 0),
+      observacao: a.observacao || null,
+    }));
+    setDrafts(mapped);
+  }, [existing, cycle, open]);
+
+  // Quando a área principal é selecionada e não há vínculos ainda, pré-criar vínculo "área inteira"
+  const watchAreaId = form.watch("area_id");
+  useEffect(() => {
+    if (!cycle && watchAreaId && drafts.length === 0) {
+      setDrafts([
+        {
+          area_id: watchAreaId,
+          allocation_type: "full_area",
+          tarefas_ocupadas: 0,
+          percentual: null,
+          hectares_ocupados: 0,
+          observacao: null,
+        },
+      ]);
+    }
+  }, [watchAreaId, cycle, drafts.length]);
 
   const handleSubmit = (data: CycleFormData) => {
-    onSubmit({
-      area_id: data.area_id,
-      cultura: data.cultura,
-      data_inicio_plantio: data.data_inicio_plantio,
-      data_prevista_colheita: data.data_prevista_colheita || null,
-      data_real_colheita: data.data_real_colheita || null,
-      status: data.status,
-      observacoes: data.observacoes || null,
-    });
+    // Validações
+    for (const a of drafts) {
+      if (!a.area_id) {
+        toast({ title: "Vínculo incompleto", description: "Selecione a área de cada vínculo.", variant: "destructive" });
+        return;
+      }
+      const area: any = areas.find((x) => x.id === a.area_id);
+      const areaHa = Number(area?.tamanho_hectares || 0);
+      const occHa = allocOccupiedHa(a, areaHa);
+      if (occHa <= 0) {
+        toast({ title: "Vínculo inválido", description: `Informe a ocupação para a área ${area?.nome}.`, variant: "destructive" });
+        return;
+      }
+      if (occHa > areaHa + 0.001) {
+        toast({ title: "Ocupação excede a área", description: `${area?.nome}: ${occHa.toFixed(2)} ha > ${areaHa.toFixed(2)} ha.`, variant: "destructive" });
+        return;
+      }
+    }
+
+    onSubmit(
+      {
+        area_id: data.area_id,
+        cultura: data.cultura,
+        data_inicio_plantio: data.data_inicio_plantio,
+        data_prevista_colheita: data.data_prevista_colheita || null,
+        data_real_colheita: data.data_real_colheita || null,
+        status: data.status,
+        observacoes: data.observacoes || null,
+      },
+      drafts,
+    );
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{cycle ? "Editar Ciclo" : "Novo Ciclo"}</DialogTitle>
         </DialogHeader>
@@ -102,11 +169,11 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
               name="area_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Área *</FormLabel>
+                  <FormLabel>Área principal *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma área" />
+                        <SelectValue placeholder="Selecione a área principal" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -130,13 +197,12 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
                   <FormItem>
                     <FormLabel>Cultura *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Café, Eucalipto" {...field} />
+                      <Input placeholder="Ex: Abóbora, Macaxeira" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="status"
@@ -146,7 +212,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -177,7 +243,6 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="data_prevista_colheita"
@@ -207,6 +272,8 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
               )}
             />
 
+            <CycleAllocationsManager areas={areas} value={drafts} onChange={setDrafts} />
+
             <FormField
               control={form.control}
               name="observacoes"
@@ -214,9 +281,9 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
                 <FormItem>
                   <FormLabel>Observações</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Notas sobre o ciclo..." 
-                      {...field} 
+                    <Textarea
+                      placeholder="Notas sobre o ciclo..."
+                      {...field}
                       value={field.value || ""}
                     />
                   </FormControl>
@@ -225,7 +292,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
               )}
             />
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>

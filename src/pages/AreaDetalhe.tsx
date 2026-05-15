@@ -22,7 +22,10 @@ import { useStages, Stage, StageInsert } from "@/hooks/useStages";
 import { useTasks, Task, TaskInsert } from "@/hooks/useTasks";
 import { useOperations, Operation, OperationInsert } from "@/hooks/useOperations";
 import { useCycleAreaAllocations } from "@/hooks/useCycleAreaAllocations";
-import { haParaM2, haParaTarefas, formatTarefas, formatM2, TAREFAS_POR_HECTARE } from "@/lib/territory/tarefas";
+import { haParaM2, haParaTarefas, formatTarefas, formatM2, TAREFAS_POR_HECTARE, allocOccupiedHa } from "@/lib/territory/tarefas";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AllocationDraft } from "@/components/cycles/CycleAllocationsManager";
 import { Progress } from "@/components/ui/progress";
 import { CycleForm } from "@/components/cycles/CycleForm";
 import { StageForm } from "@/components/operacao/StageForm";
@@ -80,7 +83,12 @@ export default function AreaDetalhe() {
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
 
   const area = areas.find(a => a.id === id);
-  const areaCycles = cycles.filter((c: any) => c.area_id === id);
+  // Ciclos vinculados a esta área (por área principal OU via allocations)
+  const allAllocationsRaw = useCycleAreaAllocations({}).allocations;
+  const cycleIdsViaAlloc = new Set(
+    allAllocationsRaw.filter((a: any) => a.area_id === id).map((a: any) => a.cycle_id),
+  );
+  const areaCycles = cycles.filter((c: any) => c.area_id === id || cycleIdsViaAlloc.has(c.id));
   const activeCycleId = selectedCycleId || areaCycles.find((c: any) => c.status === "ativo")?.id || areaCycles[0]?.id;
 
   const { stages, createStage, updateStage, deleteStage, createFromTemplate } = useStages(activeCycleId, id);
@@ -105,14 +113,14 @@ export default function AreaDetalhe() {
   const areaM2 = haParaM2(areaHa);
   const tarefasTotais = haParaTarefas(areaHa);
 
-  // Alocações ciclo↔área (todos os ciclos vinculados a esta área)
-  const { allocations: areaAllocations } = useCycleAreaAllocations({ areaId: id });
-  // Todas alocações do sistema (para calcular total ocupado por cada ciclo)
-  const { allocations: allAllocations } = useCycleAreaAllocations({});
+  // Alocações desta área e do sistema todo (já carregadas em allAllocationsRaw)
+  const allAllocations = allAllocationsRaw;
+  const areaAllocations = allAllocationsRaw.filter((a: any) => a.area_id === id);
 
   const tarefasOcupadasPorAlocacao = (alloc: any) => {
-    if (alloc?.ocupa_area_inteira) return tarefasTotais;
-    return Number(alloc?.tarefas_ocupadas || 0);
+    const ar: any = areas.find((x: any) => x.id === alloc.area_id);
+    const ha = allocOccupiedHa(alloc, Number(ar?.tamanho_hectares || 0));
+    return haParaTarefas(ha);
   };
 
   const tarefasOcupadas = areaAllocations.reduce(
@@ -141,11 +149,8 @@ export default function AreaDetalhe() {
     const tarefasCicloTotal = allAllocations
       .filter((a: any) => a.cycle_id === alloc.cycle_id)
       .reduce((sum: number, a: any) => {
-        if (a.ocupa_area_inteira) {
-          const ar: any = areas.find((x: any) => x.id === a.area_id);
-          return sum + haParaTarefas(Number(ar?.tamanho_hectares || 0));
-        }
-        return sum + Number(a.tarefas_ocupadas || 0);
+        const ar: any = areas.find((x: any) => x.id === a.area_id);
+        return sum + haParaTarefas(allocOccupiedHa(a, Number(ar?.tamanho_hectares || 0)));
       }, 0);
     const fator = tarefasCicloTotal > 0 ? tarefasNaArea / tarefasCicloTotal : 0;
     const custoCicloTotal = costs
@@ -191,11 +196,51 @@ export default function AreaDetalhe() {
     updateOperation.mutate(updates);
   };
 
-  const handleCycleSubmit = (data: CycleInsert) => {
-    if (editingCycle) {
-      updateCycle.mutate({ ...data, id: editingCycle.id });
-    } else {
-      createCycle.mutate({ ...data, area_id: id! });
+  const queryClient = useQueryClient();
+  const handleCycleSubmit = async (data: CycleInsert, drafts: AllocationDraft[]) => {
+    try {
+      let cycleId: string;
+      if (editingCycle) {
+        const updated = await new Promise<any>((resolve, reject) => {
+          updateCycle.mutate({ ...data, id: editingCycle.id }, { onSuccess: resolve, onError: reject });
+        });
+        cycleId = updated.id;
+      } else {
+        const created = await new Promise<any>((resolve, reject) => {
+          createCycle.mutate({ ...data, area_id: id! }, { onSuccess: resolve, onError: reject });
+        });
+        cycleId = created.id;
+      }
+      // Sync allocations
+      const { data: existing } = await supabase
+        .from("cycle_area_allocations")
+        .select("id")
+        .eq("cycle_id", cycleId);
+      const keepIds = drafts.filter((d) => d.id).map((d) => d.id!);
+      const toDelete = (existing || []).filter((e: any) => !keepIds.includes(e.id));
+      if (toDelete.length > 0) {
+        await supabase.from("cycle_area_allocations").delete().in("id", toDelete.map((e: any) => e.id));
+      }
+      for (const d of drafts) {
+        const payload: any = {
+          cycle_id: cycleId,
+          area_id: d.area_id,
+          allocation_type: d.allocation_type,
+          ocupa_area_inteira: d.allocation_type === "full_area",
+          tarefas_ocupadas: d.allocation_type === "tasks" ? d.tarefas_ocupadas : 0,
+          percentual: d.allocation_type === "percentage" ? d.percentual : null,
+          hectares_ocupados: d.allocation_type === "manual_area" ? d.hectares_ocupados : 0,
+          observacao: d.observacao || null,
+        };
+        if (d.id) {
+          await supabase.from("cycle_area_allocations").update(payload).eq("id", d.id);
+        } else {
+          await supabase.from("cycle_area_allocations").insert(payload);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["cycle_area_allocations"] });
+    } catch (e) {
+      // toasts already handled by mutations
     }
     setCycleFormOpen(false);
     setEditingCycle(null);
