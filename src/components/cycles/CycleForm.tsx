@@ -64,6 +64,8 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
       data_real_colheita: "",
       status: "planejamento",
       observacoes: "",
+      icone: null,
+      cor: "#22c55e",
     },
   });
 
@@ -78,6 +80,8 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         data_real_colheita: cycle.data_real_colheita || "",
         status: cycle.status,
         observacoes: cycle.observacoes || "",
+        icone: (cycle as any).icone ?? null,
+        cor: (cycle as any).cor ?? "#22c55e",
       });
     } else {
       form.reset({
@@ -88,6 +92,8 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         data_real_colheita: "",
         status: "planejamento",
         observacoes: "",
+        icone: null,
+        cor: "#22c55e",
       });
       setDrafts([]);
     }
