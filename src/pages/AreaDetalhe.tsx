@@ -192,11 +192,51 @@ export default function AreaDetalhe() {
     updateOperation.mutate(updates);
   };
 
-  const handleCycleSubmit = (data: CycleInsert) => {
-    if (editingCycle) {
-      updateCycle.mutate({ ...data, id: editingCycle.id });
-    } else {
-      createCycle.mutate({ ...data, area_id: id! });
+  const queryClient = useQueryClient();
+  const handleCycleSubmit = async (data: CycleInsert, drafts: AllocationDraft[]) => {
+    try {
+      let cycleId: string;
+      if (editingCycle) {
+        const updated = await new Promise<any>((resolve, reject) => {
+          updateCycle.mutate({ ...data, id: editingCycle.id }, { onSuccess: resolve, onError: reject });
+        });
+        cycleId = updated.id;
+      } else {
+        const created = await new Promise<any>((resolve, reject) => {
+          createCycle.mutate({ ...data, area_id: id! }, { onSuccess: resolve, onError: reject });
+        });
+        cycleId = created.id;
+      }
+      // Sync allocations
+      const { data: existing } = await supabase
+        .from("cycle_area_allocations")
+        .select("id")
+        .eq("cycle_id", cycleId);
+      const keepIds = drafts.filter((d) => d.id).map((d) => d.id!);
+      const toDelete = (existing || []).filter((e: any) => !keepIds.includes(e.id));
+      if (toDelete.length > 0) {
+        await supabase.from("cycle_area_allocations").delete().in("id", toDelete.map((e: any) => e.id));
+      }
+      for (const d of drafts) {
+        const payload: any = {
+          cycle_id: cycleId,
+          area_id: d.area_id,
+          allocation_type: d.allocation_type,
+          ocupa_area_inteira: d.allocation_type === "full_area",
+          tarefas_ocupadas: d.allocation_type === "tasks" ? d.tarefas_ocupadas : 0,
+          percentual: d.allocation_type === "percentage" ? d.percentual : null,
+          hectares_ocupados: d.allocation_type === "manual_area" ? d.hectares_ocupados : 0,
+          observacao: d.observacao || null,
+        };
+        if (d.id) {
+          await supabase.from("cycle_area_allocations").update(payload).eq("id", d.id);
+        } else {
+          await supabase.from("cycle_area_allocations").insert(payload);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["cycle_area_allocations"] });
+    } catch (e) {
+      // toasts already handled by mutations
     }
     setCycleFormOpen(false);
     setEditingCycle(null);
