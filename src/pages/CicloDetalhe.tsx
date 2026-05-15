@@ -5,7 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Plus, Sprout, AlertTriangle, Copy, MapPin } from "lucide-react";
