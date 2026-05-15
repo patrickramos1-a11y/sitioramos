@@ -12,6 +12,8 @@ import { Cycle, CycleInsert } from "@/hooks/useCycles";
 import { Area } from "@/hooks/useAreas";
 import { Loader2 } from "lucide-react";
 import { CycleAllocationsManager, AllocationDraft } from "./CycleAllocationsManager";
+import { CultureIconPicker } from "./CultureIconPicker";
+import { suggestIconForCultura } from "@/lib/cycles/cultureGallery";
 import { useCycleAreaAllocations } from "@/hooks/useCycleAreaAllocations";
 import { allocOccupiedHa, AllocationType } from "@/lib/territory/tarefas";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +26,8 @@ const cycleSchema = z.object({
   data_real_colheita: z.string().optional().nullable(),
   status: z.enum(["planejamento", "ativo", "finalizado"]),
   observacoes: z.string().max(500).optional().nullable(),
+  icone: z.string().nullable().optional(),
+  cor: z.string().nullable().optional(),
 });
 
 type CycleFormData = z.infer<typeof cycleSchema>;
