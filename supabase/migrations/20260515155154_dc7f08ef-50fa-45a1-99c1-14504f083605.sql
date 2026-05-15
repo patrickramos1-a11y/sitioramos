@@ -1,0 +1,3 @@
+ALTER TABLE public.cycles
+  ADD COLUMN IF NOT EXISTS cor text DEFAULT '#22c55e',
+  ADD COLUMN IF NOT EXISTS icone text;

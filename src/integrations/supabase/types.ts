@@ -419,11 +419,13 @@ export type Database = {
       cycles: {
         Row: {
           area_id: string
+          cor: string | null
           created_at: string
           cultura: string
           data_inicio_plantio: string
           data_prevista_colheita: string | null
           data_real_colheita: string | null
+          icone: string | null
           id: string
           observacoes: string | null
           responsavel_id: string | null
@@ -433,11 +435,13 @@ export type Database = {
         }
         Insert: {
           area_id: string
+          cor?: string | null
           created_at?: string
           cultura: string
           data_inicio_plantio: string
           data_prevista_colheita?: string | null
           data_real_colheita?: string | null
+          icone?: string | null
           id?: string
           observacoes?: string | null
           responsavel_id?: string | null
@@ -447,11 +451,13 @@ export type Database = {
         }
         Update: {
           area_id?: string
+          cor?: string | null
           created_at?: string
           cultura?: string
           data_inicio_plantio?: string
           data_prevista_colheita?: string | null
           data_real_colheita?: string | null
+          icone?: string | null
           id?: string
           observacoes?: string | null
           responsavel_id?: string | null
