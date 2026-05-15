@@ -33,6 +33,7 @@ interface Props {
     observacoes: string | null;
     responsavel_id: string | null;
     position?: { mode: "after_last" | "before" | "after"; refStageId?: string };
+    cycleStartIso?: string;
   }) => void;
   isSubmitting?: boolean;
 }
