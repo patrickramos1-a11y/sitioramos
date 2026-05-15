@@ -419,14 +419,46 @@ export type Database = {
         }
         Relationships: []
       }
+      cycle_stage_history: {
+        Row: {
+          acao: string
+          created_at: string
+          cycle_id: string | null
+          dados: Json | null
+          id: string
+          stage_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          cycle_id?: string | null
+          dados?: Json | null
+          id?: string
+          stage_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          cycle_id?: string | null
+          dados?: Json | null
+          id?: string
+          stage_id?: string | null
+        }
+        Relationships: []
+      }
       cycle_stages: {
         Row: {
+          atividade: string | null
           created_at: string
           cycle_id: string
+          data_fim_real: string | null
+          data_inicio_real: string | null
           descricao: string | null
           duracao_dias: number
           id: string
           inicio_relativo_dias: number
+          inicio_relativo_dias_min: number | null
+          motivo_reprogramacao: string | null
           nome: string
           observacoes: string | null
           ordem: number
@@ -435,12 +467,17 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          atividade?: string | null
           created_at?: string
           cycle_id: string
+          data_fim_real?: string | null
+          data_inicio_real?: string | null
           descricao?: string | null
           duracao_dias?: number
           id?: string
           inicio_relativo_dias?: number
+          inicio_relativo_dias_min?: number | null
+          motivo_reprogramacao?: string | null
           nome: string
           observacoes?: string | null
           ordem?: number
@@ -449,12 +486,17 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          atividade?: string | null
           created_at?: string
           cycle_id?: string
+          data_fim_real?: string | null
+          data_inicio_real?: string | null
           descricao?: string | null
           duracao_dias?: number
           id?: string
           inicio_relativo_dias?: number
+          inicio_relativo_dias_min?: number | null
+          motivo_reprogramacao?: string | null
           nome?: string
           observacoes?: string | null
           ordem?: number
