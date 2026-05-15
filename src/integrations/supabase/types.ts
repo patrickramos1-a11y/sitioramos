@@ -376,9 +376,11 @@ export type Database = {
       }
       cycle_area_allocations: {
         Row: {
+          allocation_type: string
           area_id: string
           created_at: string
           cycle_id: string
+          hectares_ocupados: number
           id: string
           observacao: string | null
           ocupa_area_inteira: boolean
@@ -387,9 +389,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allocation_type?: string
           area_id: string
           created_at?: string
           cycle_id: string
+          hectares_ocupados?: number
           id?: string
           observacao?: string | null
           ocupa_area_inteira?: boolean
@@ -398,9 +402,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allocation_type?: string
           area_id?: string
           created_at?: string
           cycle_id?: string
+          hectares_ocupados?: number
           id?: string
           observacao?: string | null
           ocupa_area_inteira?: boolean
