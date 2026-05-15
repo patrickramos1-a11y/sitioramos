@@ -87,15 +87,16 @@ export default function Ciclos() {
           if (ar) areasVinculadas.push({ area: ar, alloc: a });
         }
         const tarefasOcupadas = haParaTarefas(haOcupados);
-        const custoTotal = costs
-          .filter((x: any) => x.cycle_id === c.id)
+        const cycleTx = transactions.filter((x: any) => x.cycle_id === c.id);
+        const custoTotal = cycleTx
+          .filter((x: any) => x.tipo === "saida")
           .reduce((s: number, x: any) => s + Number(x.valor || 0), 0);
-        const receitaTotal = revenues
-          .filter((x: any) => x.cycle_id === c.id)
-          .reduce((s: number, x: any) => s + Number(x.quantidade || 0) * Number(x.preco_unitario || 0), 0);
+        const receitaTotal = cycleTx
+          .filter((x: any) => x.tipo === "entrada")
+          .reduce((s: number, x: any) => s + Number(x.valor || 0), 0);
         return { cycle: c, haOcupados, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal };
       });
-  }, [cycles, allocations, areas, costs, revenues, search]);
+  }, [cycles, allocations, areas, transactions, search]);
 
   const handleSubmit = async (data: CycleInsert, drafts: AllocationDraft[]) => {
     try {
