@@ -208,9 +208,30 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cultura *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Abóbora, Macaxeira" {...field} />
-                    </FormControl>
+                    <div className="flex gap-2 items-start">
+                      <CultureIconPicker
+                        icone={form.watch("icone") ?? null}
+                        cor={form.watch("cor") ?? "#22c55e"}
+                        onChange={({ icone, cor }) => {
+                          form.setValue("icone", icone, { shouldDirty: true });
+                          form.setValue("cor", cor, { shouldDirty: true });
+                        }}
+                      />
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: Abóbora, Macaxeira"
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            // Sugere ícone automaticamente se ainda não definido
+                            if (!form.getValues("icone")) {
+                              const sug = suggestIconForCultura(e.target.value);
+                              if (sug) form.setValue("icone", sug, { shouldDirty: true });
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
