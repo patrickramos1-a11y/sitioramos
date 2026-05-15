@@ -296,19 +296,41 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="data_real_colheita"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data Real Colheita</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} value={field.value || ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="data_real_colheita"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data Real Colheita</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="duracao_total_dias"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duração total (dias)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Auto"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <CycleAllocationsManager areas={areas} value={drafts} onChange={setDrafts} />
 
