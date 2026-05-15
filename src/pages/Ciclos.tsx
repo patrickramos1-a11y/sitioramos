@@ -3,16 +3,19 @@ import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, RefreshCw, Search, Sprout, MapPin } from "lucide-react";
-import { useCycles } from "@/hooks/useCycles";
+import { Plus, RefreshCw, Search, Sprout, MapPin, Pencil } from "lucide-react";
+import { useCycles, Cycle, CycleInsert } from "@/hooks/useCycles";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycleAreaAllocations } from "@/hooks/useCycleAreaAllocations";
 import { useCosts } from "@/hooks/useCosts";
 import { useRevenues } from "@/hooks/useRevenues";
 import { CycleForm } from "@/components/cycles/CycleForm";
-import { haParaTarefas, formatTarefas } from "@/lib/territory/tarefas";
+import { AllocationDraft } from "@/components/cycles/CycleAllocationsManager";
+import { allocOccupiedHa, haParaTarefas, formatTarefas } from "@/lib/territory/tarefas";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -25,13 +28,48 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   finalizado: { label: "Finalizado", className: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
 };
 
+async function syncAllocations(cycleId: string, drafts: AllocationDraft[]) {
+  const { data: existing } = await supabase
+    .from("cycle_area_allocations")
+    .select("id")
+    .eq("cycle_id", cycleId);
+  const keepIds = drafts.filter((d) => d.id).map((d) => d.id!);
+  const toDelete = (existing || []).filter((e: any) => !keepIds.includes(e.id));
+  if (toDelete.length > 0) {
+    await supabase
+      .from("cycle_area_allocations")
+      .delete()
+      .in("id", toDelete.map((e: any) => e.id));
+  }
+  for (const d of drafts) {
+    const payload: any = {
+      cycle_id: cycleId,
+      area_id: d.area_id,
+      allocation_type: d.allocation_type,
+      ocupa_area_inteira: d.allocation_type === "full_area",
+      tarefas_ocupadas: d.allocation_type === "tasks" ? d.tarefas_ocupadas : 0,
+      percentual: d.allocation_type === "percentage" ? d.percentual : null,
+      hectares_ocupados: d.allocation_type === "manual_area" ? d.hectares_ocupados : 0,
+      observacao: d.observacao || null,
+    };
+    if (d.id) {
+      await supabase.from("cycle_area_allocations").update(payload).eq("id", d.id);
+    } else {
+      await supabase.from("cycle_area_allocations").insert(payload);
+    }
+  }
+}
+
 export default function Ciclos() {
-  const { cycles, isLoading, createCycle } = useCycles();
+  const { cycles, isLoading, createCycle, updateCycle } = useCycles();
   const { areas } = useAreas();
   const { allocations } = useCycleAreaAllocations({});
   const { costs } = useCosts();
   const { revenues } = useRevenues();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Cycle | null>(null);
   const [search, setSearch] = useState("");
 
   const rows = useMemo(() => {
@@ -43,25 +81,47 @@ export default function Ciclos() {
       )
       .map((c: any) => {
         const cycleAllocs = allocations.filter((a: any) => a.cycle_id === c.id);
-        const tarefasOcupadas = cycleAllocs.reduce((sum: number, a: any) => {
-          if (a.ocupa_area_inteira) {
-            const ar: any = areas.find((x: any) => x.id === a.area_id);
-            return sum + haParaTarefas(Number(ar?.tamanho_hectares || 0));
-          }
-          return sum + Number(a.tarefas_ocupadas || 0);
-        }, 0);
-        const areasVinculadas = cycleAllocs
-          .map((a: any) => areas.find((x: any) => x.id === a.area_id))
-          .filter(Boolean);
+        let haOcupados = 0;
+        const areasVinculadas: any[] = [];
+        for (const a of cycleAllocs) {
+          const ar: any = areas.find((x: any) => x.id === a.area_id);
+          haOcupados += allocOccupiedHa(a, Number(ar?.tamanho_hectares || 0));
+          if (ar) areasVinculadas.push({ area: ar, alloc: a });
+        }
+        const tarefasOcupadas = haParaTarefas(haOcupados);
         const custoTotal = costs
           .filter((x: any) => x.cycle_id === c.id)
           .reduce((s: number, x: any) => s + Number(x.valor || 0), 0);
         const receitaTotal = revenues
           .filter((x: any) => x.cycle_id === c.id)
           .reduce((s: number, x: any) => s + Number(x.quantidade || 0) * Number(x.preco_unitario || 0), 0);
-        return { cycle: c, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal };
+        return { cycle: c, haOcupados, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal };
       });
   }, [cycles, allocations, areas, costs, revenues, search]);
+
+  const handleSubmit = async (data: CycleInsert, drafts: AllocationDraft[]) => {
+    try {
+      let cycleId: string;
+      if (editing) {
+        const updated = await new Promise<any>((resolve, reject) => {
+          updateCycle.mutate({ ...data, id: editing.id }, { onSuccess: resolve, onError: reject });
+        });
+        cycleId = updated.id;
+      } else {
+        const created = await new Promise<any>((resolve, reject) => {
+          createCycle.mutate(data, { onSuccess: resolve, onError: reject });
+        });
+        cycleId = created.id;
+      }
+      await syncAllocations(cycleId, drafts);
+      queryClient.invalidateQueries({ queryKey: ["cycle_area_allocations"] });
+      setFormOpen(false);
+      setEditing(null);
+      toast({ title: "Vínculos territoriais salvos" });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar vínculos", description: e.message, variant: "destructive" });
+    }
+  };
 
   return (
     <AppLayout>
@@ -72,10 +132,10 @@ export default function Ciclos() {
               <RefreshCw className="h-6 w-6 text-primary" /> Ciclos
             </h1>
             <p className="text-sm text-muted-foreground">
-              Estrutura produtiva — vincule ciclos às áreas físicas e suas tarefas.
+              Estrutura produtiva — vincule ciclos a uma ou mais áreas físicas.
             </p>
           </div>
-          <Button onClick={() => setFormOpen(true)}>
+          <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" /> Novo ciclo
           </Button>
         </div>
@@ -101,7 +161,7 @@ export default function Ciclos() {
           </Card>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {rows.map(({ cycle, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal }) => {
+            {rows.map(({ cycle, haOcupados, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal }) => {
               const sb = statusBadge[cycle.status] || statusBadge.planejamento;
               return (
                 <Card key={cycle.id} className="border-l-4 border-l-primary hover:shadow-md transition-shadow">
@@ -111,9 +171,19 @@ export default function Ciclos() {
                         <Sprout className="h-4 w-4 text-primary" />
                         {cycle.cultura}
                       </CardTitle>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sb.className}`}>
-                        {sb.label}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sb.className}`}>
+                          {sb.label}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => { setEditing(cycle); setFormOpen(true); }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
@@ -126,46 +196,52 @@ export default function Ciclos() {
 
                     <div>
                       <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
-                        Áreas vinculadas
+                        Ocupação territorial
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {areasVinculadas.length === 0 ? (
-                          <span className="text-xs text-muted-foreground italic">Nenhuma</span>
-                        ) : (
-                          areasVinculadas.map((a: any) => (
-                            <Link
-                              key={a.id}
-                              to={`/areas/${a.id}`}
-                              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border hover:bg-muted"
-                            >
-                              <MapPin className="h-3 w-3" />
-                              {a.nome}
-                            </Link>
-                          ))
-                        )}
-                      </div>
+                      {areasVinculadas.length === 0 ? (
+                        <span className="text-xs text-muted-foreground italic">Nenhum vínculo</span>
+                      ) : (
+                        <ul className="space-y-1">
+                          {areasVinculadas.map(({ area, alloc }) => {
+                            const occHa = allocOccupiedHa(alloc, Number(area.tamanho_hectares || 0));
+                            const occTar = haParaTarefas(occHa);
+                            const desc =
+                              alloc.allocation_type === "full_area" ? "área inteira"
+                              : alloc.allocation_type === "tasks" ? `${formatTarefas(alloc.tarefas_ocupadas || 0)} tarefa(s)`
+                              : alloc.allocation_type === "percentage" ? `${alloc.percentual ?? 0}%`
+                              : "manual";
+                            return (
+                              <li key={alloc.id} className="text-xs flex items-center justify-between gap-2 border-l-2 border-primary/40 pl-2">
+                                <Link to={`/areas/${area.id}`} className="inline-flex items-center gap-1 hover:underline">
+                                  <MapPin className="h-3 w-3" />
+                                  {area.nome}
+                                </Link>
+                                <span className="text-muted-foreground tabular-nums">
+                                  {desc} • {occHa.toFixed(2)} ha
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 pt-1">
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t">
                       <div>
-                        <div className="text-[10px] uppercase text-muted-foreground">Tarefas</div>
-                        <div className="font-semibold tabular-nums">{formatTarefas(tarefasOcupadas)}</div>
+                        <div className="text-[10px] uppercase text-muted-foreground">Total ocupado</div>
+                        <div className="font-semibold tabular-nums">
+                          {haOcupados.toFixed(2)} ha
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {formatTarefas(tarefasOcupadas)} tarefas
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-[10px] uppercase text-muted-foreground">Custos</div>
-                        <div className="font-semibold tabular-nums text-destructive">{formatCurrency(custoTotal)}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase text-muted-foreground">Receitas</div>
-                        <div className="font-semibold tabular-nums text-success">{formatCurrency(receitaTotal)}</div>
+                      <div className="text-right">
+                        <div className="text-[10px] uppercase text-muted-foreground">Custos / Receitas</div>
+                        <div className="text-xs font-semibold tabular-nums text-destructive">{formatCurrency(custoTotal)}</div>
+                        <div className="text-xs font-semibold tabular-nums text-emerald-600">{formatCurrency(receitaTotal)}</div>
                       </div>
                     </div>
-
-                    {cycle.area_id && (
-                      <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link to={`/areas/${cycle.area_id}`}>Ver área principal</Link>
-                      </Button>
-                    )}
                   </CardContent>
                 </Card>
               );
@@ -176,12 +252,11 @@ export default function Ciclos() {
 
       <CycleForm
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(o) => { setFormOpen(o); if (!o) setEditing(null); }}
+        cycle={editing}
         areas={areas}
-        onSubmit={(data) => {
-          createCycle.mutate(data, { onSuccess: () => setFormOpen(false) });
-        }}
-        isSubmitting={createCycle.isPending}
+        onSubmit={handleSubmit}
+        isSubmitting={createCycle.isPending || updateCycle.isPending}
       />
     </AppLayout>
   );
