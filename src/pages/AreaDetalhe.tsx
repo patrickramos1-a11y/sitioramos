@@ -145,11 +145,8 @@ export default function AreaDetalhe() {
     const tarefasCicloTotal = allAllocations
       .filter((a: any) => a.cycle_id === alloc.cycle_id)
       .reduce((sum: number, a: any) => {
-        if (a.ocupa_area_inteira) {
-          const ar: any = areas.find((x: any) => x.id === a.area_id);
-          return sum + haParaTarefas(Number(ar?.tamanho_hectares || 0));
-        }
-        return sum + Number(a.tarefas_ocupadas || 0);
+        const ar: any = areas.find((x: any) => x.id === a.area_id);
+        return sum + haParaTarefas(allocOccupiedHa(a, Number(ar?.tamanho_hectares || 0)));
       }, 0);
     const fator = tarefasCicloTotal > 0 ? tarefasNaArea / tarefasCicloTotal : 0;
     const custoCicloTotal = costs
