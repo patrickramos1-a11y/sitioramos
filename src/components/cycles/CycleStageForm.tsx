@@ -136,93 +136,98 @@ export function CycleStageForm({
             />
           </div>
 
-          <div>
-            <Label>Duração (dias) *</Label>
-            <Input
-              type="number"
-              min={1}
-              value={duracao}
-              onChange={(e) => setDuracao(Math.max(1, Number(e.target.value) || 1))}
-            />
-          </div>
-
-          {!stage && sortedOthers.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Posição</Label>
-              <Select value={positionMode} onValueChange={(v) => setPositionMode(v as PositionMode)}>
+              <Label>Duração (dias) *</Label>
+              <Input
+                type="number"
+                min={1}
+                value={duracao}
+                onChange={(e) => setDuracao(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </div>
+            <div>
+              <Label>Responsável</Label>
+              <Select value={responsavelId} onValueChange={setResponsavelId}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Sem responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="after_last">No final (depois da última)</SelectItem>
-                  <SelectItem value="before">Antes de…</SelectItem>
-                  <SelectItem value="after">Depois de…</SelectItem>
+                  <SelectItem value={NONE}>Sem responsável</SelectItem>
+                  {responsaveis.map((r: any) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.apelido || r.nome}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {needsRef && (
-                <Select value={refStageId} onValueChange={setRefStageId}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Escolher etapa de referência" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortedOthers.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.ordem}. {s.nome} ({s.duracao_dias}d)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+            </div>
+          </div>
+
+          {!stage && initialPosition?.mode === "before" && initialPosition.refStageId && (
+            <div className="text-xs text-muted-foreground rounded-md bg-muted/40 px-3 py-2">
+              Será inserida <strong>antes</strong> de{" "}
+              {sortedOthers.find((s) => s.id === initialPosition.refStageId)?.nome}.
+            </div>
+          )}
+          {!stage && initialPosition?.mode === "after" && initialPosition.refStageId && (
+            <div className="text-xs text-muted-foreground rounded-md bg-muted/40 px-3 py-2">
+              Será inserida <strong>depois</strong> de{" "}
+              {sortedOthers.find((s) => s.id === initialPosition.refStageId)?.nome}.
+            </div>
+          )}
+          {!stage && (!initialPosition || initialPosition.mode === "after_last") && sortedOthers.length > 0 && (
+            <div className="text-xs text-muted-foreground rounded-md bg-muted/40 px-3 py-2">
+              Será adicionada no <strong>final</strong> da sequência.
             </div>
           )}
 
           {start && end && (
-            <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              Previsto: {format(start, "dd/MM/yyyy", { locale: ptBR })} a{" "}
-              {format(end, "dd/MM/yyyy", { locale: ptBR })} · {duracao} dia(s)
+            <div className="rounded-md bg-primary/5 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">Previsto:</span>{" "}
+              <span className="font-medium">{format(start, "dd/MM/yyyy", { locale: ptBR })}</span>{" "}
+              →{" "}
+              <span className="font-medium">{format(end, "dd/MM/yyyy", { locale: ptBR })}</span>{" "}
+              · {duracao} dia(s)
             </div>
           )}
 
-          <div>
-            <Label>Atividade / observação curta</Label>
-            <Input
-              value={atividade}
-              onChange={(e) => setAtividade(e.target.value)}
-              placeholder="Ex: Aplicar adubo NPK"
-            />
-          </div>
-
-          <div>
-            <Label>Responsável</Label>
-            <Select value={responsavelId} onValueChange={setResponsavelId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sem responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>Sem responsável</SelectItem>
-                {responsaveis.map((r: any) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.apelido || r.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {showObs ? (
-            <div>
-              <Label>Observações</Label>
-              <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} />
+            <div className="space-y-3 rounded-md border p-3 bg-muted/20">
+              <div>
+                <Label>Atividade / observação curta</Label>
+                <Input
+                  value={atividade}
+                  onChange={(e) => setAtividade(e.target.value)}
+                  placeholder="Ex: Aplicar adubo NPK"
+                />
+              </div>
+              <div>
+                <Label>Observações</Label>
+                <Textarea
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  rows={2}
+                />
+              </div>
             </div>
           ) : (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setShowObs(true)} className="h-8">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar observação
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowObs(true)}
+              className="h-8"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Mais opções (atividade, observação)
             </Button>
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handle} disabled={isSubmitting || !nome.trim()}>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handle} disabled={isSubmitting || !nome.trim() || duracao < 1}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {stage ? "Salvar" : "Criar etapa"}
             </Button>

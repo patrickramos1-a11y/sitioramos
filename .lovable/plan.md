@@ -1,98 +1,63 @@
+## Refatoração — Timeline como centro da experiência do Ciclo
 
-# Refatoração profunda da página interna de Ciclos
+### Objetivo
+Transformar a Timeline na interface principal do ciclo: visual, clicável, com legibilidade garantida para etapas curtas, cadastro mínimo (nome + responsável + dias) e ações inline (concluir, +Antes, +Depois).
 
-## 1. Migration (banco)
+---
 
-Adicionar à tabela `cycle_stages`:
+### 1. Nova Timeline interativa (`CycleStageTimeline.tsx`)
 
-- `inicio_relativo_dias_min` int (limite menor da janela; opcional, informativo)
-- `data_inicio_real` date
-- `data_fim_real` date
-- `motivo_reprogramacao` text
-- `atividade` text (descrição curta da atividade da etapa — separado de `descricao` para uso na aba Etapas)
-- Atualizar status text para aceitar também `realizada` e `reprogramada` (mantendo `nao_iniciada`, `em_andamento`, `concluida`, `atrasada`, `cancelada` por compatibilidade — `concluida` será sinônimo legado de `realizada`).
+**Visão Resumida (padrão):**
+- Barra horizontal segmentada por etapa, em ordem cronológica.
+- **Largura híbrida:** cada bloco usa `flex-grow` proporcional aos dias, mas com `min-width` (ex. 90px desktop / 70px mobile) — garante nome + duração visíveis em etapas curtas. Etapas longas absorvem a compressão.
+- Cada bloco mostra: **nome** (em destaque), **Xd**, e ícone de status (✓ concluída, ● atual, ! atrasada, ○ prevista).
+- Cores: concluída sólida, atual com ring + brilho, atrasada com tom destrutivo, prevista mais clara. Tudo via tokens do design system (HSL).
+- Marcador "Hoje" (linha vertical) sobre a barra.
+- **Clique no bloco:** expande aquele bloco (mostra detalhes inline abaixo: datas previstas/reais, responsável, status, botões Concluir / Editar / + Antes / + Depois / Excluir).
+- Entre blocos, "slot" hover com botão **+** discreto que abre o modal já com posição = "depois desta".
+- Botão flutuante/ancorado no fim da barra: **"+ Etapa"** = adiciona no final.
 
-Criar tabela `cycle_stage_history`:
-- `id`, `stage_id`, `cycle_id`, `acao` text, `dados` jsonb, `created_at`.
+**Visão Expandida (toggle):**
+- Botão "Expandir tudo" / "Recolher tudo" no topo da timeline.
+- Quando expandida, todos os blocos mostram seu painel de detalhes empilhado, mantendo a barra visual no topo.
 
-Atualizar ciclo Abóbora existente:
-- `data_inicio_plantio = 2026-04-21`
-- `duracao_total_dias = 100`
-- `data_prevista_colheita = 2026-07-30`
+**Acima da barra:** range de datas (início → fim previsto) e total de dias.
 
-Inserir/atualizar (UPSERT por nome+cycle_id) as 8 etapas:
+### 2. Modal de Nova Etapa simplificado (`CycleStageForm.tsx`)
 
-| # | Nome        | min | max (limite) | duração janela |
-|---|-------------|-----|--------------|----------------|
-| 1 | Emergência  | 5   | 8            | 4              |
-| 2 | 1ª Capina   | 7   | 10           | 4              |
-| 3 | Desbaste    | 10  | 12           | 3              |
-| 4 | Adubação 1  | 15  | 20           | 6              |
-| 5 | 2ª Capina   | 20  | 25           | 6              |
-| 6 | Adubação 2  | 35  | 40           | 6              |
-| 7 | Frutificação| 60  | 70           | 11             |
-| 8 | Colheita    | 80  | 100          | 21             |
+Reduzir o modal principal a **3 campos**:
+1. Nome *
+2. Responsável (select, opcional)
+3. Duração em dias *
 
-Regra: `inicio_relativo_dias` = min, `duracao_dias` = (max - min + 1), `inicio_relativo_dias_min` = min. Limite maior é `inicio_relativo_dias + duracao_dias - 1`. Não duplica se já houver etapa "Emergencia"/"Emergência" — atualiza.
+Recolhidos em "Mais opções":
+- Atividade curta
+- Observação
 
-## 2. Lógica (`src/lib/cycles/stageCalc.ts`)
+**Posição é implícita** (vem do contexto do botão clicado: + final / + Antes(refId) / + Depois(refId)) — remove o select de "Posição" + "Etapa de referência" do modal principal. O preview de datas previstas continua exibido no rodapé do modal (auto-calculado).
 
-- Adicionar status `realizada` e `reprogramada` aos types/labels/cores.
-- `computeAutoStatus` passa a:
-  - `realizada` (manual) prevalece;
-  - se tem `data_inicio_real`/`data_fim_real`: status efetivo = `realizada`;
-  - se hoje > limite máximo e não realizada: `atrasada`;
-  - se hoje dentro da janela: `em_andamento`;
-  - se antes: `nao_iniciada`/`prevista`.
-- Novos helpers:
-  - `diasAtraso(stage)` — comparando real vs previsto
-  - `pushFutureStages(stages, fromOrdem, deltaDias)` — devolve patch list com novos `inicio_relativo_dias`
-  - `suggestNextStart(stages)` — retorna dia logo após o limite máximo da última etapa
-  - `findCurrentStage` revisado (atrasada > em_andamento > próxima futura).
+Botão "Criar etapa" ativo só com nome + duração ≥ 1.
 
-## 3. Hook (`useCycleStages.ts`)
+### 3. Página `CicloDetalhe.tsx`
 
-- Estender `CycleStage` com novos campos.
-- Mutations novas:
-  - `confirmExecution({id, dataInicioReal, dataFimReal, observacao, responsavelId})`
-  - `reschedule({id, novosDiasInicio, novaDuracao, motivo, pushNext})`
-  - `pushFuture({fromOrdem, deltaDias})` — atualiza em lote
-- Cada mutation registra histórico em `cycle_stage_history`.
+- A aba **Timeline** vira a aba principal (já é default) e absorve as ações inline (concluir, editar, adicionar antes/depois, excluir) — não exige mais ir à aba Etapas para operar.
+- A aba **Etapas** mantém-se como visão tabular detalhada (apoio), sem mudanças funcionais.
+- Header do ciclo, indicadores e alertas permanecem como estão.
 
-## 4. UI
+### 4. Detalhes técnicos
 
-### `CycleStageForm.tsx` (refatorado)
-- Campo "Posição da etapa": Depois da última | Antes de... | Depois de... | Manual.
-- Campos numéricos: `Início (dia)` e `Fim (dia)` (limite maior). Duração calculada.
-- `Descrição` e `Observações` recolhidos por padrão (`+ Adicionar descrição`, `+ Adicionar observação`).
-- Sugere próxima posição quando criando nova etapa (último limite + 1).
+- `CycleStageTimeline` passa a receber callbacks: `onConcluir(id)`, `onEdit(id)`, `onAddBefore(id)`, `onAddAfter(id)`, `onAddAtEnd()`, `onDelete(id)`.
+- Estado local `expandedId: string | null` + flag `expandAll: boolean`.
+- Largura híbrida via `flex` com `flex: <dias> 1 <minWidth>px` (ou cálculo manual normalizando proporção e aplicando min-width depois).
+- Tooltip (shadcn) no nome quando truncado, exibindo nome completo + duração + datas.
+- Sem mudanças no schema/DB nem em `useCycleStages` — toda a lógica de recálculo, conclusão e posição já existe.
+- Sem mudanças em `stageCalc.ts`.
 
-### `ConfirmExecutionDialog.tsx` (novo)
-- Inputs: data inicial real (default = previsto), data final real (default = previsto), observação, responsável.
-- Mostra atraso/adiantamento em tempo real.
-- Se houve atraso: pergunta "Empurrar próximas etapas?" (Sim / Não / Manual).
+### 5. Arquivos afetados
 
-### `RescheduleStageDialog.tsx` (novo)
-- Edita início, duração, motivo, e checkbox "Empurrar próximas etapas".
+- `src/components/cycles/CycleStageTimeline.tsx` — reescrita (visual + interatividade + expand)
+- `src/components/cycles/CycleStageForm.tsx` — simplificação (3 campos visíveis, resto colapsado, remove select de posição)
+- `src/pages/CicloDetalhe.tsx` — passa callbacks à Timeline; Timeline absorve ações inline
 
-### `CycleStageList.tsx`
-- Mostra: número, nome, status badge, período previsto (dia X–Y, datas), período real (se houver), duração prev/real, atraso/adiantamento, responsável, atividade.
-- Ações: `Confirmar execução` | `Reprogramar` | `Editar` | `Excluir`.
-
-### `CycleStageTimeline.tsx`
-- Marcar etapas realizadas em verde sólido, atrasadas com hachura/borda destrutiva, atual com ring.
-- Mostrar barra de execução real sobreposta à prevista quando confirmada.
-
-### `CicloDetalhe.tsx`
-- Painel superior: dias previstos, decorridos, restantes, excedidos.
-- Card "Etapa atual": nome + status + dias restantes ou atraso.
-- Indicadores: etapas realizadas/total, tarefas concluídas/total.
-
-## 5. Critérios atendidos
-Todos os 22 critérios listados no pedido.
-
-## 6. Arquivos
-
-Criar: `ConfirmExecutionDialog.tsx`, `RescheduleStageDialog.tsx`, migration SQL, data-update SQL para Abóbora.
-
-Editar: `stageCalc.ts`, `useCycleStages.ts`, `CycleStageForm.tsx`, `CycleStageList.tsx`, `CycleStageTimeline.tsx`, `CicloDetalhe.tsx`, `integrations/supabase/types.ts` (regenerado pós-migration).
+### Critérios de aceite cobertos
+✓ Timeline central e clicável · ✓ visão resumida + expandida · ✓ legibilidade garantida (min-width) · ✓ modal com apenas 3 campos · ✓ posição implícita (final / antes / depois via botões) · ✓ datas auto-calculadas · ✓ conclusão em 1 clique · ✓ aba Etapas como apoio.
