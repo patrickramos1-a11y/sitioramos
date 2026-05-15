@@ -29,15 +29,50 @@ export interface CycleStage {
   updated_at: string;
 }
 
-export type CycleStageInsert = Omit<CycleStage, "id" | "created_at" | "updated_at">;
-export type CycleStageUpdate = Partial<CycleStageInsert> & { id: string };
-
 async function logHistory(stage_id: string | null, cycle_id: string | null, acao: string, dados: any) {
   try {
     await supabase.from("cycle_stage_history" as any).insert({ stage_id, cycle_id, acao, dados } as any);
   } catch {
     /* non-blocking */
   }
+}
+
+/** Recompute ordem (1..N) and inicio_relativo_dias = sum of previous duracoes,
+ * persisting only when values change. */
+async function recalcSequence(cycleId: string) {
+  const { data: rows, error } = await supabase
+    .from("cycle_stages" as any)
+    .select("*")
+    .eq("cycle_id", cycleId)
+    .order("ordem", { ascending: true });
+  if (error) throw error;
+  const stages = (rows || []) as unknown as CycleStage[];
+  let cum = 0;
+  for (let i = 0; i < stages.length; i++) {
+    const s = stages[i];
+    const newOrdem = i + 1;
+    const newIni = cum;
+    if (s.ordem !== newOrdem || s.inicio_relativo_dias !== newIni || s.inicio_relativo_dias_min !== newIni) {
+      await supabase
+        .from("cycle_stages" as any)
+        .update({ ordem: newOrdem, inicio_relativo_dias: newIni, inicio_relativo_dias_min: newIni })
+        .eq("id", s.id);
+    }
+    cum += Math.max(1, s.duracao_dias);
+  }
+  // sync cycle.duracao_total_dias
+  await supabase.from("cycles").update({ duracao_total_dias: cum }).eq("id", cycleId);
+  return cum;
+}
+
+export interface CreateStageInput {
+  cycle_id: string;
+  nome: string;
+  duracao_dias: number;
+  atividade: string | null;
+  observacoes: string | null;
+  responsavel_id: string | null;
+  position?: { mode: "after_last" | "before" | "after"; refStageId?: string };
 }
 
 export function useCycleStages(cycleId?: string) {
@@ -50,7 +85,6 @@ export function useCycleStages(cycleId?: string) {
       let q = supabase
         .from("cycle_stages" as any)
         .select("*")
-        .order("inicio_relativo_dias", { ascending: true })
         .order("ordem", { ascending: true });
       if (cycleId) q = q.eq("cycle_id", cycleId);
       const { data, error } = await q;
@@ -60,17 +94,52 @@ export function useCycleStages(cycleId?: string) {
     enabled: cycleId !== undefined,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["cycle_stages"] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["cycle_stages"] });
+    qc.invalidateQueries({ queryKey: ["cycles"] });
+  };
 
   const create = useMutation({
-    mutationFn: async (payload: CycleStageInsert) => {
-      const { data, error } = await supabase
+    mutationFn: async (p: CreateStageInput) => {
+      // fetch existing to compute insertion ordem
+      const { data: rows } = await supabase
         .from("cycle_stages" as any)
-        .insert(payload as any)
-        .select()
-        .single();
+        .select("id, ordem, duracao_dias")
+        .eq("cycle_id", p.cycle_id)
+        .order("ordem", { ascending: true });
+      const list = (rows || []) as any[];
+
+      let insertOrdem = list.length + 1;
+      const mode = p.position?.mode || "after_last";
+      if (mode !== "after_last" && p.position?.refStageId) {
+        const ref = list.find((s) => s.id === p.position!.refStageId);
+        if (ref) insertOrdem = mode === "before" ? ref.ordem : ref.ordem + 1;
+      }
+
+      // shift down ordens >= insertOrdem
+      for (const s of list) {
+        if (s.ordem >= insertOrdem) {
+          await supabase.from("cycle_stages" as any).update({ ordem: s.ordem + 1 }).eq("id", s.id);
+        }
+      }
+
+      const payload: any = {
+        cycle_id: p.cycle_id,
+        nome: p.nome,
+        atividade: p.atividade,
+        observacoes: p.observacoes,
+        responsavel_id: p.responsavel_id,
+        duracao_dias: Math.max(1, p.duracao_dias),
+        ordem: insertOrdem,
+        inicio_relativo_dias: 0, // recalcSequence vai ajustar
+        inicio_relativo_dias_min: 0,
+        status: "nao_iniciada",
+      };
+
+      const { data, error } = await supabase.from("cycle_stages" as any).insert(payload).select().single();
       if (error) throw error;
       const row = data as unknown as CycleStage;
+      await recalcSequence(p.cycle_id);
       await logHistory(row.id, row.cycle_id, "criada", payload);
       return row;
     },
@@ -83,7 +152,15 @@ export function useCycleStages(cycleId?: string) {
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...rest }: CycleStageUpdate) => {
+    mutationFn: async (p: {
+      id: string;
+      nome?: string;
+      duracao_dias?: number;
+      atividade?: string | null;
+      observacoes?: string | null;
+      responsavel_id?: string | null;
+    }) => {
+      const { id, ...rest } = p;
       const { data, error } = await supabase
         .from("cycle_stages" as any)
         .update(rest as any)
@@ -92,6 +169,7 @@ export function useCycleStages(cycleId?: string) {
         .single();
       if (error) throw error;
       const row = data as unknown as CycleStage;
+      await recalcSequence(row.cycle_id);
       await logHistory(row.id, row.cycle_id, "editada", rest);
       return row;
     },
@@ -110,9 +188,11 @@ export function useCycleStages(cycleId?: string) {
         .select("cycle_id")
         .eq("id", id)
         .maybeSingle();
+      const cyc = (existing as any)?.cycle_id;
       const { error } = await supabase.from("cycle_stages" as any).delete().eq("id", id);
       if (error) throw error;
-      await logHistory(id, (existing as any)?.cycle_id || null, "excluida", null);
+      if (cyc) await recalcSequence(cyc);
+      await logHistory(id, cyc || null, "excluida", null);
     },
     onSuccess: () => {
       invalidate();
@@ -122,17 +202,56 @@ export function useCycleStages(cycleId?: string) {
       toast({ title: "Erro ao remover", description: e.message, variant: "destructive" }),
   });
 
-  const confirmExecution = useMutation({
+  const move = useMutation({
+    mutationFn: async (p: { id: string; direction: "up" | "down" }) => {
+      const { data: row } = await supabase
+        .from("cycle_stages" as any)
+        .select("cycle_id, ordem")
+        .eq("id", p.id)
+        .maybeSingle();
+      if (!row) return;
+      const cur = row as any;
+      const targetOrdem = p.direction === "up" ? cur.ordem - 1 : cur.ordem + 1;
+      const { data: neighbor } = await supabase
+        .from("cycle_stages" as any)
+        .select("id, ordem")
+        .eq("cycle_id", cur.cycle_id)
+        .eq("ordem", targetOrdem)
+        .maybeSingle();
+      if (!neighbor) return;
+      const n = neighbor as any;
+      // swap ordens via temporary slot
+      await supabase.from("cycle_stages" as any).update({ ordem: -1 }).eq("id", p.id);
+      await supabase.from("cycle_stages" as any).update({ ordem: cur.ordem }).eq("id", n.id);
+      await supabase.from("cycle_stages" as any).update({ ordem: n.ordem }).eq("id", p.id);
+      await recalcSequence(cur.cycle_id);
+    },
+    onSuccess: () => invalidate(),
+    onError: (e: any) =>
+      toast({ title: "Erro ao mover", description: e.message, variant: "destructive" }),
+  });
+
+  const concluir = useMutation({
     mutationFn: async (p: {
       id: string;
-      data_inicio_real: string;
-      data_fim_real: string;
+      data_real: string;
       observacao?: string | null;
       responsavel_id?: string | null;
     }) => {
+      // need data_inicio_real too; use previous stage's fim_real or hoje - duracao + 1
+      const { data: row } = await supabase
+        .from("cycle_stages" as any)
+        .select("*")
+        .eq("id", p.id)
+        .maybeSingle();
+      const s = row as any as CycleStage | null;
+      const duracao = s?.duracao_dias ?? 1;
+      const fim = new Date(p.data_real);
+      const ini = new Date(fim);
+      ini.setDate(ini.getDate() - (duracao - 1));
       const patch: any = {
-        data_inicio_real: p.data_inicio_real,
-        data_fim_real: p.data_fim_real,
+        data_inicio_real: s?.data_inicio_real || ini.toISOString().slice(0, 10),
+        data_fim_real: p.data_real,
         status: "realizada",
       };
       if (p.observacao !== undefined) patch.observacoes = p.observacao;
@@ -144,81 +263,16 @@ export function useCycleStages(cycleId?: string) {
         .select()
         .single();
       if (error) throw error;
-      const row = data as unknown as CycleStage;
-      await logHistory(row.id, row.cycle_id, "confirmada", patch);
-      return row;
+      const r = data as unknown as CycleStage;
+      await logHistory(r.id, r.cycle_id, "concluida", patch);
+      return r;
     },
     onSuccess: () => {
       invalidate();
-      toast({ title: "Execução confirmada" });
+      toast({ title: "Etapa concluída" });
     },
     onError: (e: any) =>
-      toast({ title: "Erro ao confirmar", description: e.message, variant: "destructive" }),
-  });
-
-  const reschedule = useMutation({
-    mutationFn: async (p: {
-      id: string;
-      inicio_relativo_dias: number;
-      duracao_dias: number;
-      motivo?: string;
-    }) => {
-      const patch: any = {
-        inicio_relativo_dias: p.inicio_relativo_dias,
-        duracao_dias: p.duracao_dias,
-        motivo_reprogramacao: p.motivo || null,
-        status: "reprogramada",
-      };
-      const { data, error } = await supabase
-        .from("cycle_stages" as any)
-        .update(patch)
-        .eq("id", p.id)
-        .select()
-        .single();
-      if (error) throw error;
-      const row = data as unknown as CycleStage;
-      await logHistory(row.id, row.cycle_id, "reprogramada", patch);
-      return row;
-    },
-    onSuccess: () => {
-      invalidate();
-      toast({ title: "Etapa reprogramada" });
-    },
-    onError: (e: any) =>
-      toast({ title: "Erro ao reprogramar", description: e.message, variant: "destructive" }),
-  });
-
-  const pushFuture = useMutation({
-    mutationFn: async (p: { cycle_id: string; fromOrdem: number; deltaDias: number }) => {
-      if (p.deltaDias === 0) return [];
-      const { data: rows, error: e1 } = await supabase
-        .from("cycle_stages" as any)
-        .select("*")
-        .eq("cycle_id", p.cycle_id)
-        .gt("ordem", p.fromOrdem);
-      if (e1) throw e1;
-      const list = (rows || []) as unknown as CycleStage[];
-      for (const s of list) {
-        await supabase
-          .from("cycle_stages" as any)
-          .update({
-            inicio_relativo_dias: Math.max(0, s.inicio_relativo_dias + p.deltaDias),
-          })
-          .eq("id", s.id);
-      }
-      await logHistory(null, p.cycle_id, "empurrada", {
-        fromOrdem: p.fromOrdem,
-        deltaDias: p.deltaDias,
-        count: list.length,
-      });
-      return list;
-    },
-    onSuccess: (list) => {
-      invalidate();
-      if (list && list.length > 0) toast({ title: `${list.length} etapa(s) reagendadas` });
-    },
-    onError: (e: any) =>
-      toast({ title: "Erro ao reagendar", description: e.message, variant: "destructive" }),
+      toast({ title: "Erro ao concluir", description: e.message, variant: "destructive" }),
   });
 
   const duplicateFromCycle = useMutation({
@@ -232,28 +286,26 @@ export function useCycleStages(cycleId?: string) {
       const { data: source, error: e1 } = await supabase
         .from("cycle_stages" as any)
         .select("*")
-        .eq("cycle_id", sourceCycleId);
+        .eq("cycle_id", sourceCycleId)
+        .order("ordem", { ascending: true });
       if (e1) throw e1;
       const rows = (source || []) as unknown as CycleStage[];
       if (rows.length === 0) return [];
-      const payload = rows.map((s) => ({
+      const payload = rows.map((s, i) => ({
         cycle_id: targetCycleId,
         nome: s.nome,
-        descricao: s.descricao,
         atividade: s.atividade,
-        ordem: s.ordem,
-        inicio_relativo_dias: s.inicio_relativo_dias,
-        inicio_relativo_dias_min: s.inicio_relativo_dias_min,
-        duracao_dias: s.duracao_dias,
-        status: "nao_iniciada" as const,
-        responsavel_id: s.responsavel_id,
         observacoes: s.observacoes,
+        responsavel_id: s.responsavel_id,
+        duracao_dias: s.duracao_dias,
+        ordem: i + 1,
+        inicio_relativo_dias: 0,
+        inicio_relativo_dias_min: 0,
+        status: "nao_iniciada" as const,
       }));
-      const { data, error } = await supabase
-        .from("cycle_stages" as any)
-        .insert(payload as any)
-        .select();
+      const { data, error } = await supabase.from("cycle_stages" as any).insert(payload as any).select();
       if (error) throw error;
+      await recalcSequence(targetCycleId);
       return data;
     },
     onSuccess: () => {
@@ -270,9 +322,8 @@ export function useCycleStages(cycleId?: string) {
     create,
     update,
     remove,
-    confirmExecution,
-    reschedule,
-    pushFuture,
+    move,
+    concluir,
     duplicateFromCycle,
   };
 }
