@@ -86,8 +86,9 @@ export function CycleStageForm({
       setResponsavelId(NONE);
       setPositionMode(initialPosition?.mode || "after_last");
       setRefStageId(initialPosition?.refStageId || "");
+      setStartIso(cycleStartIso || "");
     }
-  }, [open, stage, initialPosition]);
+  }, [open, stage, initialPosition, cycleStartIso]);
 
   // Compute previewed start day based on chosen position
   const previewIni = useMemo(() => {
