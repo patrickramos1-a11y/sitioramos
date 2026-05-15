@@ -83,7 +83,12 @@ export default function AreaDetalhe() {
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
 
   const area = areas.find(a => a.id === id);
-  const areaCycles = cycles.filter((c: any) => c.area_id === id);
+  // Ciclos vinculados a esta área (por área principal OU via allocations)
+  const allAllocationsRaw = useCycleAreaAllocations({}).allocations;
+  const cycleIdsViaAlloc = new Set(
+    allAllocationsRaw.filter((a: any) => a.area_id === id).map((a: any) => a.cycle_id),
+  );
+  const areaCycles = cycles.filter((c: any) => c.area_id === id || cycleIdsViaAlloc.has(c.id));
   const activeCycleId = selectedCycleId || areaCycles.find((c: any) => c.status === "ativo")?.id || areaCycles[0]?.id;
 
   const { stages, createStage, updateStage, deleteStage, createFromTemplate } = useStages(activeCycleId, id);
