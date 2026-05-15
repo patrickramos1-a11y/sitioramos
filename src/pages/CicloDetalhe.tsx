@@ -21,10 +21,13 @@ import {
   computeProgress,
   totalDuration,
   getCycleAlerts,
+  STAGE_STATUS_LABEL,
 } from "@/lib/cycles/stageCalc";
 import { CycleStageTimeline } from "@/components/cycles/CycleStageTimeline";
 import { CycleStageList } from "@/components/cycles/CycleStageList";
 import { CycleStageForm } from "@/components/cycles/CycleStageForm";
+import { ConfirmExecutionDialog } from "@/components/cycles/ConfirmExecutionDialog";
+import { RescheduleStageDialog } from "@/components/cycles/RescheduleStageDialog";
 import { DuplicateStagesDialog } from "@/components/cycles/DuplicateStagesDialog";
 import { allocOccupiedHa, formatTarefas, haParaTarefas } from "@/lib/territory/tarefas";
 
@@ -37,7 +40,8 @@ export default function CicloDetalhe() {
   const { cycles, isLoading: loadingCycle } = useCycles();
   const cycle: any = cycles.find((c: any) => c.id === id);
 
-  const { stages, create, update, remove } = useCycleStages(id);
+  const { stages, create, update, remove, confirmExecution, reschedule, pushFuture } =
+    useCycleStages(id);
   const { allocations } = useCycleAreaAllocations({ cycleId: id });
   const { areas } = useAreas();
   const { transactions } = useCashTransactions();
@@ -46,13 +50,18 @@ export default function CicloDetalhe() {
   const [stageFormOpen, setStageFormOpen] = useState(false);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [confirmStageId, setConfirmStageId] = useState<string | null>(null);
+  const [rescheduleStageId, setRescheduleStageId] = useState<string | null>(null);
 
   const editingStage = stages.find((s) => s.id === editingStageId) || null;
+  const reschedulingStage = stages.find((s) => s.id === rescheduleStageId) || null;
 
   const computed = useMemo(() => {
     if (!cycle) return [];
     return computeStages(cycle.data_inicio_plantio, stages);
   }, [stages, cycle]);
+
+  const confirmingComputed = computed.find((c) => c.stage.id === confirmStageId) || null;
 
   const durationDias = useMemo(() => {
     if (!cycle) return 0;
@@ -66,8 +75,12 @@ export default function CicloDetalhe() {
     () => transactions.filter((t: any) => t.cycle_id === id),
     [transactions, id],
   );
-  const custoTotal = cycleTx.filter((t: any) => t.tipo === "saida").reduce((s, t) => s + Number(t.valor || 0), 0);
-  const receitaTotal = cycleTx.filter((t: any) => t.tipo === "entrada").reduce((s, t) => s + Number(t.valor || 0), 0);
+  const custoTotal = cycleTx
+    .filter((t: any) => t.tipo === "saida")
+    .reduce((s, t) => s + Number(t.valor || 0), 0);
+  const receitaTotal = cycleTx
+    .filter((t: any) => t.tipo === "entrada")
+    .reduce((s, t) => s + Number(t.valor || 0), 0);
 
   const costsByStage: Record<string, number> = {};
   for (const t of cycleTx) {
@@ -89,6 +102,7 @@ export default function CicloDetalhe() {
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t) => t.status === "concluida").length;
+  const realizadas = computed.filter((c) => c.statusEfetivo === "realizada").length;
   const progress = cycle
     ? computeProgress(cycle.data_inicio_plantio, durationDias || 1, computed, totalTasks, doneTasks)
     : null;
@@ -97,7 +111,11 @@ export default function CicloDetalhe() {
     : [];
 
   if (loadingCycle) {
-    return <AppLayout><p className="text-sm text-muted-foreground">Carregando...</p></AppLayout>;
+    return (
+      <AppLayout>
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      </AppLayout>
+    );
   }
   if (!cycle) {
     return (
@@ -111,9 +129,10 @@ export default function CicloDetalhe() {
   }
 
   const cor = cycle.cor || "#22c55e";
-  const fimPrev = cycle.data_inicio_plantio && durationDias
-    ? addDays(parseISO(cycle.data_inicio_plantio), durationDias)
-    : null;
+  const fimPrev =
+    cycle.data_inicio_plantio && durationDias
+      ? addDays(parseISO(cycle.data_inicio_plantio), durationDias)
+      : null;
 
   const handleStageSubmit = async (payload: any) => {
     if (editingStage) {
@@ -123,6 +142,56 @@ export default function CicloDetalhe() {
     }
     setStageFormOpen(false);
     setEditingStageId(null);
+  };
+
+  const handleConfirmExecution = async (payload: {
+    data_inicio_real: string;
+    data_fim_real: string;
+    observacao: string | null;
+    responsavel_id: string | null;
+    pushNext: boolean;
+    deltaDias: number;
+  }) => {
+    if (!confirmingComputed) return;
+    await confirmExecution.mutateAsync({
+      id: confirmingComputed.stage.id!,
+      data_inicio_real: payload.data_inicio_real,
+      data_fim_real: payload.data_fim_real,
+      observacao: payload.observacao,
+      responsavel_id: payload.responsavel_id,
+    });
+    if (payload.pushNext && payload.deltaDias !== 0) {
+      await pushFuture.mutateAsync({
+        cycle_id: id,
+        fromOrdem: confirmingComputed.stage.ordem,
+        deltaDias: payload.deltaDias,
+      });
+    }
+    setConfirmStageId(null);
+  };
+
+  const handleReschedule = async (payload: {
+    inicio_relativo_dias: number;
+    duracao_dias: number;
+    motivo: string;
+    pushNext: boolean;
+    deltaDias: number;
+  }) => {
+    if (!reschedulingStage) return;
+    await reschedule.mutateAsync({
+      id: reschedulingStage.id,
+      inicio_relativo_dias: payload.inicio_relativo_dias,
+      duracao_dias: payload.duracao_dias,
+      motivo: payload.motivo,
+    });
+    if (payload.pushNext && payload.deltaDias !== 0) {
+      await pushFuture.mutateAsync({
+        cycle_id: id,
+        fromOrdem: reschedulingStage.ordem,
+        deltaDias: payload.deltaDias,
+      });
+    }
+    setRescheduleStageId(null);
   };
 
   const allocsHidratadas = allocations.map((a: any) => {
@@ -158,22 +227,51 @@ export default function CicloDetalhe() {
                 </p>
               </div>
               {current && (
-                <div className="rounded-lg border bg-primary/5 px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Etapa atual</div>
+                <div className="rounded-lg border bg-primary/5 px-3 py-2 min-w-[180px]">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    Etapa atual
+                  </div>
                   <div className="font-semibold text-sm">{current.stage.nome}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    {Math.max(0, current.diasRestantes)} dia(s) restantes
+                    {STAGE_STATUS_LABEL[current.statusEfetivo]}
+                    {current.statusEfetivo === "atrasada"
+                      ? ` · atraso ${Math.abs(current.diasRestantes)}d`
+                      : current.statusEfetivo === "em_andamento"
+                        ? ` · ${Math.max(0, current.diasRestantes)}d restantes`
+                        : current.statusEfetivo === "nao_iniciada"
+                          ? ` · começa em ${Math.max(0, -current.diasRestantes + current.stage.duracao_dias)}d`
+                          : ""}
                   </div>
                 </div>
               )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Progress */}
+            {/* Time indicators */}
+            {progress && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <Stat label="Previstos" value={`${progress.diaTotal}d`} />
+                <Stat label="Decorridos" value={`${progress.diaAtual}d`} />
+                <Stat
+                  label="Restantes"
+                  value={progress.diasExcedidos > 0 ? "0d" : `${progress.diasRestantes}d`}
+                />
+                <Stat
+                  label="Excedidos"
+                  value={`${progress.diasExcedidos}d`}
+                  highlight={progress.diasExcedidos > 0}
+                />
+              </div>
+            )}
+            {/* Progress bars */}
             {progress && (
               <div className="grid gap-2 sm:grid-cols-3">
                 <ProgressItem label="Tempo" value={progress.porTempo} info={`Dia ${progress.diaAtual}/${progress.diaTotal}`} />
-                <ProgressItem label="Etapas" value={progress.porEtapas} info={`${computed.filter(c => c.statusEfetivo === "concluida").length}/${stages.length}`} />
+                <ProgressItem
+                  label="Etapas"
+                  value={progress.porEtapas}
+                  info={`${realizadas}/${stages.length}`}
+                />
                 <ProgressItem label="Tarefas" value={progress.porTarefas} info={`${doneTasks}/${totalTasks}`} />
               </div>
             )}
@@ -192,7 +290,10 @@ export default function CicloDetalhe() {
             {alerts.length > 0 && (
               <div className="space-y-1">
                 {alerts.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-md border border-amber-300/40 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-xs">
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 rounded-md border border-amber-300/40 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-xs"
+                  >
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
                     {a.message}
                   </div>
@@ -203,7 +304,7 @@ export default function CicloDetalhe() {
         </Card>
 
         {/* Tabs */}
-        <Tabs defaultValue="timeline">
+        <Tabs defaultValue="etapas">
           <TabsList>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="etapas">Etapas</TabsTrigger>
@@ -225,7 +326,13 @@ export default function CicloDetalhe() {
 
           <TabsContent value="etapas" className="mt-4 space-y-3">
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => { setEditingStageId(null); setStageFormOpen(true); }}>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingStageId(null);
+                  setStageFormOpen(true);
+                }}
+              >
                 <Plus className="h-4 w-4 mr-1" /> Nova etapa
               </Button>
               <Button size="sm" variant="outline" onClick={() => setDuplicateOpen(true)}>
@@ -234,10 +341,15 @@ export default function CicloDetalhe() {
             </div>
             <CycleStageList
               computed={computed}
-              onEdit={(sid) => { setEditingStageId(sid); setStageFormOpen(true); }}
+              onEdit={(sid) => {
+                setEditingStageId(sid);
+                setStageFormOpen(true);
+              }}
               onDelete={(sid) => {
                 if (confirm("Remover esta etapa?")) remove.mutate(sid);
               }}
+              onConfirm={(sid) => setConfirmStageId(sid)}
+              onReschedule={(sid) => setRescheduleStageId(sid)}
               costsByStage={costsByStage}
               tasksByStage={tasksByStage}
             />
@@ -251,8 +363,14 @@ export default function CicloDetalhe() {
                 ) : (
                   <ul className="space-y-2">
                     {allocsHidratadas.map(({ alloc, area, occHa }) => (
-                      <li key={alloc.id} className="flex items-center justify-between border-l-2 border-primary/40 pl-3 py-1">
-                        <Link to={`/areas/${area?.id}`} className="inline-flex items-center gap-1 hover:underline text-sm">
+                      <li
+                        key={alloc.id}
+                        className="flex items-center justify-between border-l-2 border-primary/40 pl-3 py-1"
+                      >
+                        <Link
+                          to={`/areas/${area?.id}`}
+                          className="inline-flex items-center gap-1 hover:underline text-sm"
+                        >
                           <MapPin className="h-3.5 w-3.5" />
                           {area?.nome}
                         </Link>
@@ -271,20 +389,36 @@ export default function CicloDetalhe() {
 
       <CycleStageForm
         open={stageFormOpen}
-        onOpenChange={(o) => { setStageFormOpen(o); if (!o) setEditingStageId(null); }}
+        onOpenChange={(o) => {
+          setStageFormOpen(o);
+          if (!o) setEditingStageId(null);
+        }}
         cycleId={id}
         cycleStartIso={cycle.data_inicio_plantio}
         stage={editingStage}
-        defaultOrdem={stages.length}
+        defaultOrdem={stages.length + 1}
+        allStages={stages}
         onSubmit={handleStageSubmit}
         isSubmitting={create.isPending || update.isPending}
       />
 
-      <DuplicateStagesDialog
-        open={duplicateOpen}
-        onOpenChange={setDuplicateOpen}
-        targetCycleId={id}
+      <ConfirmExecutionDialog
+        open={!!confirmStageId}
+        onOpenChange={(o) => !o && setConfirmStageId(null)}
+        computed={confirmingComputed}
+        onConfirm={handleConfirmExecution}
+        isSubmitting={confirmExecution.isPending || pushFuture.isPending}
       />
+
+      <RescheduleStageDialog
+        open={!!rescheduleStageId}
+        onOpenChange={(o) => !o && setRescheduleStageId(null)}
+        stage={reschedulingStage}
+        onConfirm={handleReschedule}
+        isSubmitting={reschedule.isPending || pushFuture.isPending}
+      />
+
+      <DuplicateStagesDialog open={duplicateOpen} onOpenChange={setDuplicateOpen} targetCycleId={id} />
     </AppLayout>
   );
 }
@@ -299,6 +433,17 @@ function ProgressItem({ label, value, info }: { label: string; value: number; in
       </div>
       <Progress value={pct} className="h-2" />
       <div className="text-[10px] text-muted-foreground mt-0.5">{info}</div>
+    </div>
+  );
+}
+
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div
+      className={`rounded-md border p-2 ${highlight ? "border-destructive/40 bg-destructive/5" : "bg-muted/30"}`}
+    >
+      <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
+      <div className={`text-sm font-bold tabular-nums ${highlight ? "text-destructive" : ""}`}>{value}</div>
     </div>
   );
 }
