@@ -162,13 +162,23 @@ export default function Ciclos() {
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {rows.map(({ cycle, haOcupados, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal }) => {
               const sb = statusBadge[cycle.status] || statusBadge.planejamento;
+              const cor = (cycle as any).cor || "hsl(var(--primary))";
+              const icone = (cycle as any).icone as string | null;
               return (
-                <Card key={cycle.id} className="border-l-4 border-l-primary hover:shadow-md transition-shadow">
+                <Card
+                  key={cycle.id}
+                  className="border-l-4 hover:shadow-md transition-shadow"
+                  style={{ borderLeftColor: cor }}
+                >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-base flex items-center gap-2">
-                        <Sprout className="h-4 w-4 text-primary" />
-                        {cycle.cultura}
+                        {icone ? (
+                          <span className="text-xl leading-none" aria-hidden>{icone}</span>
+                        ) : (
+                          <Sprout className="h-4 w-4" style={{ color: cor }} />
+                        )}
+                        <span style={{ color: cor }}>{cycle.cultura}</span>
                       </CardTitle>
                       <div className="flex items-center gap-1">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sb.className}`}>
