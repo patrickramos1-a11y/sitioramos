@@ -24,6 +24,7 @@ import Contatos from "./pages/Contatos";
 import Responsaveis from "./pages/Responsaveis";
 import Diario from "./pages/Diario";
 import Ciclos from "./pages/Ciclos";
+import CicloDetalhe from "./pages/CicloDetalhe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
