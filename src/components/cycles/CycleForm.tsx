@@ -28,6 +28,7 @@ const cycleSchema = z.object({
   observacoes: z.string().max(500).optional().nullable(),
   icone: z.string().nullable().optional(),
   cor: z.string().nullable().optional(),
+  duracao_total_dias: z.coerce.number().int().min(0).optional().nullable(),
 });
 
 type CycleFormData = z.infer<typeof cycleSchema>;
