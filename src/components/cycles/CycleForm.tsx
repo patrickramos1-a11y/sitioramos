@@ -84,6 +84,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         observacoes: cycle.observacoes || "",
         icone: (cycle as any).icone ?? null,
         cor: (cycle as any).cor ?? "#22c55e",
+        duracao_total_dias: (cycle as any).duracao_total_dias ?? null,
       });
     } else {
       form.reset({
@@ -96,6 +97,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         observacoes: "",
         icone: null,
         cor: "#22c55e",
+        duracao_total_dias: null,
       });
       setDrafts([]);
     }
