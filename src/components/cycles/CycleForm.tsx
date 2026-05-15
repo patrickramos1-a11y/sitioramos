@@ -12,6 +12,8 @@ import { Cycle, CycleInsert } from "@/hooks/useCycles";
 import { Area } from "@/hooks/useAreas";
 import { Loader2 } from "lucide-react";
 import { CycleAllocationsManager, AllocationDraft } from "./CycleAllocationsManager";
+import { CultureIconPicker } from "./CultureIconPicker";
+import { suggestIconForCultura } from "@/lib/cycles/cultureGallery";
 import { useCycleAreaAllocations } from "@/hooks/useCycleAreaAllocations";
 import { allocOccupiedHa, AllocationType } from "@/lib/territory/tarefas";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +26,8 @@ const cycleSchema = z.object({
   data_real_colheita: z.string().optional().nullable(),
   status: z.enum(["planejamento", "ativo", "finalizado"]),
   observacoes: z.string().max(500).optional().nullable(),
+  icone: z.string().nullable().optional(),
+  cor: z.string().nullable().optional(),
 });
 
 type CycleFormData = z.infer<typeof cycleSchema>;
@@ -60,6 +64,8 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
       data_real_colheita: "",
       status: "planejamento",
       observacoes: "",
+      icone: null,
+      cor: "#22c55e",
     },
   });
 
@@ -74,6 +80,8 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         data_real_colheita: cycle.data_real_colheita || "",
         status: cycle.status,
         observacoes: cycle.observacoes || "",
+        icone: (cycle as any).icone ?? null,
+        cor: (cycle as any).cor ?? "#22c55e",
       });
     } else {
       form.reset({
@@ -84,6 +92,8 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         data_real_colheita: "",
         status: "planejamento",
         observacoes: "",
+        icone: null,
+        cor: "#22c55e",
       });
       setDrafts([]);
     }
@@ -151,7 +161,9 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         data_real_colheita: data.data_real_colheita || null,
         status: data.status,
         observacoes: data.observacoes || null,
-      },
+        icone: data.icone ?? null,
+        cor: data.cor ?? "#22c55e",
+      } as any,
       drafts,
     );
   };
@@ -196,9 +208,30 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cultura *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Abóbora, Macaxeira" {...field} />
-                    </FormControl>
+                    <div className="flex gap-2 items-start">
+                      <CultureIconPicker
+                        icone={form.watch("icone") ?? null}
+                        cor={form.watch("cor") ?? "#22c55e"}
+                        onChange={({ icone, cor }) => {
+                          form.setValue("icone", icone, { shouldDirty: true });
+                          form.setValue("cor", cor, { shouldDirty: true });
+                        }}
+                      />
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: Abóbora, Macaxeira"
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            // Sugere ícone automaticamente se ainda não definido
+                            if (!form.getValues("icone")) {
+                              const sug = suggestIconForCultura(e.target.value);
+                              if (sug) form.setValue("icone", sug, { shouldDirty: true });
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

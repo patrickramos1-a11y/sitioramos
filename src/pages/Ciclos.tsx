@@ -8,8 +8,7 @@ import { Plus, RefreshCw, Search, Sprout, MapPin, Pencil } from "lucide-react";
 import { useCycles, Cycle, CycleInsert } from "@/hooks/useCycles";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycleAreaAllocations } from "@/hooks/useCycleAreaAllocations";
-import { useCosts } from "@/hooks/useCosts";
-import { useRevenues } from "@/hooks/useRevenues";
+import { useCashTransactions } from "@/hooks/useCashTransactions";
 import { CycleForm } from "@/components/cycles/CycleForm";
 import { AllocationDraft } from "@/components/cycles/CycleAllocationsManager";
 import { allocOccupiedHa, haParaTarefas, formatTarefas } from "@/lib/territory/tarefas";
@@ -64,8 +63,7 @@ export default function Ciclos() {
   const { cycles, isLoading, createCycle, updateCycle } = useCycles();
   const { areas } = useAreas();
   const { allocations } = useCycleAreaAllocations({});
-  const { costs } = useCosts();
-  const { revenues } = useRevenues();
+  const { transactions } = useCashTransactions();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
@@ -89,15 +87,16 @@ export default function Ciclos() {
           if (ar) areasVinculadas.push({ area: ar, alloc: a });
         }
         const tarefasOcupadas = haParaTarefas(haOcupados);
-        const custoTotal = costs
-          .filter((x: any) => x.cycle_id === c.id)
+        const cycleTx = transactions.filter((x: any) => x.cycle_id === c.id);
+        const custoTotal = cycleTx
+          .filter((x: any) => x.tipo === "saida")
           .reduce((s: number, x: any) => s + Number(x.valor || 0), 0);
-        const receitaTotal = revenues
-          .filter((x: any) => x.cycle_id === c.id)
-          .reduce((s: number, x: any) => s + Number(x.quantidade || 0) * Number(x.preco_unitario || 0), 0);
+        const receitaTotal = cycleTx
+          .filter((x: any) => x.tipo === "entrada")
+          .reduce((s: number, x: any) => s + Number(x.valor || 0), 0);
         return { cycle: c, haOcupados, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal };
       });
-  }, [cycles, allocations, areas, costs, revenues, search]);
+  }, [cycles, allocations, areas, transactions, search]);
 
   const handleSubmit = async (data: CycleInsert, drafts: AllocationDraft[]) => {
     try {
@@ -163,13 +162,23 @@ export default function Ciclos() {
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {rows.map(({ cycle, haOcupados, tarefasOcupadas, areasVinculadas, custoTotal, receitaTotal }) => {
               const sb = statusBadge[cycle.status] || statusBadge.planejamento;
+              const cor = (cycle as any).cor || "hsl(var(--primary))";
+              const icone = (cycle as any).icone as string | null;
               return (
-                <Card key={cycle.id} className="border-l-4 border-l-primary hover:shadow-md transition-shadow">
+                <Card
+                  key={cycle.id}
+                  className="border-l-4 hover:shadow-md transition-shadow"
+                  style={{ borderLeftColor: cor }}
+                >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-base flex items-center gap-2">
-                        <Sprout className="h-4 w-4 text-primary" />
-                        {cycle.cultura}
+                        {icone ? (
+                          <span className="text-xl leading-none" aria-hidden>{icone}</span>
+                        ) : (
+                          <Sprout className="h-4 w-4" style={{ color: cor }} />
+                        )}
+                        <span style={{ color: cor }}>{cycle.cultura}</span>
                       </CardTitle>
                       <div className="flex items-center gap-1">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sb.className}`}>
