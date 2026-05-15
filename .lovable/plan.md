@@ -1,167 +1,111 @@
-# Refatoração: Estrutura Física × Estrutura Produtiva
+## Timeline e Etapas dos Ciclos Produtivos
 
-## Visão geral
-
-Separar **estrutura física da terra** (Propriedade → Talhão → Área → Tarefa) da **estrutura produtiva** (Ciclos). Áreas deixam de ser item principal do menu; passam a ser acessadas via Talhão. Ciclos ganham aba própria e podem se vincular a áreas inteiras ou frações (tarefas físicas de 2.500 m²).
+Vou criar uma gestão completa de etapas dentro de cada ciclo, com timeline visual reaproveitando a lógica de `CycleTimeline.tsx` (já existente em Operação).
 
 ---
 
-## 1. Navegação
+### 1. Banco de dados (migration)
 
-**Remover do menu lateral:** item "Áreas".
-**Adicionar ao menu lateral:** item "Ciclos" (`/ciclos`).
-**Manter:** Propriedade (já existente).
+Nova tabela **`cycle_stages`** (etapas específicas do ciclo agronômico, separadas das `operational_stages` que são da página Operação):
 
-Nova hierarquia de navegação:
-```text
-Propriedade (/propriedade)
-  └── Talhão (/talhoes/:id)
-        └── Área (/areas/:id)        ← rota preservada
-              └── Tarefas (seção interna)
-Ciclos (/ciclos)                     ← nova aba
-  └── Ciclo (/ciclos/:id)
-```
+- `cycle_id` (uuid, obrigatório)
+- `nome` (text)
+- `descricao` (text)
+- `ordem` (int)
+- `inicio_relativo_dias` (int) — dia 0 = início do ciclo
+- `duracao_dias` (int)
+- `status` (text: nao_iniciada | em_andamento | concluida | atrasada | cancelada)
+- `responsavel_id` (uuid)
+- `observacoes` (text)
+- `created_at`, `updated_at`
 
-Rotas existentes de áreas continuam válidas; apenas saem do menu principal. Mobile bottom-nav recebe o mesmo tratamento (Áreas sai, Ciclos entra).
+Alterar **`cycles`**:
+- `duracao_total_dias` (int, opcional) — calculado da última etapa se vazio
 
----
+Alterar **`operational_tasks`** e **`cash_transactions`**:
+- adicionar `cycle_stage_id` (uuid) — vínculo opcional de tarefas/custos a uma etapa específica
 
-## 2. Conceito: Tarefa física
+Alterar **`journal_entries`**:
+- adicionar `cycle_stage_id` (uuid) para vincular registros do diário a etapas
 
-**Regra fixa:** 1 tarefa = 2.500 m² → 1 ha = 4 tarefas.
-
-Exposto via helper `src/lib/territory/tarefas.ts`:
-```ts
-export const M2_POR_TAREFA = 2500;
-export const haParaM2 = (ha:number) => ha * 10000;
-export const haParaTarefas = (ha:number) => (ha * 10000) / 2500; // = ha * 4
-```
-
-Cálculo é **derivado** (não armazenado) — sempre a partir de `tamanho_hectares`.
+RLS público (mesmo padrão das demais tabelas).
 
 ---
 
-## 3. Banco de dados
+### 2. Lógica (lib + hook)
 
-**Nova tabela `cycle_area_allocations`** — vínculo N:N entre ciclos e áreas com fração:
+**`src/lib/cycles/stageCalc.ts`** — funções puras:
+- `computeStageDates(cycleStart, stage)` → `{ dataInicio, dataFim }`
+- `computeAutoStatus(stage, today)` → status sugerido pelas datas
+- `computeCurrentStage(stages, today, cycleStart)` → etapa atual
+- `computeProgress(stages, tasks, today, cycleStart)` → `{ porTempo, porEtapas, porTarefas }`
+- `getAlerts(cycle, stages)` → lista de alertas (atraso, sem resp, sem tarefas, etc.)
 
-| coluna | tipo | descrição |
-|---|---|---|
-| `id` | uuid | PK |
-| `cycle_id` | uuid | ciclo |
-| `area_id` | uuid | área |
-| `ocupa_area_inteira` | bool | se true, ignora `tarefas_ocupadas` |
-| `tarefas_ocupadas` | numeric | fração (ex: 1, 2,5) |
-| `percentual` | numeric | gerado/derivado para exibição |
-| `observacao` | text | opcional |
-| `created_at`/`updated_at` | timestamptz | padrão |
-
-RLS pública (consistente com tabelas existentes), sem FK rígida (padrão do projeto).
-
-**Migração de dados:** para todo `cycles` existente, criar 1 allocation com `area_id = cycles.area_id`, `ocupa_area_inteira = true`. Coluna `cycles.area_id` é mantida como "área principal" para compatibilidade.
+**`src/hooks/useCycleStages.ts`** — CRUD via React Query (lista por `cycle_id`, create/update/delete).
 
 ---
 
-## 4. Página da Área (`AreaDetalhe`)
+### 3. UI
 
-Reorganizar em blocos:
+**Nova página `src/pages/CicloDetalhe.tsx`** (rota `/ciclos/:id`):
+- Header: cultura, ícone/cor, datas, progresso (3 barras: tempo/etapas/tarefas), etapa atual em destaque
+- Alertas no topo (banner discreto)
+- Tabs: **Timeline** | **Etapas** | **Tarefas** | **Custos** | **Diário** | **Áreas vinculadas**
+- Botão "Nova Etapa" e "Duplicar de outro ciclo"
 
-**Cabeçalho** — nome, talhão vinculado (link), badge "Unidade física".
+**`src/components/cycles/CycleStageTimeline.tsx`** — timeline visual:
+- **Desktop**: timeline horizontal (CSS grid baseado em dias do ciclo, com barras coloridas por status, marker do dia atual) — reusa padrão visual de `GanttTimeline`
+- **Mobile**: lista vertical reaproveitando estética de `CycleTimeline.tsx`, com destaque para etapa atual
 
-**KPIs físicos** (cards):
-- Tamanho em hectares
-- Tamanho em m²
-- Total de tarefas (calculado)
-- Tarefas ocupadas / livres
+**`src/components/cycles/CycleStageForm.tsx`** — dialog de criar/editar etapa:
+- nome, descrição, início_relativo_dias, duracao_dias, responsável, observação
+- preview das datas calculadas em tempo real
 
-**Seção "Tarefas da área"** (nova):
-- Barra horizontal segmentada mostrando ocupação por ciclo (cores de cultura)
-- Lista: cada ciclo com nº de tarefas e %
-- Indicador "Livre" para o restante
+**`src/components/cycles/DuplicateStagesDialog.tsx`** — escolher ciclo origem e copiar suas etapas (preparação para futuros "modelos por cultura").
 
-**Seção "Ciclos vinculados"**:
-- Cards de ciclos (lê `cycle_area_allocations` + `cycles`)
-- Mostra cultura, status, datas, tarefas ocupadas, % da área
-- Botão "Gerenciar vínculos" abre dialog para ajustar/criar allocations
+**Em `src/pages/Ciclos.tsx`** (lista):
+- card do ciclo passa a mostrar etapa atual e barra de progresso
+- clique abre `/ciclos/:id`
 
-**Seção "Custos & Receitas proporcionais"**:
-- Para cada ciclo vinculado, exibir custo total do ciclo × % de participação da área
-- Exemplo: Abóbora R$ 10.000 × 35% = R$ 3.500 atribuído a esta área
-- Receitas idem
-- Resultado da área = receitas proporcionais − custos proporcionais
-
-**Seção existente** de cultura principal/observações mantida.
-
-Texto explícito no topo: "Esta área é uma unidade física. Os ciclos produtivos são geridos na aba Ciclos."
+**Em `src/components/cycles/CycleForm.tsx`**:
+- adicionar campo `duracao_total_dias` (opcional)
 
 ---
 
-## 5. Página de Ciclos (`/ciclos`) — nova
+### 4. Integrações
 
-Lista geral de ciclos com:
-- Cultura, status, datas
-- Áreas vinculadas (chips multi-área)
-- Total de tarefas ocupadas no sistema
-- Custo acumulado e receita
-
-Detalhe do ciclo (`/ciclos/:id`):
-- Dados do ciclo
-- Seção "Alocação territorial": tabela de allocations editável (área + tarefas/inteira + %)
-- Custos, receitas, tarefas operacionais (reaproveita componentes existentes)
+- **Tarefas**: `TaskForm` ganha select opcional "Etapa do ciclo" quando há `cycle_id`
+- **Custos** (`cash_transactions`): no diálogo de lançamento financeiro, quando há `cycle_id`, permite escolher etapa
+- **Diário**: `JournalEntries` ganha select de etapa quando há `cycle_id`
+- **Indicadores por etapa**: somatório de custos (cash_transactions filtradas por `cycle_stage_id`) e contagem de tarefas
 
 ---
 
-## 6. Página do Talhão
+### 5. Critérios de aceite cobertos
 
-Adicionar/garantir lista de áreas filhas com mini-cards mostrando: hectares, tarefas totais, tarefas ocupadas, ciclos ativos. Cada card é link para `/areas/:id`.
-
----
-
-## 7. Detalhes técnicos
-
-**Arquivos novos:**
-- `src/lib/territory/tarefas.ts` — helpers de conversão
-- `src/hooks/useCycleAreaAllocations.ts` — CRUD da nova tabela
-- `src/components/areas/TarefasSection.tsx` — barra + lista de ocupação
-- `src/components/areas/CiclosVinculadosSection.tsx`
-- `src/components/areas/CustosProporcionaisSection.tsx`
-- `src/components/areas/AlocacaoCicloDialog.tsx` — criar/editar vínculo
-- `src/pages/Ciclos.tsx` + `src/pages/CicloDetalhe.tsx`
-- `src/components/cycles/AlocacaoTerritorialSection.tsx`
-
-**Arquivos editados:**
-- `src/components/layout/AppSidebar.tsx` — remover Áreas, adicionar Ciclos
-- `src/components/layout/MobileBottomNav.tsx` — mesmo ajuste
-- `src/App.tsx` — registrar rotas `/ciclos` e `/ciclos/:id`
-- `src/pages/AreaDetalhe.tsx` — reordenar blocos, adicionar seções
-- `src/pages/TalhaoDetalhe.tsx` (se existir) — listar áreas com KPIs novos
-- `src/components/layout/AppLayout.tsx` — `routeTitles` para `/ciclos`
-
-**Cálculo proporcional de custos** (fase 1, simples):
-```ts
-custoAreaProporcional = custoTotalCiclo * (tarefasOcupadasNaArea / totalTarefasDoCiclo)
-```
-Onde `totalTarefasDoCiclo` = soma de `tarefas_ocupadas` (ou tarefas totais da área quando `ocupa_area_inteira`) em todas as allocations do ciclo.
-
-**Compatibilidade:** nada é apagado. `cycles.area_id` continua válido como "área principal" e é refletido como uma allocation `ocupa_area_inteira=true` na migração.
+Todos os 11 critérios da seção 18 do pedido — duração total, etapas com início relativo, datas calculadas, etapa atual, timeline, tarefas/custos por etapa, progresso, vínculo com diário, responsivo desktop/mobile.
 
 ---
 
-## 8. Fora de escopo desta entrega
+### Arquivos
 
-- Editor visual de tarefas no mapa (apenas barra segmentada/lista)
-- Rateio automático retroativo de `costs`/`revenues` históricos (apenas exibição calculada)
-- Validação de soma de tarefas > total (warning visual, sem bloquear)
+**Migration**: `cycle_stages` + alterações em `cycles`, `operational_tasks`, `cash_transactions`, `journal_entries`
 
----
+**Criar**:
+- `src/lib/cycles/stageCalc.ts`
+- `src/hooks/useCycleStages.ts`
+- `src/pages/CicloDetalhe.tsx`
+- `src/components/cycles/CycleStageTimeline.tsx`
+- `src/components/cycles/CycleStageForm.tsx`
+- `src/components/cycles/CycleStageList.tsx`
+- `src/components/cycles/DuplicateStagesDialog.tsx`
 
-## 9. Critérios de aceite (do pedido)
+**Editar**:
+- `src/App.tsx` (rota `/ciclos/:id`)
+- `src/pages/Ciclos.tsx` (link + etapa atual no card)
+- `src/components/cycles/CycleForm.tsx` (`duracao_total_dias`)
+- `src/components/operacao/TaskForm.tsx` (select etapa)
+- `src/components/financeiro/NovoLancamentoDialog.tsx` (select etapa)
+- formulário do diário (select etapa)
 
-- [x] "Áreas" sai do menu principal, acessível via Propriedade → Talhão
-- [x] Cálculo automático de tarefas (1 tarefa = 2.500 m²)
-- [x] Página da área mostra ha, m² e tarefas
-- [x] Vínculo ciclo↔área com área inteira ou fração de tarefas
-- [x] Visualização de ciclos vinculados e ocupação na área
-- [x] Custos/receitas proporcionais por área
-- [x] Nova aba "Ciclos" como home da gestão produtiva
-- [x] Dados existentes preservados via migração inicial de allocations
+Confirma que posso seguir?

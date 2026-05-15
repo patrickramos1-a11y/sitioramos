@@ -24,6 +24,7 @@ import Contatos from "./pages/Contatos";
 import Responsaveis from "./pages/Responsaveis";
 import Diario from "./pages/Diario";
 import Ciclos from "./pages/Ciclos";
+import CicloDetalhe from "./pages/CicloDetalhe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -75,6 +76,7 @@ const App = () => {
             <Route path="/responsaveis" element={<Responsaveis />} />
             <Route path="/diario" element={<Diario />} />
             <Route path="/ciclos" element={<Ciclos />} />
+            <Route path="/ciclos/:id" element={<CicloDetalhe />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

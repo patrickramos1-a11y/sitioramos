@@ -178,7 +178,9 @@ export default function Ciclos() {
                         ) : (
                           <Sprout className="h-4 w-4" style={{ color: cor }} />
                         )}
-                        <span style={{ color: cor }}>{cycle.cultura}</span>
+                        <Link to={`/ciclos/${cycle.id}`} style={{ color: cor }} className="hover:underline">
+                          {cycle.cultura}
+                        </Link>
                       </CardTitle>
                       <div className="flex items-center gap-1">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sb.className}`}>
@@ -188,7 +190,7 @@ export default function Ciclos() {
                           size="icon"
                           variant="ghost"
                           className="h-7 w-7"
-                          onClick={() => { setEditing(cycle); setFormOpen(true); }}
+                          onClick={(e) => { e.preventDefault(); setEditing(cycle); setFormOpen(true); }}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>

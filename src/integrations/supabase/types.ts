@@ -95,6 +95,7 @@ export type Database = {
           cost_id: string | null
           created_at: string
           cycle_id: string | null
+          cycle_stage_id: string | null
           data: string
           descricao: string | null
           id: string
@@ -119,6 +120,7 @@ export type Database = {
           cost_id?: string | null
           created_at?: string
           cycle_id?: string | null
+          cycle_stage_id?: string | null
           data: string
           descricao?: string | null
           id?: string
@@ -143,6 +145,7 @@ export type Database = {
           cost_id?: string | null
           created_at?: string
           cycle_id?: string | null
+          cycle_stage_id?: string | null
           data?: string
           descricao?: string | null
           id?: string
@@ -416,6 +419,51 @@ export type Database = {
         }
         Relationships: []
       }
+      cycle_stages: {
+        Row: {
+          created_at: string
+          cycle_id: string
+          descricao: string | null
+          duracao_dias: number
+          id: string
+          inicio_relativo_dias: number
+          nome: string
+          observacoes: string | null
+          ordem: number
+          responsavel_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_id: string
+          descricao?: string | null
+          duracao_dias?: number
+          id?: string
+          inicio_relativo_dias?: number
+          nome: string
+          observacoes?: string | null
+          ordem?: number
+          responsavel_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_id?: string
+          descricao?: string | null
+          duracao_dias?: number
+          id?: string
+          inicio_relativo_dias?: number
+          nome?: string
+          observacoes?: string | null
+          ordem?: number
+          responsavel_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cycles: {
         Row: {
           area_id: string
@@ -425,6 +473,7 @@ export type Database = {
           data_inicio_plantio: string
           data_prevista_colheita: string | null
           data_real_colheita: string | null
+          duracao_total_dias: number | null
           icone: string | null
           id: string
           observacoes: string | null
@@ -441,6 +490,7 @@ export type Database = {
           data_inicio_plantio: string
           data_prevista_colheita?: string | null
           data_real_colheita?: string | null
+          duracao_total_dias?: number | null
           icone?: string | null
           id?: string
           observacoes?: string | null
@@ -457,6 +507,7 @@ export type Database = {
           data_inicio_plantio?: string
           data_prevista_colheita?: string | null
           data_real_colheita?: string | null
+          duracao_total_dias?: number | null
           icone?: string | null
           id?: string
           observacoes?: string | null
@@ -962,6 +1013,7 @@ export type Database = {
           area_id: string | null
           created_at: string
           cycle_id: string | null
+          cycle_stage_id: string | null
           description: string | null
           entry_date: string
           entry_type: string
@@ -983,6 +1035,7 @@ export type Database = {
           area_id?: string | null
           created_at?: string
           cycle_id?: string | null
+          cycle_stage_id?: string | null
           description?: string | null
           entry_date?: string
           entry_type?: string
@@ -1004,6 +1057,7 @@ export type Database = {
           area_id?: string | null
           created_at?: string
           cycle_id?: string | null
+          cycle_stage_id?: string | null
           description?: string | null
           entry_date?: string
           entry_type?: string
@@ -1398,6 +1452,7 @@ export type Database = {
           custo_estimado: number | null
           custo_real: number | null
           cycle_id: string | null
+          cycle_stage_id: string | null
           data_conclusao: string | null
           data_inicio_prevista: string | null
           data_inicio_real: string | null
@@ -1424,6 +1479,7 @@ export type Database = {
           custo_estimado?: number | null
           custo_real?: number | null
           cycle_id?: string | null
+          cycle_stage_id?: string | null
           data_conclusao?: string | null
           data_inicio_prevista?: string | null
           data_inicio_real?: string | null
@@ -1450,6 +1506,7 @@ export type Database = {
           custo_estimado?: number | null
           custo_real?: number | null
           cycle_id?: string | null
+          cycle_stage_id?: string | null
           data_conclusao?: string | null
           data_inicio_prevista?: string | null
           data_inicio_real?: string | null

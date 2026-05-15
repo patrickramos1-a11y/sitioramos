@@ -28,6 +28,7 @@ const cycleSchema = z.object({
   observacoes: z.string().max(500).optional().nullable(),
   icone: z.string().nullable().optional(),
   cor: z.string().nullable().optional(),
+  duracao_total_dias: z.coerce.number().int().min(0).optional().nullable(),
 });
 
 type CycleFormData = z.infer<typeof cycleSchema>;
@@ -66,6 +67,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
       observacoes: "",
       icone: null,
       cor: "#22c55e",
+      duracao_total_dias: null,
     },
   });
 
@@ -82,6 +84,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         observacoes: cycle.observacoes || "",
         icone: (cycle as any).icone ?? null,
         cor: (cycle as any).cor ?? "#22c55e",
+        duracao_total_dias: (cycle as any).duracao_total_dias ?? null,
       });
     } else {
       form.reset({
@@ -94,6 +97,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         observacoes: "",
         icone: null,
         cor: "#22c55e",
+        duracao_total_dias: null,
       });
       setDrafts([]);
     }
@@ -163,6 +167,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
         observacoes: data.observacoes || null,
         icone: data.icone ?? null,
         cor: data.cor ?? "#22c55e",
+        duracao_total_dias: data.duracao_total_dias || null,
       } as any,
       drafts,
     );
@@ -291,19 +296,41 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="data_real_colheita"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data Real Colheita</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} value={field.value || ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="data_real_colheita"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data Real Colheita</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="duracao_total_dias"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duração total (dias)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Auto"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <CycleAllocationsManager areas={areas} value={drafts} onChange={setDrafts} />
 
