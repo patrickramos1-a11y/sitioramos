@@ -19,6 +19,8 @@ export interface CycleStageLike {
   data_inicio_real?: string | null;
   data_fim_real?: string | null;
   inicio_relativo_dias_min?: number | null;
+  atividade?: string | null;
+  responsavel_id?: string | null;
 }
 
 export interface ComputedStage<T extends CycleStageLike = CycleStageLike> {
