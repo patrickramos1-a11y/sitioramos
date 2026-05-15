@@ -1,111 +1,98 @@
-## Timeline e Etapas dos Ciclos Produtivos
 
-Vou criar uma gestão completa de etapas dentro de cada ciclo, com timeline visual reaproveitando a lógica de `CycleTimeline.tsx` (já existente em Operação).
+# Refatoração profunda da página interna de Ciclos
 
----
+## 1. Migration (banco)
 
-### 1. Banco de dados (migration)
+Adicionar à tabela `cycle_stages`:
 
-Nova tabela **`cycle_stages`** (etapas específicas do ciclo agronômico, separadas das `operational_stages` que são da página Operação):
+- `inicio_relativo_dias_min` int (limite menor da janela; opcional, informativo)
+- `data_inicio_real` date
+- `data_fim_real` date
+- `motivo_reprogramacao` text
+- `atividade` text (descrição curta da atividade da etapa — separado de `descricao` para uso na aba Etapas)
+- Atualizar status text para aceitar também `realizada` e `reprogramada` (mantendo `nao_iniciada`, `em_andamento`, `concluida`, `atrasada`, `cancelada` por compatibilidade — `concluida` será sinônimo legado de `realizada`).
 
-- `cycle_id` (uuid, obrigatório)
-- `nome` (text)
-- `descricao` (text)
-- `ordem` (int)
-- `inicio_relativo_dias` (int) — dia 0 = início do ciclo
-- `duracao_dias` (int)
-- `status` (text: nao_iniciada | em_andamento | concluida | atrasada | cancelada)
-- `responsavel_id` (uuid)
-- `observacoes` (text)
-- `created_at`, `updated_at`
+Criar tabela `cycle_stage_history`:
+- `id`, `stage_id`, `cycle_id`, `acao` text, `dados` jsonb, `created_at`.
 
-Alterar **`cycles`**:
-- `duracao_total_dias` (int, opcional) — calculado da última etapa se vazio
+Atualizar ciclo Abóbora existente:
+- `data_inicio_plantio = 2026-04-21`
+- `duracao_total_dias = 100`
+- `data_prevista_colheita = 2026-07-30`
 
-Alterar **`operational_tasks`** e **`cash_transactions`**:
-- adicionar `cycle_stage_id` (uuid) — vínculo opcional de tarefas/custos a uma etapa específica
+Inserir/atualizar (UPSERT por nome+cycle_id) as 8 etapas:
 
-Alterar **`journal_entries`**:
-- adicionar `cycle_stage_id` (uuid) para vincular registros do diário a etapas
+| # | Nome        | min | max (limite) | duração janela |
+|---|-------------|-----|--------------|----------------|
+| 1 | Emergência  | 5   | 8            | 4              |
+| 2 | 1ª Capina   | 7   | 10           | 4              |
+| 3 | Desbaste    | 10  | 12           | 3              |
+| 4 | Adubação 1  | 15  | 20           | 6              |
+| 5 | 2ª Capina   | 20  | 25           | 6              |
+| 6 | Adubação 2  | 35  | 40           | 6              |
+| 7 | Frutificação| 60  | 70           | 11             |
+| 8 | Colheita    | 80  | 100          | 21             |
 
-RLS público (mesmo padrão das demais tabelas).
+Regra: `inicio_relativo_dias` = min, `duracao_dias` = (max - min + 1), `inicio_relativo_dias_min` = min. Limite maior é `inicio_relativo_dias + duracao_dias - 1`. Não duplica se já houver etapa "Emergencia"/"Emergência" — atualiza.
 
----
+## 2. Lógica (`src/lib/cycles/stageCalc.ts`)
 
-### 2. Lógica (lib + hook)
+- Adicionar status `realizada` e `reprogramada` aos types/labels/cores.
+- `computeAutoStatus` passa a:
+  - `realizada` (manual) prevalece;
+  - se tem `data_inicio_real`/`data_fim_real`: status efetivo = `realizada`;
+  - se hoje > limite máximo e não realizada: `atrasada`;
+  - se hoje dentro da janela: `em_andamento`;
+  - se antes: `nao_iniciada`/`prevista`.
+- Novos helpers:
+  - `diasAtraso(stage)` — comparando real vs previsto
+  - `pushFutureStages(stages, fromOrdem, deltaDias)` — devolve patch list com novos `inicio_relativo_dias`
+  - `suggestNextStart(stages)` — retorna dia logo após o limite máximo da última etapa
+  - `findCurrentStage` revisado (atrasada > em_andamento > próxima futura).
 
-**`src/lib/cycles/stageCalc.ts`** — funções puras:
-- `computeStageDates(cycleStart, stage)` → `{ dataInicio, dataFim }`
-- `computeAutoStatus(stage, today)` → status sugerido pelas datas
-- `computeCurrentStage(stages, today, cycleStart)` → etapa atual
-- `computeProgress(stages, tasks, today, cycleStart)` → `{ porTempo, porEtapas, porTarefas }`
-- `getAlerts(cycle, stages)` → lista de alertas (atraso, sem resp, sem tarefas, etc.)
+## 3. Hook (`useCycleStages.ts`)
 
-**`src/hooks/useCycleStages.ts`** — CRUD via React Query (lista por `cycle_id`, create/update/delete).
+- Estender `CycleStage` com novos campos.
+- Mutations novas:
+  - `confirmExecution({id, dataInicioReal, dataFimReal, observacao, responsavelId})`
+  - `reschedule({id, novosDiasInicio, novaDuracao, motivo, pushNext})`
+  - `pushFuture({fromOrdem, deltaDias})` — atualiza em lote
+- Cada mutation registra histórico em `cycle_stage_history`.
 
----
+## 4. UI
 
-### 3. UI
+### `CycleStageForm.tsx` (refatorado)
+- Campo "Posição da etapa": Depois da última | Antes de... | Depois de... | Manual.
+- Campos numéricos: `Início (dia)` e `Fim (dia)` (limite maior). Duração calculada.
+- `Descrição` e `Observações` recolhidos por padrão (`+ Adicionar descrição`, `+ Adicionar observação`).
+- Sugere próxima posição quando criando nova etapa (último limite + 1).
 
-**Nova página `src/pages/CicloDetalhe.tsx`** (rota `/ciclos/:id`):
-- Header: cultura, ícone/cor, datas, progresso (3 barras: tempo/etapas/tarefas), etapa atual em destaque
-- Alertas no topo (banner discreto)
-- Tabs: **Timeline** | **Etapas** | **Tarefas** | **Custos** | **Diário** | **Áreas vinculadas**
-- Botão "Nova Etapa" e "Duplicar de outro ciclo"
+### `ConfirmExecutionDialog.tsx` (novo)
+- Inputs: data inicial real (default = previsto), data final real (default = previsto), observação, responsável.
+- Mostra atraso/adiantamento em tempo real.
+- Se houve atraso: pergunta "Empurrar próximas etapas?" (Sim / Não / Manual).
 
-**`src/components/cycles/CycleStageTimeline.tsx`** — timeline visual:
-- **Desktop**: timeline horizontal (CSS grid baseado em dias do ciclo, com barras coloridas por status, marker do dia atual) — reusa padrão visual de `GanttTimeline`
-- **Mobile**: lista vertical reaproveitando estética de `CycleTimeline.tsx`, com destaque para etapa atual
+### `RescheduleStageDialog.tsx` (novo)
+- Edita início, duração, motivo, e checkbox "Empurrar próximas etapas".
 
-**`src/components/cycles/CycleStageForm.tsx`** — dialog de criar/editar etapa:
-- nome, descrição, início_relativo_dias, duracao_dias, responsável, observação
-- preview das datas calculadas em tempo real
+### `CycleStageList.tsx`
+- Mostra: número, nome, status badge, período previsto (dia X–Y, datas), período real (se houver), duração prev/real, atraso/adiantamento, responsável, atividade.
+- Ações: `Confirmar execução` | `Reprogramar` | `Editar` | `Excluir`.
 
-**`src/components/cycles/DuplicateStagesDialog.tsx`** — escolher ciclo origem e copiar suas etapas (preparação para futuros "modelos por cultura").
+### `CycleStageTimeline.tsx`
+- Marcar etapas realizadas em verde sólido, atrasadas com hachura/borda destrutiva, atual com ring.
+- Mostrar barra de execução real sobreposta à prevista quando confirmada.
 
-**Em `src/pages/Ciclos.tsx`** (lista):
-- card do ciclo passa a mostrar etapa atual e barra de progresso
-- clique abre `/ciclos/:id`
+### `CicloDetalhe.tsx`
+- Painel superior: dias previstos, decorridos, restantes, excedidos.
+- Card "Etapa atual": nome + status + dias restantes ou atraso.
+- Indicadores: etapas realizadas/total, tarefas concluídas/total.
 
-**Em `src/components/cycles/CycleForm.tsx`**:
-- adicionar campo `duracao_total_dias` (opcional)
+## 5. Critérios atendidos
+Todos os 22 critérios listados no pedido.
 
----
+## 6. Arquivos
 
-### 4. Integrações
+Criar: `ConfirmExecutionDialog.tsx`, `RescheduleStageDialog.tsx`, migration SQL, data-update SQL para Abóbora.
 
-- **Tarefas**: `TaskForm` ganha select opcional "Etapa do ciclo" quando há `cycle_id`
-- **Custos** (`cash_transactions`): no diálogo de lançamento financeiro, quando há `cycle_id`, permite escolher etapa
-- **Diário**: `JournalEntries` ganha select de etapa quando há `cycle_id`
-- **Indicadores por etapa**: somatório de custos (cash_transactions filtradas por `cycle_stage_id`) e contagem de tarefas
-
----
-
-### 5. Critérios de aceite cobertos
-
-Todos os 11 critérios da seção 18 do pedido — duração total, etapas com início relativo, datas calculadas, etapa atual, timeline, tarefas/custos por etapa, progresso, vínculo com diário, responsivo desktop/mobile.
-
----
-
-### Arquivos
-
-**Migration**: `cycle_stages` + alterações em `cycles`, `operational_tasks`, `cash_transactions`, `journal_entries`
-
-**Criar**:
-- `src/lib/cycles/stageCalc.ts`
-- `src/hooks/useCycleStages.ts`
-- `src/pages/CicloDetalhe.tsx`
-- `src/components/cycles/CycleStageTimeline.tsx`
-- `src/components/cycles/CycleStageForm.tsx`
-- `src/components/cycles/CycleStageList.tsx`
-- `src/components/cycles/DuplicateStagesDialog.tsx`
-
-**Editar**:
-- `src/App.tsx` (rota `/ciclos/:id`)
-- `src/pages/Ciclos.tsx` (link + etapa atual no card)
-- `src/components/cycles/CycleForm.tsx` (`duracao_total_dias`)
-- `src/components/operacao/TaskForm.tsx` (select etapa)
-- `src/components/financeiro/NovoLancamentoDialog.tsx` (select etapa)
-- formulário do diário (select etapa)
-
-Confirma que posso seguir?
+Editar: `stageCalc.ts`, `useCycleStages.ts`, `CycleStageForm.tsx`, `CycleStageList.tsx`, `CycleStageTimeline.tsx`, `CicloDetalhe.tsx`, `integrations/supabase/types.ts` (regenerado pós-migration).
