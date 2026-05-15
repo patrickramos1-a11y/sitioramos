@@ -33,6 +33,7 @@ interface Props {
     observacoes: string | null;
     responsavel_id: string | null;
     position?: { mode: "after_last" | "before" | "after"; refStageId?: string };
+    cycleStartIso?: string;
   }) => void;
   isSubmitting?: boolean;
 }
@@ -60,6 +61,7 @@ export function CycleStageForm({
 
   const [positionMode, setPositionMode] = useState<PositionMode>("after_last");
   const [refStageId, setRefStageId] = useState<string>("");
+  const [startIso, setStartIso] = useState<string>(cycleStartIso || "");
 
   const sortedOthers = useMemo(
     () => [...allStages].filter((s) => s.id !== stage?.id).sort((a, b) => a.ordem - b.ordem),
@@ -84,8 +86,9 @@ export function CycleStageForm({
       setResponsavelId(NONE);
       setPositionMode(initialPosition?.mode || "after_last");
       setRefStageId(initialPosition?.refStageId || "");
+      setStartIso(cycleStartIso || "");
     }
-  }, [open, stage, initialPosition]);
+  }, [open, stage, initialPosition, cycleStartIso]);
 
   // Compute previewed start day based on chosen position
   const previewIni = useMemo(() => {
@@ -102,8 +105,11 @@ export function CycleStageForm({
     return 0;
   }, [stage, positionMode, refStageId, sortedOthers]);
 
-  const start = cycleStartIso ? addDays(parseISO(cycleStartIso), previewIni) : null;
-  const end = cycleStartIso ? addDays(parseISO(cycleStartIso), previewIni + Math.max(0, duracao - 1)) : null;
+  const effectiveStartIso = startIso || cycleStartIso;
+  const start = effectiveStartIso ? addDays(parseISO(effectiveStartIso), previewIni) : null;
+  const end = effectiveStartIso ? addDays(parseISO(effectiveStartIso), previewIni + Math.max(0, duracao - 1)) : null;
+
+  const isFirstStage = !stage && sortedOthers.length === 0;
 
   const handle = () => {
     if (!nome.trim() || duracao < 1) return;
@@ -114,6 +120,7 @@ export function CycleStageForm({
       observacoes: observacoes.trim() || null,
       responsavel_id: responsavelId === NONE ? null : responsavelId,
       position: stage ? undefined : { mode: positionMode, refStageId: refStageId || undefined },
+      cycleStartIso: isFirstStage && startIso && startIso !== cycleStartIso ? startIso : undefined,
     });
   };
 
@@ -179,6 +186,20 @@ export function CycleStageForm({
           {!stage && (!initialPosition || initialPosition.mode === "after_last") && sortedOthers.length > 0 && (
             <div className="text-xs text-muted-foreground rounded-md bg-muted/40 px-3 py-2">
               Será adicionada no <strong>final</strong> da sequência.
+            </div>
+          )}
+
+          {isFirstStage && (
+            <div className="rounded-md border border-dashed p-3 space-y-1.5 bg-muted/20">
+              <Label>Data de início do ciclo *</Label>
+              <Input
+                type="date"
+                value={startIso}
+                onChange={(e) => setStartIso(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use a data real em que o ciclo começou — pode ser no passado.
+              </p>
             </div>
           )}
 
