@@ -114,8 +114,9 @@ export default function AreaDetalhe() {
   const { allocations: allAllocations } = useCycleAreaAllocations({});
 
   const tarefasOcupadasPorAlocacao = (alloc: any) => {
-    if (alloc?.ocupa_area_inteira) return tarefasTotais;
-    return Number(alloc?.tarefas_ocupadas || 0);
+    const ar: any = areas.find((x: any) => x.id === alloc.area_id);
+    const ha = allocOccupiedHa(alloc, Number(ar?.tamanho_hectares || 0));
+    return haParaTarefas(ha);
   };
 
   const tarefasOcupadas = areaAllocations.reduce(
