@@ -113,10 +113,9 @@ export default function AreaDetalhe() {
   const areaM2 = haParaM2(areaHa);
   const tarefasTotais = haParaTarefas(areaHa);
 
-  // Alocações ciclo↔área (todos os ciclos vinculados a esta área)
-  const { allocations: areaAllocations } = useCycleAreaAllocations({ areaId: id });
-  // Todas alocações do sistema (para calcular total ocupado por cada ciclo)
-  const { allocations: allAllocations } = useCycleAreaAllocations({});
+  // Alocações desta área e do sistema todo (já carregadas em allAllocationsRaw)
+  const allAllocations = allAllocationsRaw;
+  const areaAllocations = allAllocationsRaw.filter((a: any) => a.area_id === id);
 
   const tarefasOcupadasPorAlocacao = (alloc: any) => {
     const ar: any = areas.find((x: any) => x.id === alloc.area_id);
