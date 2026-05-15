@@ -67,6 +67,7 @@ export function CycleForm({ open, onOpenChange, cycle, areas, onSubmit, isSubmit
       observacoes: "",
       icone: null,
       cor: "#22c55e",
+      duracao_total_dias: null,
     },
   });
 
