@@ -63,8 +63,7 @@ export default function Ciclos() {
   const { cycles, isLoading, createCycle, updateCycle } = useCycles();
   const { areas } = useAreas();
   const { allocations } = useCycleAreaAllocations({});
-  const { costs } = useCosts();
-  const { revenues } = useRevenues();
+  const { transactions } = useCashTransactions();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
