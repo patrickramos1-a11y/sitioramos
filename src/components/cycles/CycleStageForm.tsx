@@ -61,6 +61,7 @@ export function CycleStageForm({
 
   const [positionMode, setPositionMode] = useState<PositionMode>("after_last");
   const [refStageId, setRefStageId] = useState<string>("");
+  const [startIso, setStartIso] = useState<string>(cycleStartIso || "");
 
   const sortedOthers = useMemo(
     () => [...allStages].filter((s) => s.id !== stage?.id).sort((a, b) => a.ordem - b.ordem),
