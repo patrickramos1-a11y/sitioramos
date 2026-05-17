@@ -8,6 +8,7 @@ import {
   RefreshCw,
   PanelLeftClose,
   DatabaseBackup,
+  NotebookPen,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -25,14 +26,15 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/button";
 
 const navigationItems = [
-  { title: "Visão Geral", url: "/", icon: LayoutDashboard },
+  { title: "Visao Geral", url: "/", icon: LayoutDashboard },
   { title: "Propriedade", url: "/propriedade", icon: Home },
   { title: "Ciclos", url: "/ciclos", icon: RefreshCw },
-  { title: "Operação", url: "/operacao", icon: ClipboardList },
+  { title: "Diario de Campo", url: "/diario", icon: NotebookPen },
+  { title: "Operacao", url: "/operacao", icon: ClipboardList },
   { title: "Financeiro", url: "/financeiro", icon: PieChart },
-  { title: "Empréstimos", url: "/emprestimos", icon: Landmark },
+  { title: "Emprestimos", url: "/emprestimos", icon: Landmark },
   { title: "Contatos", url: "/contatos", icon: Users },
-  { title: "Responsáveis", url: "/responsaveis", icon: Users },
+  { title: "Responsaveis", url: "/responsaveis", icon: Users },
   { title: "Backup", url: "/backup", icon: DatabaseBackup },
 ];
 
@@ -53,8 +55,12 @@ export function AppSidebar() {
             <BrandLogo variant="mono" className="h-7 w-7" />
           </div>
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <h1 className="font-display text-base font-semibold text-sidebar-foreground leading-tight truncate">Sítio Ramos</h1>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-brand-sun/90 leading-tight truncate">Onde a terra produz futuro</p>
+            <h1 className="font-display text-base font-semibold text-sidebar-foreground leading-tight truncate">
+              Sitio Ramos
+            </h1>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-brand-sun/90 leading-tight truncate">
+              Onde a terra produz futuro
+            </p>
           </div>
           <Button
             type="button"

@@ -39,6 +39,8 @@ import {
   exportSingleGeometry,
   type KmlEntryMeta,
 } from "@/lib/kmlExport";
+import { PropertyLayersPanel } from "./PropertyLayersPanel";
+import { usePropertyMapLayers } from "@/hooks/usePropertyMapLayers";
 
 export interface DraftDiaryGeometry {
   id: string;
@@ -127,6 +129,8 @@ export function DiaryGeometryManager({
   const [namingForm, setNamingForm] = useState({ name: "", description: "" });
   const [editing, setEditing] = useState<DiaryGeometry | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<{ layerId: string; nonce: number } | null>(null);
+  const propertyLayers = usePropertyMapLayers();
 
   const pointCount = geometries.filter((g) => g.geometry_type === "point").length;
   const lineCount = geometries.filter((g) => g.geometry_type === "line").length;
@@ -298,6 +302,10 @@ export function DiaryGeometryManager({
         )}
       </div>
 
+      <PropertyLayersPanel
+        onFocusLayer={(layerId) => setFocusRequest({ layerId, nonce: Date.now() })}
+      />
+
       {/* Seletor de modo */}
       <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg">
         {MODES.map((m) => {
@@ -411,7 +419,13 @@ export function DiaryGeometryManager({
         </button>
         {mapOpen && (
           <div className="p-2 pt-0">
-            <DiaryMapView geometries={geometries} draft={draftPreview} height={280} />
+            <DiaryMapView
+              geometries={geometries}
+              propertyLayers={propertyLayers.data || []}
+              draft={draftPreview}
+              height={280}
+              focusRequest={focusRequest}
+            />
             <p className="text-[10px] text-muted-foreground mt-1 italic text-center">
               Tiles do mapa precisam de internet. Coordenadas são salvas e funcionam offline.
             </p>

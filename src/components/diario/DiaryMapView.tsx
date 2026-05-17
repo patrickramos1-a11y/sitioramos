@@ -5,6 +5,7 @@ import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 import type { DiaryGeometry } from "@/hooks/useDiaryGeometries";
+import type { PropertyMapLayer, GeoJsonGeometry } from "@/lib/propertyLayers";
 
 const DefaultIcon = L.icon({
   iconUrl,
@@ -25,9 +26,11 @@ export interface DraftVertex {
 
 interface Props {
   geometries: DiaryGeometry[];
+  propertyLayers?: PropertyMapLayer[];
   draft?: { mode: "point" | "line" | "polygon"; vertices: DraftVertex[] };
   height?: number | string;
   className?: string;
+  focusRequest?: { layerId: string; nonce: number } | null;
 }
 
 const LAYERS = {
@@ -43,7 +46,70 @@ const LAYERS = {
   },
 } as const;
 
-export function DiaryMapView({ geometries, draft, height = 320, className }: Props) {
+function collectLatLngsFromGeometry(geometry: GeoJsonGeometry): Array<[number, number]> {
+  if (geometry.type === "Point") {
+    return [[geometry.coordinates[1], geometry.coordinates[0]]];
+  }
+  if (geometry.type === "LineString") {
+    return geometry.coordinates.map((coord) => [coord[1], coord[0]]);
+  }
+  if (geometry.type === "Polygon") {
+    return geometry.coordinates.flat().map((coord) => [coord[1], coord[0]]);
+  }
+  return geometry.geometries.flatMap((item) => collectLatLngsFromGeometry(item));
+}
+
+function addPropertyGeometryToMap(
+  group: L.LayerGroup,
+  geometry: GeoJsonGeometry,
+  style: PropertyMapLayer["style"],
+  popupHtml: string,
+) {
+  if (geometry.type === "Point") {
+    const [lng, lat] = geometry.coordinates;
+    L.circleMarker([lat, lng], {
+      radius: 6,
+      color: style.color,
+      fillColor: style.fillColor || style.color,
+      fillOpacity: style.fillOpacity ?? 0.25,
+      weight: style.weight,
+    }).bindPopup(popupHtml).addTo(group);
+    return;
+  }
+
+  if (geometry.type === "LineString") {
+    const positions = geometry.coordinates.map((coord) => [coord[1], coord[0]]) as [number, number][];
+    L.polyline(positions, {
+      color: style.color,
+      weight: style.weight,
+      dashArray: style.dashArray,
+    }).bindPopup(popupHtml).addTo(group);
+    return;
+  }
+
+  if (geometry.type === "Polygon") {
+    const positions = geometry.coordinates[0].map((coord) => [coord[1], coord[0]]) as [number, number][];
+    L.polygon(positions, {
+      color: style.color,
+      weight: style.weight,
+      dashArray: style.dashArray,
+      fillColor: style.fillColor || style.color,
+      fillOpacity: style.fillOpacity ?? 0.08,
+    }).bindPopup(popupHtml).addTo(group);
+    return;
+  }
+
+  geometry.geometries.forEach((item) => addPropertyGeometryToMap(group, item, style, popupHtml));
+}
+
+export function DiaryMapView({
+  geometries,
+  propertyLayers = [],
+  draft,
+  height = 320,
+  className,
+  focusRequest,
+}: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileRef = useRef<L.TileLayer | null>(null);
@@ -87,9 +153,10 @@ export function DiaryMapView({ geometries, draft, height = 320, className }: Pro
     () =>
       JSON.stringify({
         g: geometries.map((g) => [g.id, g.geometry_type, g.geojson]),
+        p: propertyLayers.map((layerItem) => [layerItem.id, layerItem.visible, layerItem.type, layerItem.geojson]),
         d: draft,
       }),
-    [geometries, draft],
+    [geometries, propertyLayers, draft],
   );
 
   useEffect(() => {
@@ -98,6 +165,20 @@ export function DiaryMapView({ geometries, draft, height = 320, className }: Pro
     if (!map || !group) return;
     group.clearLayers();
     const allPts: L.LatLngExpression[] = [];
+
+    propertyLayers
+      .filter((layerItem) => layerItem.visible)
+      .forEach((layerItem) => {
+        const { style } = layerItem;
+        layerItem.geojson.features.forEach((feature) => {
+          const geometry = feature.geometry;
+          const name = String(feature.properties.name || layerItem.name || "Camada");
+          const description = String(feature.properties.description || layerItem.description || "");
+          const popupHtml = `<div style="font-size:12px"><b>${name}</b>${description ? `<br/>${description}` : ""}</div>`;
+          addPropertyGeometryToMap(group, geometry, style, popupHtml);
+          collectLatLngsFromGeometry(geometry).forEach((point) => allPts.push(point));
+        });
+      });
 
     geometries.forEach((g) => {
       if (g.geometry_type === "point" && g.geojson?.coordinates) {
@@ -151,13 +232,23 @@ export function DiaryMapView({ geometries, draft, height = 320, className }: Pro
       });
     }
 
-    if (allPts.length) {
-      const bounds = L.latLngBounds(allPts);
+    const focusLayer = focusRequest?.layerId
+      ? propertyLayers.find((layerItem) => layerItem.id === focusRequest.layerId)
+      : null;
+
+    const focusPoints = focusLayer
+      ? focusLayer.geojson.features.flatMap((feature) => collectLatLngsFromGeometry(feature.geometry))
+      : [];
+
+    const targetPoints = focusPoints.length ? focusPoints : allPts;
+
+    if (targetPoints.length) {
+      const bounds = L.latLngBounds(targetPoints);
       const apply = () => {
         map.invalidateSize();
         if (bounds.isValid()) {
-          if (allPts.length === 1) {
-            map.setView(allPts[0] as L.LatLngExpression, 17, { animate: false });
+          if (targetPoints.length === 1) {
+            map.setView(targetPoints[0] as L.LatLngExpression, 17, { animate: false });
           } else {
             map.fitBounds(bounds, { padding: [30, 30], maxZoom: 18, animate: false });
           }
@@ -169,7 +260,7 @@ export function DiaryMapView({ geometries, draft, height = 320, className }: Pro
       setTimeout(apply, 250);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataKey]);
+  }, [dataKey, focusRequest]);
 
   // Recalculate size when height changes (collapse/expand)
   useEffect(() => {
