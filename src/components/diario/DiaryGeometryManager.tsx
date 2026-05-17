@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronUp,
   Map as MapIcon,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,8 @@ import {
 } from "@/lib/kmlExport";
 import { PropertyLayersPanel } from "./PropertyLayersPanel";
 import { usePropertyMapLayers } from "@/hooks/usePropertyMapLayers";
+import { validateGeometryAgainstPropertyLayers } from "@/lib/spatialValidation";
+import { Link } from "react-router-dom";
 
 export interface DraftDiaryGeometry {
   id: string;
@@ -51,6 +54,7 @@ export interface DraftDiaryGeometry {
   area_m2: number | null;
   length_m: number | null;
   ordem: number;
+  spatialWarnings?: string[];
 }
 
 interface Props {
@@ -63,8 +67,12 @@ interface Props {
 const MODES: { value: GeometryType; label: string; icon: typeof MapPin }[] = [
   { value: "point", label: "Ponto", icon: MapPin },
   { value: "line", label: "Linha", icon: Spline },
-  { value: "polygon", label: "Polígono", icon: Hexagon },
+  { value: "polygon", label: "Poligono", icon: Hexagon },
 ];
+
+function warningMessage(geometry: DraftDiaryGeometry | DiaryGeometry) {
+  return (geometry as DraftDiaryGeometry).spatialWarnings?.[0] || null;
+}
 
 export function DiaryGeometryManager({
   entryId,
@@ -74,6 +82,8 @@ export function DiaryGeometryManager({
 }: Props) {
   const isDraft = !entryId;
   const remote = useDiaryGeometries(entryId);
+  const propertyLayers = usePropertyMapLayers();
+  const visiblePropertyLayers = propertyLayers.data?.filter((layer) => layer.visible) || [];
 
   const geometries: (DiaryGeometry | (DraftDiaryGeometry & { entry_id: string; responsavel_id: null; created_at: string; updated_at: string }))[] = isDraft
     ? (draftGeometries || []).map((d) => ({
@@ -124,31 +134,27 @@ export function DiaryGeometryManager({
   const [draft, setDraft] = useState<DraftVertex[]>([]);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
-
   const [namingOpen, setNamingOpen] = useState(false);
   const [namingForm, setNamingForm] = useState({ name: "", description: "" });
-  const [editing, setEditing] = useState<DiaryGeometry | null>(null);
+  const [editing, setEditing] = useState<(DiaryGeometry & { spatialWarnings?: string[] }) | null>(null);
   const [exporting, setExporting] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{ layerId: string; nonce: number } | null>(null);
-  const propertyLayers = usePropertyMapLayers();
 
   const pointCount = geometries.filter((g) => g.geometry_type === "point").length;
   const lineCount = geometries.filter((g) => g.geometry_type === "line").length;
   const polyCount = geometries.filter((g) => g.geometry_type === "polygon").length;
 
-  // Próximo número de ponto continua sequencial dentro do registro
   const nextPointSeq = pointCount + 1;
   const nextLineSeq = lineCount + 1;
   const nextPolySeq = polyCount + 1;
 
-  const draftPreview = useMemo(
-    () => ({ mode, vertices: draft }),
-    [mode, draft],
-  );
+  const draftPreview = useMemo(() => ({ mode, vertices: draft }), [mode, draft]);
+
+  const notifyWarnings = (warnings: string[]) => warnings.forEach((warning) => toast.warning(warning));
 
   const handleAddCurrent = () => {
     if (!("geolocation" in navigator)) {
-      toast.error("Geolocalização não suportada neste dispositivo");
+      toast.error("Geolocalizacao nao suportada neste dispositivo");
       return;
     }
     setCaptureOpen(true);
@@ -156,51 +162,76 @@ export function DiaryGeometryManager({
 
   const handleCaptured = async (cp: CapturedGpsPoint) => {
     if (mode === "point") {
-      // Cria geometria ponto imediatamente
       const seq = pointCount + 1;
+      const pointGeojson = {
+        type: "Point",
+        coordinates: [cp.longitude, cp.latitude],
+        properties: {
+          accuracy: cp.accuracy,
+          altitude: cp.altitude,
+          heading: cp.heading,
+          speed: cp.speed,
+          captured_at: cp.captured_at,
+          capture_duration_seconds: cp.capture_duration_seconds,
+          readings_count: cp.readings_count,
+          best_accuracy: cp.best_accuracy,
+          capture_method: cp.capture_method,
+          precision_quality: cp.precision_quality,
+        },
+      };
+      const warnings = validateGeometryAgainstPropertyLayers(pointGeojson, visiblePropertyLayers);
       try {
         await addGeometry({
           geometry_type: "point",
           name: `P${seq}`,
           description: null,
-          geojson: { type: "Point", coordinates: [cp.longitude, cp.latitude] },
+          geojson: pointGeojson,
           area_m2: null,
           length_m: null,
           ordem: geometries.length,
+          spatialWarnings: warnings,
         });
+        notifyWarnings(warnings);
         toast.success(`P${seq} salvo`);
       } catch (e: any) {
         toast.error(e.message || "Falha ao salvar ponto");
       }
       return;
     }
-    // line / polygon: adiciona ao rascunho
-    setDraft((prev) => [
-      ...prev,
-      { lat: cp.latitude, lng: cp.longitude, number: prev.length + 1 },
-    ]);
-    toast.success(`P${draft.length + 1} adicionado ao rascunho`);
+
+    setDraft((prev) => {
+      const nextDraft = [...prev, { lat: cp.latitude, lng: cp.longitude, number: prev.length + 1 }];
+      const previewGeometry =
+        mode === "line"
+          ? { type: "LineString", coordinates: nextDraft.map((v) => [v.lng, v.lat]) }
+          : nextDraft.length >= 3
+          ? {
+              type: "Polygon",
+              coordinates: [[...nextDraft.map((v) => [v.lng, v.lat]), [nextDraft[0].lng, nextDraft[0].lat]]],
+            }
+          : null;
+      if (previewGeometry) notifyWarnings(validateGeometryAgainstPropertyLayers(previewGeometry, visiblePropertyLayers));
+      toast.success(`P${nextDraft.length} adicionado ao rascunho`);
+      return nextDraft;
+    });
   };
 
   const removeDraftVertex = (n: number) => {
-    setDraft((prev) =>
-      prev.filter((v) => v.number !== n).map((v, i) => ({ ...v, number: i + 1 })),
-    );
+    setDraft((prev) => prev.filter((v) => v.number !== n).map((v, i) => ({ ...v, number: i + 1 })));
   };
 
   const cancelDraft = () => setDraft([]);
 
   const openClose = () => {
     if (mode === "polygon" && draft.length < 3) {
-      toast.error("Para fechar um polígono, adicione pelo menos 3 pontos.");
+      toast.error("Para fechar um poligono, adicione pelo menos 3 pontos.");
       return;
     }
     if (mode === "line" && draft.length < 2) {
       toast.error("Adicione pelo menos 2 pontos para criar uma linha.");
       return;
     }
-    const defaultName =
-      mode === "polygon" ? `Polígono ${nextPolySeq}` : `Linha ${nextLineSeq}`;
+    const defaultName = mode === "polygon" ? `Poligono ${nextPolySeq}` : `Linha ${nextLineSeq}`;
     setNamingForm({ name: defaultName, description: "" });
     setNamingOpen(true);
   };
@@ -222,17 +253,21 @@ export function DiaryGeometryManager({
       length_m = lineLengthMeters(coords);
     }
 
+    const warnings = validateGeometryAgainstPropertyLayers(geojson, visiblePropertyLayers);
+
     try {
       await addGeometry({
         geometry_type: mode,
-        name: namingForm.name.trim() || (mode === "polygon" ? `Polígono ${nextPolySeq}` : `Linha ${nextLineSeq}`),
+        name: namingForm.name.trim() || (mode === "polygon" ? `Poligono ${nextPolySeq}` : `Linha ${nextLineSeq}`),
         description: namingForm.description.trim() || null,
         geojson,
         area_m2,
         length_m,
         ordem: geometries.length,
+        spatialWarnings: warnings,
       });
-      toast.success(mode === "polygon" ? "Polígono salvo" : "Linha salva");
+      notifyWarnings(warnings);
+      toast.success(mode === "polygon" ? "Poligono salvo" : "Linha salva");
       setDraft([]);
       setNamingOpen(false);
     } catch (e: any) {
@@ -240,7 +275,7 @@ export function DiaryGeometryManager({
     }
   };
 
-  const startEdit = (g: DiaryGeometry) => {
+  const startEdit = (g: any) => {
     setEditing(g);
     setNamingForm({ name: g.name || "", description: g.description || "" });
   };
@@ -283,23 +318,27 @@ export function DiaryGeometryManager({
         <span className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
           Mapa / GPS
         </span>
-        {entryMeta && geometries.length > 0 && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 text-[11px]"
-            onClick={handleExportAll}
-            disabled={exporting}
-          >
-            {exporting ? (
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            ) : (
-              <Download className="h-3 w-3 mr-1" />
-            )}
-            KML
+        <div className="flex items-center gap-2">
+          <Button asChild type="button" size="sm" variant="outline" className="h-7 text-[11px]">
+            <Link to="/mapa">
+              <MapIcon className="h-3 w-3 mr-1" />
+              Abrir Mapa
+            </Link>
           </Button>
-        )}
+          {entryMeta && geometries.length > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-[11px]"
+              onClick={handleExportAll}
+              disabled={exporting}
+            >
+              {exporting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Download className="h-3 w-3 mr-1" />}
+              KML
+            </Button>
+          )}
+        </div>
       </div>
 
       <PropertyLayersPanel
@@ -307,7 +346,15 @@ export function DiaryGeometryManager({
         mode="reference"
       />
 
-      {/* Seletor de modo */}
+      <div className="rounded-lg border border-brand-leaf/15 bg-muted/10 p-3">
+        <div className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
+          Registros deste Diario
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Crie pontos, linhas e poligonos deste registro usando a base cartografica do Sitio Ramos como referencia.
+        </p>
+      </div>
+
       <div className="grid grid-cols-3 gap-1 p-1 bg-muted rounded-lg">
         {MODES.map((m) => {
           const Icon = m.icon;
@@ -325,9 +372,7 @@ export function DiaryGeometryManager({
               }}
               className={cn(
                 "flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors",
-                active
-                  ? "bg-brand-forest text-primary-foreground shadow-sm"
-                  : "text-foreground hover:bg-background",
+                active ? "bg-brand-forest text-primary-foreground shadow-sm" : "text-foreground hover:bg-background",
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -343,26 +388,18 @@ export function DiaryGeometryManager({
         className="w-full h-12 bg-brand-leaf hover:bg-brand-leaf/90 text-primary-foreground font-display"
       >
         <Plus className="h-4 w-4 mr-2" />
-        {mode === "point"
-          ? `Adicionar P${nextPointSeq}`
-          : `Adicionar P${draft.length + 1}`}
+        {mode === "point" ? `Adicionar P${nextPointSeq}` : `Adicionar P${draft.length + 1}`}
       </Button>
 
       {(mode === "polygon" || mode === "line") && draft.length > 0 && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-2 space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="font-medium text-amber-900">
-              Rascunho · {draft.length} ponto{draft.length > 1 ? "s" : ""}
+              Captura do Diario · {draft.length} ponto{draft.length > 1 ? "s" : ""}
             </span>
             <div className="flex gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 text-[11px]"
-                onClick={cancelDraft}
-              >
-                <X className="h-3 w-3 mr-1" /> Cancelar
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-[11px]" onClick={cancelDraft}>
+                <X className="h-3 w-3 mr-1" /> Limpar
               </Button>
               <Button
                 type="button"
@@ -371,7 +408,7 @@ export function DiaryGeometryManager({
                 onClick={openClose}
               >
                 <CheckCircle2 className="h-3 w-3 mr-1" />
-                {mode === "polygon" ? "Fechar polígono" : "Salvar linha"}
+                {mode === "polygon" ? "Fechar poligono" : "Salvar linha"}
               </Button>
             </div>
           </div>
@@ -393,13 +430,12 @@ export function DiaryGeometryManager({
           </ul>
           {mode === "polygon" && draft.length < 3 && (
             <p className="text-[10px] text-amber-800">
-              Adicione pelo menos 3 pontos para fechar o polígono.
+              Adicione pelo menos 3 pontos para fechar o poligono.
             </p>
           )}
         </div>
       )}
 
-      {/* Mapa minimizável */}
       <div className="rounded-lg border border-brand-leaf/20 bg-card overflow-hidden">
         <button
           type="button"
@@ -408,7 +444,7 @@ export function DiaryGeometryManager({
         >
           <span className="flex items-center gap-1.5">
             <MapIcon className="h-3.5 w-3.5" />
-            Mapa de visualização
+            Mapa de visualizacao
             {(geometries.length > 0 || draft.length > 0) && (
               <span className="text-muted-foreground font-normal">
                 · {geometries.length + (draft.length > 0 ? 1 : 0)} elemento
@@ -421,53 +457,60 @@ export function DiaryGeometryManager({
         {mapOpen && (
           <div className="p-2 pt-0">
             <DiaryMapView
-              geometries={geometries}
+              geometries={geometries as DiaryGeometry[]}
               propertyLayers={propertyLayers.data || []}
               draft={draftPreview}
               height={280}
               focusRequest={focusRequest}
             />
             <p className="text-[10px] text-muted-foreground mt-1 italic text-center">
-              Tiles do mapa precisam de internet. Coordenadas são salvas e funcionam offline.
+              Camadas fixas da propriedade e registros deste Diario aparecem juntos como referencia. Tiles ainda precisam de internet.
             </p>
           </div>
         )}
       </div>
 
-      {/* Listagem por grupo */}
       {(["point", "line", "polygon"] as GeometryType[]).map((t) => {
         const list = groups[t];
         if (!list.length) return null;
-        const title = t === "point" ? "Pontos" : t === "line" ? "Linhas" : "Polígonos";
+        const title = t === "point" ? "Pontos deste registro" : t === "line" ? "Linhas deste registro" : "Poligonos deste registro";
         return (
           <div key={t} className="space-y-1.5">
             <div className="text-[11px] uppercase tracking-wider font-semibold text-brand-forest/70">
               {title} · {list.length}
             </div>
             <ul className="space-y-1.5">
-              {list.map((g) => (
-                <li
-                  key={g.id}
-                  className="rounded-lg border border-brand-leaf/20 bg-card p-2 text-xs"
-                >
+              {list.map((g: any) => (
+                <li key={g.id} className="rounded-lg border border-brand-leaf/20 bg-card p-2 text-xs">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-brand-forest truncate">
-                        {g.name || (t === "polygon" ? "Polígono" : t === "line" ? "Linha" : "Ponto")}
+                        {g.name || (t === "polygon" ? "Poligono" : t === "line" ? "Linha" : "Ponto")}
                       </div>
-                      {g.description && (
-                        <p className="text-[11px] text-foreground/80 line-clamp-2">{g.description}</p>
-                      )}
                       <div className="text-[10px] text-muted-foreground flex flex-wrap gap-2 mt-0.5">
                         {g.area_m2 != null && <span>{formatArea(g.area_m2)}</span>}
                         {g.length_m != null && <span>{formatLength(g.length_m)}</span>}
                         {t === "point" && g.geojson?.coordinates && (
                           <span className="font-mono">
-                            {g.geojson.coordinates[1].toFixed(5)},{" "}
-                            {g.geojson.coordinates[0].toFixed(5)}
+                            {g.geojson.coordinates[1].toFixed(5)}, {g.geojson.coordinates[0].toFixed(5)}
                           </span>
                         )}
+                        {t === "point" && g.geojson?.properties?.accuracy != null && (
+                          <span>±{Math.round(g.geojson.properties.accuracy)}m</span>
+                        )}
+                        {t === "point" && g.geojson?.properties?.precision_quality && (
+                          <span>{g.geojson.properties.precision_quality}</span>
+                        )}
                       </div>
+                      {warningMessage(g) && (
+                        <div className="mt-1 rounded-md border border-amber-300/50 bg-amber-50 px-2 py-1 text-[10px] text-amber-800 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {warningMessage(g)}
+                        </div>
+                      )}
+                      {g.description && (
+                        <p className="text-[11px] text-foreground/80 line-clamp-2 mt-1">{g.description}</p>
+                      )}
                     </div>
                     <div className="flex flex-col gap-0.5 shrink-0">
                       {entryMeta && (
@@ -507,45 +550,33 @@ export function DiaryGeometryManager({
         );
       })}
 
-      <GpsCaptureDialog
-        open={captureOpen}
-        onOpenChange={setCaptureOpen}
-        onSave={handleCaptured}
-      />
+      <GpsCaptureDialog open={captureOpen} onOpenChange={setCaptureOpen} onSave={handleCaptured} />
 
-      {/* Naming dialog for line/polygon close */}
       <Dialog open={namingOpen} onOpenChange={setNamingOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
-              {mode === "polygon" ? "Fechar polígono" : "Salvar linha"}
-            </DialogTitle>
+            <DialogTitle>{mode === "polygon" ? "Fechar poligono" : "Salvar linha"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <label className="text-[11px] font-medium">Nome</label>
               <Input
                 value={namingForm.name}
-                onChange={(e) =>
-                  setNamingForm((f) => ({ ...f, name: e.target.value }))
-                }
+                onChange={(e) => setNamingForm((f) => ({ ...f, name: e.target.value }))}
                 className="h-9"
               />
             </div>
             <div>
-              <label className="text-[11px] font-medium">Descrição</label>
+              <label className="text-[11px] font-medium">Descricao</label>
               <Textarea
                 value={namingForm.description}
-                onChange={(e) =>
-                  setNamingForm((f) => ({ ...f, description: e.target.value }))
-                }
+                onChange={(e) => setNamingForm((f) => ({ ...f, description: e.target.value }))}
                 rows={2}
               />
             </div>
             {mode === "polygon" && draft.length >= 3 && (
               <div className="text-xs text-muted-foreground">
-                Área estimada:{" "}
-                {formatArea(polygonAreaMeters(draft.map((v) => [v.lng, v.lat])))}
+                Area estimada: {formatArea(polygonAreaMeters(draft.map((v) => [v.lng, v.lat])))}
               </div>
             )}
           </div>
@@ -560,7 +591,6 @@ export function DiaryGeometryManager({
         </DialogContent>
       </Dialog>
 
-      {/* Edit dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -571,19 +601,15 @@ export function DiaryGeometryManager({
               <label className="text-[11px] font-medium">Nome</label>
               <Input
                 value={namingForm.name}
-                onChange={(e) =>
-                  setNamingForm((f) => ({ ...f, name: e.target.value }))
-                }
+                onChange={(e) => setNamingForm((f) => ({ ...f, name: e.target.value }))}
                 className="h-9"
               />
             </div>
             <div>
-              <label className="text-[11px] font-medium">Descrição</label>
+              <label className="text-[11px] font-medium">Descricao</label>
               <Textarea
                 value={namingForm.description}
-                onChange={(e) =>
-                  setNamingForm((f) => ({ ...f, description: e.target.value }))
-                }
+                onChange={(e) => setNamingForm((f) => ({ ...f, description: e.target.value }))}
                 rows={2}
               />
             </div>

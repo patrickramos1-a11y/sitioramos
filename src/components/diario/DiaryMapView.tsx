@@ -183,9 +183,10 @@ export function DiaryMapView({
     geometries.forEach((g) => {
       if (g.geometry_type === "point" && g.geojson?.coordinates) {
         const [lng, lat] = g.geojson.coordinates;
+        const props = g.geojson?.properties || {};
         L.marker([lat, lng])
           .bindPopup(
-            `<div style="font-size:12px"><b>${g.name || "Ponto"}</b><br/><span style="font-family:monospace">${lat.toFixed(6)}, ${lng.toFixed(6)}</span></div>`,
+            `<div style="font-size:12px"><b>${g.name || "Ponto"}</b><br/><span style="font-family:monospace">${lat.toFixed(6)}, ${lng.toFixed(6)}</span>${props.accuracy != null ? `<br/>Precisao: ±${Math.round(props.accuracy)} m` : ""}${props.precision_quality ? `<br/>Qualidade: ${props.precision_quality}` : ""}${g.description ? `<br/>${g.description}` : ""}</div>`,
           )
           .addTo(group);
         allPts.push([lat, lng]);
@@ -193,7 +194,7 @@ export function DiaryMapView({
         const positions = g.geojson.coordinates.map(([lng, lat]: number[]) => [lat, lng]) as [number, number][];
         L.polyline(positions, { color: "#15803d", weight: 4 })
           .bindPopup(
-            `<div style="font-size:12px"><b>${g.name || "Linha"}</b>${g.length_m != null ? `<br/>${Math.round(g.length_m)} m` : ""}</div>`,
+            `<div style="font-size:12px"><b>${g.name || "Linha"}</b>${g.length_m != null ? `<br/>${Math.round(g.length_m)} m` : ""}${g.description ? `<br/>${g.description}` : ""}</div>`,
           )
           .addTo(group);
         positions.forEach((p) => allPts.push(p));
@@ -206,7 +207,7 @@ export function DiaryMapView({
           fillOpacity: 0.25,
         })
           .bindPopup(
-            `<div style="font-size:12px"><b>${g.name || "Polígono"}</b>${g.area_m2 != null ? `<br/>${Math.round(g.area_m2)} m² (${(g.area_m2 / 10000).toFixed(3)} ha)` : ""}</div>`,
+            `<div style="font-size:12px"><b>${g.name || "Polígono"}</b>${g.area_m2 != null ? `<br/>${Math.round(g.area_m2)} m² (${(g.area_m2 / 10000).toFixed(3)} ha)` : ""}${g.description ? `<br/>${g.description}` : ""}</div>`,
           )
           .addTo(group);
         positions.forEach((p) => allPts.push(p));
