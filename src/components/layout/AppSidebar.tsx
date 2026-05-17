@@ -7,6 +7,7 @@ import {
   Users,
   RefreshCw,
   PanelLeftClose,
+  DatabaseBackup,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -32,6 +33,7 @@ const navigationItems = [
   { title: "Empréstimos", url: "/emprestimos", icon: Landmark },
   { title: "Contatos", url: "/contatos", icon: Users },
   { title: "Responsáveis", url: "/responsaveis", icon: Users },
+  { title: "Backup", url: "/backup", icon: DatabaseBackup },
 ];
 
 export function AppSidebar() {
