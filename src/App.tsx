@@ -23,6 +23,7 @@ import Lancamentos from "./pages/Lancamentos";
 import Contatos from "./pages/Contatos";
 import Responsaveis from "./pages/Responsaveis";
 import Diario from "./pages/Diario";
+import Mapa from "./pages/Mapa";
 import Ciclos from "./pages/Ciclos";
 import CicloDetalhe from "./pages/CicloDetalhe";
 import Backup from "./pages/Backup";
@@ -76,6 +77,7 @@ const App = () => {
             <Route path="/contatos" element={<Contatos />} />
             <Route path="/responsaveis" element={<Responsaveis />} />
             <Route path="/diario" element={<Diario />} />
+            <Route path="/mapa" element={<Mapa />} />
             <Route path="/ciclos" element={<Ciclos />} />
             <Route path="/ciclos/:id" element={<CicloDetalhe />} />
             <Route path="/backup" element={<Backup />} />

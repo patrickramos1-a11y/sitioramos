@@ -12,17 +12,18 @@ interface AppLayoutProps {
 }
 
 const routeTitles: Record<string, string> = {
-  "/": "Visão Geral",
-  "/areas": "Áreas",
+  "/": "Visao Geral",
+  "/areas": "Areas",
   "/caixa": "Fluxo de Caixa",
   "/financeiro": "Financeiro",
-  "/operacao": "Operação",
-  "/lancamentos": "Lançamentos",
+  "/operacao": "Operacao",
+  "/lancamentos": "Lancamentos",
   "/propriedade": "Propriedade",
-  "/emprestimos": "Empréstimos",
+  "/emprestimos": "Emprestimos",
   "/contatos": "Contatos",
-  "/responsaveis": "Responsáveis",
-  "/diario": "Diário de Campo",
+  "/responsaveis": "Responsaveis",
+  "/diario": "Diario de Campo",
+  "/mapa": "Mapa do Sitio Ramos",
   "/ciclos": "Ciclos",
 };
 
@@ -32,10 +33,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const title =
     routeTitles[location.pathname] ||
     (location.pathname.startsWith("/areas/")
-      ? "Detalhe da Área"
+      ? "Detalhe da Area"
       : location.pathname.startsWith("/talhoes/")
-      ? "Detalhe do Talhão"
-      : "Sítio Ramos");
+      ? "Detalhe do Talhao"
+      : "Sitio Ramos");
 
   if (isMobile) {
     const isHome = location.pathname === "/";
@@ -47,7 +48,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-[14px] font-semibold leading-tight truncate">{title}</h1>
-            <p className="text-[9px] uppercase tracking-[0.18em] text-brand-leaf leading-tight">Sítio Ramos</p>
+            <p className="text-[9px] uppercase tracking-[0.18em] text-brand-leaf leading-tight">Sitio Ramos</p>
           </div>
           <OfflineIndicator />
         </header>

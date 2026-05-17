@@ -304,6 +304,7 @@ export function DiaryGeometryManager({
 
       <PropertyLayersPanel
         onFocusLayer={(layerId) => setFocusRequest({ layerId, nonce: Date.now() })}
+        mode="reference"
       />
 
       {/* Seletor de modo */}

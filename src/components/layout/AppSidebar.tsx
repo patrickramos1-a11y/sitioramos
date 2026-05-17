@@ -9,6 +9,7 @@ import {
   PanelLeftClose,
   DatabaseBackup,
   NotebookPen,
+  Map,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -28,6 +29,7 @@ import { Button } from "@/components/ui/button";
 const navigationItems = [
   { title: "Visao Geral", url: "/", icon: LayoutDashboard },
   { title: "Propriedade", url: "/propriedade", icon: Home },
+  { title: "Mapa", url: "/mapa", icon: Map },
   { title: "Ciclos", url: "/ciclos", icon: RefreshCw },
   { title: "Diario de Campo", url: "/diario", icon: NotebookPen },
   { title: "Operacao", url: "/operacao", icon: ClipboardList },
