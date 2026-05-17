@@ -1,62 +1,12 @@
 import { Wifi, WifiOff, CloudUpload, RefreshCw, RotateCw } from "lucide-react";
-import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { syncQueue } from "@/lib/offlineQueue";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { hardReload } from "@/lib/versionCheck";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useAppRefresh } from "@/hooks/useAppRefresh";
 
 export function OfflineIndicator({ compact = false }: { compact?: boolean }) {
-  const { online, pending } = useOfflineSync();
-  const qc = useQueryClient();
-  const [syncing, setSyncing] = useState(false);
-
-  const handleSync = async () => {
-    if (!online) {
-      toast.error("Sem internet");
-      return;
-    }
-    setSyncing(true);
-    try {
-      const r = await syncQueue();
-      if (r.synced > 0) {
-        toast.success(`${r.synced} registro(s) sincronizado(s)`);
-        qc.invalidateQueries({ queryKey: ["journal_entries"] });
-        qc.invalidateQueries({ queryKey: ["journal_points"] });
-      } else if (r.failed === 0) {
-        toast.info("Nada para sincronizar");
-      }
-      if (r.failed > 0) toast.error(`${r.failed} falharam`);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  if (online && pending === 0) {
-    if (compact) return null;
-    return (
-      <div className="inline-flex items-center gap-1.5">
-        <span
-          className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-leaf/10 text-brand-leaf"
-          title="Conectado"
-        >
-          <Wifi className="h-3 w-3" />
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            toast.info("Atualizando app…");
-            void hardReload();
-          }}
-          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-foreground/70 hover:bg-muted/80"
-          title="Atualizar app (limpa cache e recarrega)"
-        >
-          <RotateCw className="h-3 w-3" />
-        </button>
-      </div>
-    );
-  }
+  const { online, pending, syncingQueue } = useOfflineSync();
+  const { refresh, refreshing, updateAvailable } = useAppRefresh();
+  const isBusy = refreshing || syncingQueue;
 
   return (
     <div className="inline-flex items-center gap-1.5">
@@ -67,36 +17,36 @@ export function OfflineIndicator({ compact = false }: { compact?: boolean }) {
             ? "bg-brand-leaf/10 text-brand-leaf"
             : "bg-[hsl(15_55%_45%)]/15 text-[hsl(15_55%_45%)]",
         )}
+        title={online ? "Conectado" : "Offline — usando dados salvos"}
       >
         {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-        {online ? "Online" : "Offline"}
+        {!compact && (online ? "Online" : "Offline")}
       </span>
+
       {pending > 0 && (
-        <button
-          type="button"
-          onClick={handleSync}
-          disabled={!online || syncing}
-          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-sun/15 text-[hsl(38_95%_38%)] hover:bg-brand-sun/25 disabled:opacity-60"
-          title="Sincronizar agora"
+        <span
+          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-sun/15 text-[hsl(38_95%_38%)]"
+          title="Pendencias locais aguardando sincronizacao"
         >
-          {syncing ? (
-            <RefreshCw className="h-3 w-3 animate-spin" />
-          ) : (
-            <CloudUpload className="h-3 w-3" />
-          )}
+          <CloudUpload className="h-3 w-3" />
           {pending}
-        </button>
+        </span>
       )}
+
       <button
         type="button"
-        onClick={() => {
-          toast.info("Atualizando app…");
-          void hardReload();
-        }}
-        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-foreground/70 hover:bg-muted/80"
-        title="Atualizar app (limpa cache e recarrega)"
+        onClick={() => void refresh()}
+        disabled={isBusy}
+        className={cn(
+          "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors disabled:opacity-60",
+          updateAvailable
+            ? "bg-sky-100 text-sky-700 hover:bg-sky-200"
+            : "bg-muted text-foreground/70 hover:bg-muted/80",
+        )}
+        title={updateAvailable ? "Atualizacao disponivel" : "Atualizar dados e sincronizar"}
       >
-        <RotateCw className="h-3 w-3" />
+        {isBusy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
+        {!compact && (updateAvailable ? "Atualizar" : "Sincronizar")}
       </button>
     </div>
   );

@@ -40,6 +40,7 @@ interface Props {
   className?: string;
   showToolbar?: boolean;
   externalImportNonce?: number;
+  onInteractionChange?: (busy: boolean) => void;
 }
 
 export function PropertyLayersPanel({
@@ -49,6 +50,7 @@ export function PropertyLayersPanel({
   className,
   showToolbar = true,
   externalImportNonce,
+  onInteractionChange,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(defaultOpen);
@@ -128,6 +130,10 @@ export function PropertyLayersPanel({
   useEffect(() => {
     if (externalImportNonce && canManage) handlePickFile();
   }, [externalImportNonce, canManage]);
+
+  useEffect(() => {
+    onInteractionChange?.(Boolean(pendingImport || editLayer));
+  }, [pendingImport, editLayer, onInteractionChange]);
 
   return (
     <div className={cn("rounded-lg border border-brand-leaf/20 bg-card overflow-hidden", className)}>

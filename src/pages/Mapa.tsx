@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DiaryMapView } from "@/components/diario/DiaryMapView";
 import { PropertyLayersPanel } from "@/components/diario/PropertyLayersPanel";
@@ -6,7 +6,7 @@ import { usePropertyMapLayers } from "@/hooks/usePropertyMapLayers";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Layers3, Focus, Import, RefreshCw, Map as MapIcon } from "lucide-react";
+import { Layers3, Focus, Import, Map as MapIcon, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Mapa() {
@@ -15,6 +15,9 @@ export default function Mapa() {
   const [focusRequest, setFocusRequest] = useState<{ layerId: string; nonce: number } | null>(null);
   const [importNonce, setImportNonce] = useState(0);
   const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
+  const [mapExpanded, setMapExpanded] = useState(!isMobile);
+  const [panelBusy, setPanelBusy] = useState(false);
+  const previousExpanded = useRef(mapExpanded);
 
   const layers = propertyLayers.data || [];
   const limitLayer = useMemo(
@@ -37,8 +40,18 @@ export default function Mapa() {
 
   const openImport = () => {
     if (isMobile) setMobileLayersOpen(true);
+    setMapExpanded(false);
     setTimeout(() => setImportNonce((value) => value + 1), 30);
   };
+
+  useEffect(() => {
+    if (panelBusy) {
+      previousExpanded.current = mapExpanded;
+      setMapExpanded(false);
+    } else if (!panelBusy && previousExpanded.current) {
+      setMapExpanded(true);
+    }
+  }, [panelBusy]);
 
   return (
     <AppLayout>
@@ -76,11 +89,10 @@ export default function Mapa() {
                 type="button"
                 variant="outline"
                 className="border-brand-leaf/25"
-                onClick={() => propertyLayers.refetch()}
-                disabled={propertyLayers.isRefetching}
+                onClick={() => setMapExpanded((value) => !value)}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${propertyLayers.isRefetching ? "animate-spin" : ""}`} />
-                Atualizar
+                {mapExpanded ? <Minimize2 className="h-4 w-4 mr-2" /> : <Maximize2 className="h-4 w-4 mr-2" />}
+                {mapExpanded ? "Minimizar mapa" : "Expandir mapa"}
               </Button>
               {isMobile && (
                 <Sheet open={mobileLayersOpen} onOpenChange={setMobileLayersOpen}>
@@ -103,6 +115,7 @@ export default function Mapa() {
                         mode="manage"
                         showToolbar={false}
                         externalImportNonce={importNonce}
+                        onInteractionChange={setPanelBusy}
                       />
                     </div>
                   </SheetContent>
@@ -126,6 +139,11 @@ export default function Mapa() {
               </div>
             </div>
 
+            {panelBusy && (
+              <div className="mb-3 rounded-xl border border-brand-sun/25 bg-brand-sun/10 px-3 py-2 text-xs text-[hsl(38_95%_28%)]">
+                Formulario ativo — o mapa foi minimizado para priorizar a edicao/importacao.
+              </div>
+            )}
             {layers.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-brand-leaf/25 bg-muted/15 p-8 text-center space-y-3">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-leaf/10 text-brand-leaf">
@@ -148,7 +166,7 @@ export default function Mapa() {
               <DiaryMapView
                 geometries={[]}
                 propertyLayers={layers}
-                height={isMobile ? "65vh" : 680}
+                height={mapExpanded ? (isMobile ? "65vh" : 680) : (isMobile ? 220 : 320)}
                 focusRequest={focusRequest}
               />
             )}
@@ -161,6 +179,7 @@ export default function Mapa() {
                 mode="manage"
                 showToolbar={false}
                 externalImportNonce={importNonce}
+                onInteractionChange={setPanelBusy}
               />
 
               <section className="rounded-2xl border border-brand-leaf/15 bg-card p-4 shadow-soft">

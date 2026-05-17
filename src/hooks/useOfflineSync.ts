@@ -7,6 +7,7 @@ export function useOfflineSync() {
   const qc = useQueryClient();
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [pending, setPending] = useState(0);
+  const [syncingQueue, setSyncingQueue] = useState(false);
 
   useEffect(() => {
     const refresh = async () => setPending(await getQueueCount());
@@ -17,14 +18,19 @@ export function useOfflineSync() {
       setOnline(true);
       const before = await getQueueCount();
       if (before > 0) {
-        const r = await syncQueue();
-        if (r.synced > 0) {
-          toast.success(`${r.synced} registro(s) sincronizado(s)`);
-          qc.invalidateQueries({ queryKey: ["journal_entries"] });
-          qc.invalidateQueries({ queryKey: ["journal_points"] });
-          qc.invalidateQueries({ queryKey: ["diary_geometries"] });
+        setSyncingQueue(true);
+        try {
+          const r = await syncQueue();
+          if (r.synced > 0) {
+            toast.success(`${r.synced} registro(s) sincronizado(s)`);
+            qc.invalidateQueries({ queryKey: ["journal_entries"] });
+            qc.invalidateQueries({ queryKey: ["journal_points"] });
+            qc.invalidateQueries({ queryKey: ["diary_geometries"] });
+          }
+          if (r.failed > 0) toast.error(`${r.failed} falharam ao sincronizar`);
+        } finally {
+          setSyncingQueue(false);
         }
-        if (r.failed > 0) toast.error(`${r.failed} falharam ao sincronizar`);
       }
       refresh();
     };
@@ -41,5 +47,5 @@ export function useOfflineSync() {
     };
   }, [qc]);
 
-  return { online, pending };
+  return { online, pending, syncingQueue };
 }

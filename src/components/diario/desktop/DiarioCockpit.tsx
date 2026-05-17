@@ -40,7 +40,6 @@ import {
   Search,
   Filter,
   Download,
-  RefreshCw,
   Star,
   CheckCircle2,
   ListChecks,
@@ -100,7 +99,7 @@ export function DiarioCockpit({ onNew }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { data: entries = [], isLoading, refetch, markReviewed, convertToTask, remove, update } =
+  const { data: entries = [], isLoading, markReviewed, convertToTask, remove, update } =
     useJournalEntries(500);
   const { areas = [] } = useAreas() as any;
   const { cycles = [] } = useCycles() as any;
@@ -302,10 +301,6 @@ export function DiarioCockpit({ onNew }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className={cn("h-4 w-4 mr-1", isLoading && "animate-spin")} />
-            Atualizar
-          </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <FileSpreadsheet className="h-4 w-4 mr-1" /> CSV
           </Button>

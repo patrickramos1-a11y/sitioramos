@@ -24,6 +24,8 @@ import {
   ChevronUp,
   Map as MapIcon,
   AlertTriangle,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -139,6 +141,7 @@ export function DiaryGeometryManager({
   const [editing, setEditing] = useState<(DiaryGeometry & { spatialWarnings?: string[] }) | null>(null);
   const [exporting, setExporting] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{ layerId: string; nonce: number } | null>(null);
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   const pointCount = geometries.filter((g) => g.geometry_type === "point").length;
   const lineCount = geometries.filter((g) => g.geometry_type === "line").length;
@@ -157,6 +160,7 @@ export function DiaryGeometryManager({
       toast.error("Geolocalizacao nao suportada neste dispositivo");
       return;
     }
+    setMapExpanded(false);
     setCaptureOpen(true);
   };
 
@@ -233,6 +237,7 @@ export function DiaryGeometryManager({
     }
     const defaultName = mode === "polygon" ? `Poligono ${nextPolySeq}` : `Linha ${nextLineSeq}`;
     setNamingForm({ name: defaultName, description: "" });
+    setMapExpanded(false);
     setNamingOpen(true);
   };
 
@@ -278,6 +283,7 @@ export function DiaryGeometryManager({
   const startEdit = (g: any) => {
     setEditing(g);
     setNamingForm({ name: g.name || "", description: g.description || "" });
+    setMapExpanded(false);
   };
 
   const saveEdit = async () => {
@@ -319,6 +325,16 @@ export function DiaryGeometryManager({
           Mapa / GPS
         </span>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-[11px]"
+            onClick={() => setMapExpanded((value) => !value)}
+          >
+            {mapExpanded ? <Minimize2 className="h-3 w-3 mr-1" /> : <Maximize2 className="h-3 w-3 mr-1" />}
+            {mapExpanded ? "Minimizar mapa" : "Expandir mapa"}
+          </Button>
           <Button asChild type="button" size="sm" variant="outline" className="h-7 text-[11px]">
             <Link to="/mapa">
               <MapIcon className="h-3 w-3 mr-1" />
@@ -460,7 +476,7 @@ export function DiaryGeometryManager({
               geometries={geometries as DiaryGeometry[]}
               propertyLayers={propertyLayers.data || []}
               draft={draftPreview}
-              height={280}
+              height={mapExpanded ? 380 : 220}
               focusRequest={focusRequest}
             />
             <p className="text-[10px] text-muted-foreground mt-1 italic text-center">

@@ -1,67 +1,115 @@
 import { toast } from "sonner";
 
-const BUILD_ID = (import.meta.env.VITE_BUILD_ID as string | undefined) ?? "dev";
-let notified = false;
-let intervalId: number | undefined;
+type VersionState = {
+  updateAvailable: boolean;
+  checking: boolean;
+  lastCheckedAt: number | null;
+  error: string | null;
+};
 
-async function fetchRemoteBuild(): Promise<string | null> {
+const RELOAD_GUARD_KEY = "sitio-ramos-last-manual-reload";
+const listeners = new Set<() => void>();
+const state: VersionState = {
+  updateAvailable: false,
+  checking: false,
+  lastCheckedAt: null,
+  error: null,
+};
+
+let started = false;
+let intervalId: number | undefined;
+let notified = false;
+
+function emit() {
+  listeners.forEach((listener) => listener());
+}
+
+function setState(patch: Partial<VersionState>) {
+  Object.assign(state, patch);
+  emit();
+}
+
+function currentAssetSignature() {
+  return (window as any).__APP_BUILD_ASSET__ || "";
+}
+
+async function fetchRemoteAssetSignature(): Promise<string | null> {
   try {
-    const res = await fetch(`/version.json?_=${Date.now()}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(`/?_=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) return null;
-    const data = (await res.json()) as { build?: string };
-    return data.build ?? null;
+    const html = await res.text();
+    const match = html.match(/\/assets\/index-[^"]+\.js/);
+    return match?.[0] ?? null;
   } catch {
     return null;
   }
 }
 
-async function check() {
-  if (notified) return;
-  if (!navigator.onLine) return;
-  const remote = await fetchRemoteBuild();
-  if (!remote || remote === BUILD_ID || BUILD_ID === "dev") return;
-  notified = true;
-  toast("Nova versão disponível", {
-    description: "Toque em Atualizar para carregar a versão mais recente.",
-    duration: Infinity,
-    action: {
-      label: "Atualizar",
-      onClick: () => hardReload(),
-    },
-  });
+async function checkRemoteVersion() {
+  if (!navigator.onLine || state.checking) return;
+  setState({ checking: true, error: null });
+  try {
+    const localSig = currentAssetSignature();
+    const remoteSig = await fetchRemoteAssetSignature();
+    const updateAvailable = !!localSig && !!remoteSig && localSig !== remoteSig;
+    setState({
+      updateAvailable,
+      checking: false,
+      lastCheckedAt: Date.now(),
+      error: null,
+    });
+    if (updateAvailable && !notified) {
+      notified = true;
+      toast.info("Atualizacao disponivel", {
+        description: "Use o botao de atualizar no topo para carregar a versao mais recente.",
+      });
+    }
+  } catch (error: any) {
+    setState({
+      checking: false,
+      lastCheckedAt: Date.now(),
+      error: error?.message || "Falha ao verificar atualizacao.",
+    });
+  }
 }
 
-export async function hardReload() {
-  try {
-    if ("serviceWorker" in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-    if ("caches" in window) {
-      const names = await caches.keys();
-      await Promise.all(names.map((n) => caches.delete(n)));
-    }
-  } catch {
-    // ignore
-  }
+export function subscribeVersionState(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function getVersionState() {
+  return state;
+}
+
+export async function applyAppUpdate() {
+  const now = Date.now();
+  const previous = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || "0");
+  if (now - previous < 15000) return;
+  sessionStorage.setItem(RELOAD_GUARD_KEY, String(now));
   const url = new URL(window.location.href);
-  url.searchParams.set("_r", Date.now().toString());
+  url.searchParams.set("_r", String(now));
   window.location.replace(url.toString());
 }
 
+export async function checkForAppUpdate() {
+  await checkRemoteVersion();
+}
+
 export function startVersionCheck() {
-  if (typeof window === "undefined") return;
-  // Check imediato
-  void check();
-  // Ao voltar para a aba
+  if (typeof window === "undefined" || started) return;
+  started = true;
+  void checkRemoteVersion();
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") void check();
+    if (document.visibilityState === "visible") void checkRemoteVersion();
   });
-  window.addEventListener("focus", () => void check());
-  window.addEventListener("online", () => void check());
-  // Polling leve a cada 5 minutos
+  window.addEventListener("focus", () => void checkRemoteVersion());
+  window.addEventListener("online", () => void checkRemoteVersion());
+  intervalId = window.setInterval(() => void checkRemoteVersion(), 5 * 60 * 1000);
+}
+
+export function stopVersionCheck() {
   if (intervalId) window.clearInterval(intervalId);
-  intervalId = window.setInterval(() => void check(), 5 * 60 * 1000);
+  intervalId = undefined;
+  started = false;
 }

@@ -1,40 +1,11 @@
-// Kill-switch service worker.
-// Substitui qualquer SW antigo (VitePWA/Workbox) que estava cacheando versões
-// antigas do app. Limpa todos os caches, força navegação dos clients e se
-// desregistra. Após isso o app sempre carrega da rede.
+// Service worker minimo e estavel.
+// Nesta fase ele nao intercepta fetch nem tenta limpar caches ou recarregar clients.
+// O objetivo e evitar loops de atualizacao/reload em mobile ate a fase futura de PWA completo.
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      try {
-        await self.clients.claim();
-        const names = await caches.keys();
-        await Promise.all(names.map((n) => caches.delete(n)));
-        const clients = await self.clients.matchAll({
-          type: "window",
-          includeUncontrolled: true,
-        });
-        await Promise.all(
-          clients.map((c) => {
-            try {
-              const url = new URL(c.url);
-              url.searchParams.set("sw-cleanup", Date.now().toString());
-              return c.navigate(url.toString());
-            } catch {
-              return Promise.resolve();
-            }
-          }),
-        );
-        await self.registration.unregister();
-      } catch {
-        // noop
-      }
-    })(),
-  );
+  event.waitUntil(self.clients.claim());
 });
-
-// Não interceptamos fetch — o navegador vai direto à rede.
