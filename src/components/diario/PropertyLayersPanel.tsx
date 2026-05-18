@@ -17,10 +17,12 @@ import {
   type ParsedImportLayer,
   type PropertyLayerType,
 } from "@/lib/propertyLayers";
+import { exportPropertyLayerKml } from "@/lib/kmlExport";
 import { usePropertyMapLayers } from "@/hooks/usePropertyMapLayers";
 import {
   ChevronDown,
   ChevronUp,
+  Download,
   Eye,
   EyeOff,
   Focus,
@@ -244,6 +246,14 @@ export function PropertyLayersPanel({
                         title="Centralizar nesta camada"
                       >
                         <Focus className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => exportPropertyLayerKml(layer)}
+                        className="h-7 w-7 rounded flex items-center justify-center text-muted-foreground hover:bg-muted"
+                        title="Exportar KML"
+                      >
+                        <Download className="h-3.5 w-3.5" />
                       </button>
                       {canManage && (
                         <button

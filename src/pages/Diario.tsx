@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ResponsavelSelect } from "@/components/responsaveis/ResponsavelSelect";
 import { useAreas } from "@/hooks/useAreas";
 import { useCycles } from "@/hooks/useCycles";
+import { useResponsaveis } from "@/hooks/useResponsaveis";
 import {
   useJournalEntries,
   PendingAttachment,
@@ -39,6 +40,7 @@ import {
   ExternalLink,
   Pencil,
   Check as CheckIcon,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -51,7 +53,10 @@ import {
   JournalPointsCollapsible,
 } from "@/components/diario/JournalPointsManager";
 import { batchInsertPoints, type DraftPoint } from "@/hooks/useJournalPoints";
+import { useJournalPoints } from "@/hooks/useJournalPoints";
 import type { DraftDiaryGeometry } from "@/components/diario/DiaryGeometryManager";
+import { useDiaryGeometries } from "@/hooks/useDiaryGeometries";
+import { exportEntryKml } from "@/lib/kmlExport";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DiarioCockpit } from "@/components/diario/desktop/DiarioCockpit";
@@ -147,6 +152,12 @@ export default function Diario() {
   });
   const { areas = [] } = useAreas() as any;
   const { cycles = [] } = useCycles() as any;
+  const { data: responsaveis = [] } = useResponsaveis(true);
+  const areaNameById = new Map(areas.map((area: any) => [area.id, area.nome]));
+  const cycleNameById = new Map(cycles.map((cycle: any) => [cycle.id, cycle.nome]));
+  const responsavelNameById = new Map(
+    responsaveis.map((responsavel) => [responsavel.id, responsavel.apelido || responsavel.nome]),
+  );
 
   const [title, setTitle] = useState("");
   const [titlePlaceholder] = useState(() => defaultTitle());
@@ -902,6 +913,9 @@ export default function Diario() {
               <EntryCard
                 key={e.id}
                 entry={e}
+                areaName={e.area_id ? areaNameById.get(e.area_id) || null : null}
+                cycleName={e.cycle_id ? cycleNameById.get(e.cycle_id) || null : null}
+                responsibleName={e.responsavel_id ? responsavelNameById.get(e.responsavel_id) || null : null}
                 onMarkReviewed={() => markReviewed.mutate({ id: e.id })}
                 onConvertToTask={() => convertToTask.mutate(e)}
                 onConvertToExpense={() => handleConvertToExpense(e)}
@@ -920,6 +934,9 @@ export default function Diario() {
 
 interface EntryCardProps {
   entry: JournalEntry;
+  areaName?: string | null;
+  cycleName?: string | null;
+  responsibleName?: string | null;
   onMarkReviewed?: () => void;
   onConvertToTask?: () => void;
   onConvertToExpense?: () => void;
@@ -927,7 +944,17 @@ interface EntryCardProps {
   onSaveEdit?: (patch: { title?: string | null; description?: string | null }) => void;
 }
 
-function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense, onDelete, onSaveEdit }: EntryCardProps) {
+function EntryCard({
+  entry,
+  areaName,
+  cycleName,
+  responsibleName,
+  onMarkReviewed,
+  onConvertToTask,
+  onConvertToExpense,
+  onDelete,
+  onSaveEdit,
+}: EntryCardProps) {
   const photos = entry.attachments?.filter((a) => a.kind === "photo") || [];
   const audios = entry.attachments?.filter((a) => a.kind === "audio") || [];
   const videos = entry.attachments?.filter((a) => a.kind === "video") || [];
@@ -1111,6 +1138,12 @@ function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense,
               <Receipt className="h-3.5 w-3.5" />
             </button>
           )}
+          <EntryExportButton
+            entry={entry}
+            areaName={areaName}
+            cycleName={cycleName}
+            responsibleName={responsibleName}
+          />
           {onDelete && (
             <button
               type="button"
@@ -1124,5 +1157,65 @@ function EntryCard({ entry, onMarkReviewed, onConvertToTask, onConvertToExpense,
         </div>
       </div>
     </article>
+  );
+}
+
+interface EntryExportButtonProps {
+  entry: JournalEntry;
+  areaName?: string | null;
+  cycleName?: string | null;
+  responsibleName?: string | null;
+}
+
+function EntryExportButton({ entry, areaName, cycleName, responsibleName }: EntryExportButtonProps) {
+  const { data: points = [], isLoading: pointsLoading } = useJournalPoints(entry.id);
+  const { data: geometries = [], isLoading: geometriesLoading } = useDiaryGeometries(entry.id);
+  const [exporting, setExporting] = useState(false);
+
+  const hasData = points.length > 0 || geometries.length > 0;
+
+  const handleExport = async () => {
+    if (!hasData) {
+      toast.error("Este registro ainda nao possui geometrias para exportar.");
+      return;
+    }
+
+    setExporting(true);
+    try {
+      await exportEntryKml(
+        {
+          id: entry.id,
+          title: entry.title,
+          description: entry.description,
+          entry_date: entry.entry_date,
+          area_name: areaName,
+          cycle_name: cycleName,
+          responsible_name: responsibleName,
+          area_id: entry.area_id,
+          cycle_id: entry.cycle_id,
+          responsavel_id: entry.responsavel_id,
+          status: entry.status,
+        },
+        points,
+        geometries,
+      );
+      toast.success("KML do registro exportado.");
+    } catch (error: any) {
+      toast.error(error?.message || "Falha ao exportar o registro.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleExport}
+      disabled={exporting || pointsLoading || geometriesLoading || !hasData}
+      title={hasData ? "Exportar KML do registro" : "Sem geometrias para exportar"}
+      className="h-7 w-7 rounded-md flex items-center justify-center text-brand-forest hover:bg-brand-forest/10 disabled:opacity-50 disabled:hover:bg-transparent"
+    >
+      {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+    </button>
   );
 }

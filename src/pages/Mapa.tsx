@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DiaryMapView } from "@/components/diario/DiaryMapView";
+import { MapExportDialog, type MapExportOptions } from "@/components/diario/MapExportDialog";
 import { PropertyLayersPanel } from "@/components/diario/PropertyLayersPanel";
 import { usePropertyMapLayers } from "@/hooks/usePropertyMapLayers";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Layers3, Focus, Import, Map as MapIcon, Maximize2, Minimize2 } from "lucide-react";
+import { exportMapKml, exportMapKmz, loadDiaryExportRecords } from "@/lib/kmlExport";
+import { Download, Layers3, Focus, Import, Map as MapIcon, Maximize2, Minimize2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Mapa() {
@@ -15,6 +17,7 @@ export default function Mapa() {
   const [focusRequest, setFocusRequest] = useState<{ layerId: string; nonce: number } | null>(null);
   const [importNonce, setImportNonce] = useState(0);
   const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(!isMobile);
   const [panelBusy, setPanelBusy] = useState(false);
   const previousExpanded = useRef(mapExpanded);
@@ -44,14 +47,40 @@ export default function Mapa() {
     setTimeout(() => setImportNonce((value) => value + 1), 30);
   };
 
+  const handleExport = async (options: MapExportOptions) => {
+    const selectedLayers = layers.filter((layer) => options.selectedLayerIds.includes(layer.id));
+    const diaryRecords = options.includeDiary ? await loadDiaryExportRecords() : [];
+
+    if (!selectedLayers.length && !diaryRecords.length) {
+      toast.error("Nao ha dados geograficos disponiveis para exportar.");
+      return;
+    }
+
+    if (options.format === "kmz") {
+      await exportMapKmz({
+        documentName: "Mapa do Sitio Ramos",
+        propertyLayers: selectedLayers,
+        diaryRecords,
+      });
+    } else {
+      await exportMapKml({
+        documentName: "Mapa do Sitio Ramos",
+        propertyLayers: selectedLayers,
+        diaryRecords,
+      });
+    }
+
+    toast.success(options.format === "kmz" ? "KMZ gerado com sucesso." : "KML gerado com sucesso.");
+  };
+
   useEffect(() => {
-    if (panelBusy) {
+    if (panelBusy || exportOpen) {
       previousExpanded.current = mapExpanded;
       setMapExpanded(false);
     } else if (!panelBusy && previousExpanded.current) {
       setMapExpanded(true);
     }
-  }, [panelBusy]);
+  }, [panelBusy, exportOpen]);
 
   return (
     <AppLayout>
@@ -84,6 +113,15 @@ export default function Mapa() {
               >
                 <Focus className="h-4 w-4 mr-2" />
                 Centralizar no Sitio Ramos
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-brand-leaf/25"
+                onClick={() => setExportOpen(true)}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
               </Button>
               <Button
                 type="button"
@@ -205,6 +243,12 @@ export default function Mapa() {
           )}
         </div>
       </div>
+      <MapExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        layers={layers}
+        onExport={handleExport}
+      />
     </AppLayout>
   );
 }
