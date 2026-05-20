@@ -30,7 +30,8 @@ interface Props {
   draft?: { mode: "point" | "line" | "polygon"; vertices: DraftVertex[] };
   height?: number | string;
   className?: string;
-  focusRequest?: { layerId: string; nonce: number } | null;
+  focusRequest?: { target: "property" | "geometry"; id: string; nonce: number } | null;
+  inactive?: boolean;
 }
 
 const LAYERS = {
@@ -109,6 +110,7 @@ export function DiaryMapView({
   height = 320,
   className,
   focusRequest,
+  inactive = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -233,13 +235,25 @@ export function DiaryMapView({
       });
     }
 
-    const focusLayer = focusRequest?.layerId
-      ? propertyLayers.find((layerItem) => layerItem.id === focusRequest.layerId)
+    const focusLayer = focusRequest?.target === "property"
+      ? propertyLayers.find((layerItem) => layerItem.id === focusRequest.id)
       : null;
+    const focusGeometry =
+      focusRequest?.target === "geometry"
+        ? geometries.find((geometry) => geometry.id === focusRequest.id)
+        : null;
 
     const focusPoints = focusLayer
       ? focusLayer.geojson.features.flatMap((feature) => collectLatLngsFromGeometry(feature.geometry))
-      : [];
+      : focusGeometry
+        ? focusGeometry.geometry_type === "point" && Array.isArray(focusGeometry.geojson?.coordinates)
+          ? [[focusGeometry.geojson.coordinates[1], focusGeometry.geojson.coordinates[0]] as [number, number]]
+          : focusGeometry.geometry_type === "line"
+            ? focusGeometry.geojson.coordinates.map((coord: number[]) => [coord[1], coord[0]] as [number, number])
+            : focusGeometry.geometry_type === "polygon"
+              ? focusGeometry.geojson.coordinates[0].map((coord: number[]) => [coord[1], coord[0]] as [number, number])
+              : []
+        : [];
 
     const targetPoints = focusPoints.length ? focusPoints : allPts;
 
@@ -291,8 +305,9 @@ export function DiaryMapView({
       <div
         ref={containerRef}
         style={{ height, width: "100%", borderRadius: 8 }}
-        className="border border-border"
+        className={inactive ? "border border-border pointer-events-none opacity-35 blur-[1px]" : "border border-border"}
       />
+      {inactive && <div className="absolute inset-0 z-[1200] rounded-lg bg-black/25 backdrop-blur-[1px]" />}
     </div>
   );
 }

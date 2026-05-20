@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -140,8 +140,9 @@ export function DiaryGeometryManager({
   const [namingForm, setNamingForm] = useState({ name: "", description: "" });
   const [editing, setEditing] = useState<(DiaryGeometry & { spatialWarnings?: string[] }) | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [focusRequest, setFocusRequest] = useState<{ layerId: string; nonce: number } | null>(null);
+  const [focusRequest, setFocusRequest] = useState<{ target: "property" | "geometry"; id: string; nonce: number } | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const modalBusy = captureOpen || namingOpen || !!editing;
 
   const pointCount = geometries.filter((g) => g.geometry_type === "point").length;
   const lineCount = geometries.filter((g) => g.geometry_type === "line").length;
@@ -318,6 +319,13 @@ export function DiaryGeometryManager({
     polygon: geometries.filter((g) => g.geometry_type === "polygon"),
   };
 
+  useEffect(() => {
+    if (modalBusy) {
+      setMapExpanded(false);
+      setMapOpen(false);
+    }
+  }, [modalBusy]);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -358,7 +366,7 @@ export function DiaryGeometryManager({
       </div>
 
       <PropertyLayersPanel
-        onFocusLayer={(layerId) => setFocusRequest({ layerId, nonce: Date.now() })}
+        onFocusLayer={(layerId) => setFocusRequest({ target: "property", id: layerId, nonce: Date.now() })}
         mode="reference"
       />
 
@@ -478,6 +486,7 @@ export function DiaryGeometryManager({
               draft={draftPreview}
               height={mapExpanded ? 380 : 220}
               focusRequest={focusRequest}
+              inactive={modalBusy}
             />
             <p className="text-[10px] text-muted-foreground mt-1 italic text-center">
               Camadas fixas da propriedade e registros deste Diario aparecem juntos como referencia. Tiles ainda precisam de internet.
