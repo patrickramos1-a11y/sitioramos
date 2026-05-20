@@ -7,6 +7,7 @@ import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 import type { DiaryGeometry } from "@/hooks/useDiaryGeometries";
 import type { PropertyMapLayer, GeoJsonGeometry } from "@/lib/propertyLayers";
 import { readMapPreferences, writeMapPreferences } from "@/lib/mapPreferences";
+import type { RasterMapLayer } from "@/lib/rasterLayers";
 
 const DefaultIcon = L.icon({
   iconUrl,
@@ -28,6 +29,7 @@ export interface DraftVertex {
 interface Props {
   geometries: DiaryGeometry[];
   propertyLayers?: PropertyMapLayer[];
+  rasterLayers?: RasterMapLayer[];
   draft?: { mode: "point" | "line" | "polygon"; vertices: DraftVertex[] };
   height?: number | string;
   className?: string;
@@ -107,6 +109,7 @@ function addPropertyGeometryToMap(
 export function DiaryMapView({
   geometries,
   propertyLayers = [],
+  rasterLayers = [],
   draft,
   height = 320,
   className,
@@ -178,9 +181,10 @@ export function DiaryMapView({
       JSON.stringify({
         g: geometries.map((g) => [g.id, g.geometry_type, g.geojson]),
         p: propertyLayers.map((layerItem) => [layerItem.id, layerItem.visible, layerItem.type, layerItem.geojson]),
+        r: rasterLayers.map((layerItem) => [layerItem.id, layerItem.visible, layerItem.bounds, layerItem.opacity]),
         d: draft,
       }),
-    [geometries, propertyLayers, draft],
+    [geometries, propertyLayers, rasterLayers, draft],
   );
 
   useEffect(() => {
@@ -202,6 +206,16 @@ export function DiaryMapView({
           addPropertyGeometryToMap(group, geometry, style, popupHtml);
           collectLatLngsFromGeometry(geometry).forEach((point) => allPts.push(point));
         });
+      });
+
+    rasterLayers
+      .filter((layerItem) => layerItem.visible)
+      .forEach((layerItem) => {
+        L.imageOverlay(layerItem.imageDataUrl, layerItem.bounds as any, {
+          opacity: layerItem.opacity,
+          interactive: false,
+        }).addTo(group);
+        allPts.push(layerItem.bounds[0], layerItem.bounds[1]);
       });
 
     geometries.forEach((g) => {
@@ -260,6 +274,9 @@ export function DiaryMapView({
     const focusLayer = focusRequest?.target === "property"
       ? propertyLayers.find((layerItem) => layerItem.id === focusRequest.id)
       : null;
+    const focusRaster = focusRequest?.target === "property"
+      ? rasterLayers.find((layerItem) => layerItem.id === focusRequest.id)
+      : null;
     const focusGeometry =
       focusRequest?.target === "geometry"
         ? geometries.find((geometry) => geometry.id === focusRequest.id)
@@ -267,6 +284,8 @@ export function DiaryMapView({
 
     const focusPoints = focusLayer
       ? focusLayer.geojson.features.flatMap((feature) => collectLatLngsFromGeometry(feature.geometry))
+      : focusRaster
+        ? [focusRaster.bounds[0], focusRaster.bounds[1]]
       : focusGeometry
         ? focusGeometry.geometry_type === "point" && Array.isArray(focusGeometry.geojson?.coordinates)
           ? [[focusGeometry.geojson.coordinates[1], focusGeometry.geojson.coordinates[0]] as [number, number]]

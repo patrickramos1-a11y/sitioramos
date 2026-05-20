@@ -46,6 +46,7 @@ import { PropertyLayersPanel } from "./PropertyLayersPanel";
 import { usePropertyMapLayers } from "@/hooks/usePropertyMapLayers";
 import { validateGeometryAgainstPropertyLayers } from "@/lib/spatialValidation";
 import { Link } from "react-router-dom";
+import { useRasterMapLayers } from "@/hooks/useRasterMapLayers";
 
 export interface DraftDiaryGeometry {
   id: string;
@@ -85,6 +86,7 @@ export function DiaryGeometryManager({
   const isDraft = !entryId;
   const remote = useDiaryGeometries(entryId);
   const propertyLayers = usePropertyMapLayers();
+  const rasterLayers = useRasterMapLayers();
   const visiblePropertyLayers = propertyLayers.data?.filter((layer) => layer.visible) || [];
 
   const geometries: (DiaryGeometry | (DraftDiaryGeometry & { entry_id: string; responsavel_id: null; created_at: string; updated_at: string }))[] = isDraft
@@ -483,6 +485,7 @@ export function DiaryGeometryManager({
             <DiaryMapView
               geometries={geometries as DiaryGeometry[]}
               propertyLayers={propertyLayers.data || []}
+              rasterLayers={rasterLayers.data || []}
               draft={draftPreview}
               height={mapExpanded ? 380 : 220}
               focusRequest={focusRequest}

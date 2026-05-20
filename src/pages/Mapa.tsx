@@ -4,8 +4,10 @@ import { GeographicRecordsPanel } from "@/components/diario/GeographicRecordsPan
 import { DiaryMapView } from "@/components/diario/DiaryMapView";
 import { MapExportDialog, type MapExportOptions } from "@/components/diario/MapExportDialog";
 import { PropertyLayersPanel } from "@/components/diario/PropertyLayersPanel";
+import { RasterLayersPanel } from "@/components/diario/RasterLayersPanel";
 import { useMapGeographicRecords } from "@/hooks/useMapGeographicRecords";
 import { usePropertyMapLayers } from "@/hooks/usePropertyMapLayers";
+import { useRasterMapLayers } from "@/hooks/useRasterMapLayers";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -14,11 +16,12 @@ import { Download, Focus, Import, Layers3, Map as MapIcon, MapPin, Maximize2, Mi
 import { toast } from "sonner";
 
 type FocusRequest = { target: "property" | "geometry"; id: string; nonce: number } | null;
-type SectionTab = "mapa" | "camadas" | "registros";
+type SectionTab = "mapa" | "camadas" | "registros" | "imagem";
 
 export default function Mapa() {
   const isMobile = useIsMobile();
   const propertyLayers = usePropertyMapLayers();
+  const rasterLayers = useRasterMapLayers();
   const records = useMapGeographicRecords();
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null);
   const [importNonce, setImportNonce] = useState(0);
@@ -31,8 +34,10 @@ export default function Mapa() {
   const previousExpanded = useRef(mapExpanded);
 
   const layers = propertyLayers.data || [];
+  const raster = rasterLayers.data || [];
   const limitLayer = useMemo(() => layers.find((layer) => layer.type === "limite_imovel") ?? null, [layers]);
   const visibleLayers = layers.filter((layer) => layer.visible);
+  const visibleRasterLayers = raster.filter((layer) => layer.visible);
 
   const mapGeometries = useMemo(
     () =>
@@ -123,6 +128,7 @@ export default function Mapa() {
   const tabs: Array<{ id: SectionTab; label: string }> = [
     { id: "mapa", label: "Mapa" },
     { id: "camadas", label: "Camadas" },
+    { id: "imagem", label: "Imagem" },
     { id: "registros", label: "Registros" },
   ];
 
@@ -157,6 +163,10 @@ export default function Mapa() {
         />
       )}
 
+      {activeSection === "imagem" && (
+        <RasterLayersPanel onFocusLayer={focusLayer} onInteractionChange={setPanelBusy} />
+      )}
+
       {activeSection === "registros" && (
         <GeographicRecordsPanel onFocusItem={focusRecord} onBusyChange={setRecordsBusy} />
       )}
@@ -171,6 +181,14 @@ export default function Mapa() {
           <div className="flex items-center justify-between rounded-xl border border-brand-leaf/15 bg-muted/10 px-3 py-2">
             <span className="text-muted-foreground">Camadas visiveis</span>
             <span className="font-semibold text-brand-forest">{visibleLayers.length}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-brand-leaf/15 bg-muted/10 px-3 py-2">
+            <span className="text-muted-foreground">Imagens georreferenciadas</span>
+            <span className="font-semibold text-brand-forest">{raster.length}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-brand-leaf/15 bg-muted/10 px-3 py-2">
+            <span className="text-muted-foreground">Imagens visiveis</span>
+            <span className="font-semibold text-brand-forest">{visibleRasterLayers.length}</span>
           </div>
           <div className="flex items-center justify-between rounded-xl border border-brand-leaf/15 bg-muted/10 px-3 py-2">
             <span className="inline-flex items-center gap-2 text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> Pontos do Diario</span>
@@ -282,6 +300,7 @@ export default function Mapa() {
               <DiaryMapView
                 geometries={mapGeometries as any}
                 propertyLayers={layers}
+                rasterLayers={raster}
                 height={mapExpanded ? (isMobile ? "65vh" : 700) : isMobile ? 220 : 340}
                 focusRequest={focusRequest}
                 inactive={mapBusy}
