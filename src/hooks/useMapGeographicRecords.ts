@@ -239,6 +239,19 @@ export function useMapGeographicRecords() {
     onError: (error: any) => toast.error(error?.message || "Falha ao remover registro geografico."),
   });
 
+  const removeEntry = useMutation({
+    mutationFn: async (entryId: string) => {
+      const { error } = await supabase.from("journal_entries" as any).delete().eq("id", entryId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["map_geographic_records"] });
+      qc.invalidateQueries({ queryKey: ["journal_entries"] });
+      toast.success("Registro do Diario removido.");
+    },
+    onError: (error: any) => toast.error(error?.message || "Falha ao remover registro do Diario."),
+  });
+
   return {
     ...dataQuery,
     items,
@@ -247,5 +260,6 @@ export function useMapGeographicRecords() {
     setVisibility,
     updateRecord,
     removeRecord,
+    removeEntry,
   };
 }

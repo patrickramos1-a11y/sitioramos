@@ -90,6 +90,12 @@ interface ExportMapOptions extends BuildMapKmlOptions {
   filename?: string;
 }
 
+interface ExportDiaryRecordsOptions {
+  documentName?: string;
+  diaryRecords: DiaryExportRecord[];
+  filename?: string;
+}
+
 function escapeXml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -559,6 +565,28 @@ export async function exportMapKmz({
   filename = `sitio-ramos-mapa-completo-${fileDate()}.kmz`,
 }: ExportMapOptions) {
   const kml = buildMapKml({ documentName, propertyLayers, diaryRecords });
+  const zip = new JSZip();
+  zip.file(filename.replace(/\.kmz$/i, ".kml"), kml);
+  const blob = await zip.generateAsync({ type: "blob" });
+  triggerDownload(blob, filename);
+}
+
+export async function exportDiaryRecordsKml({
+  documentName = "Registros Geograficos do Sitio Ramos",
+  diaryRecords,
+  filename = `sitio-ramos-registros-${fileDate()}.kml`,
+}: ExportDiaryRecordsOptions) {
+  const kml = buildMapKml({ documentName, diaryRecords });
+  const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+  triggerDownload(blob, filename);
+}
+
+export async function exportDiaryRecordsKmz({
+  documentName = "Registros Geograficos do Sitio Ramos",
+  diaryRecords,
+  filename = `sitio-ramos-registros-${fileDate()}.kmz`,
+}: ExportDiaryRecordsOptions) {
+  const kml = buildMapKml({ documentName, diaryRecords });
   const zip = new JSZip();
   zip.file(filename.replace(/\.kmz$/i, ".kml"), kml);
   const blob = await zip.generateAsync({ type: "blob" });
