@@ -1,7 +1,7 @@
 import { useSyncExternalStore, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { syncQueue } from "@/lib/offlineQueue";
+import { retryErroredQueueItems, syncQueue } from "@/lib/offlineQueue";
 import {
   applyAppUpdate,
   checkForAppUpdate,
@@ -34,6 +34,7 @@ export function useAppRefresh() {
         return;
       }
 
+      await retryErroredQueueItems();
       const syncResult = await syncQueue();
       if (syncResult.synced > 0) {
         toast.success(`${syncResult.synced} registro(s) sincronizado(s)`);
@@ -45,12 +46,16 @@ export function useAppRefresh() {
       await Promise.all(
         IMPORTANT_QUERY_KEYS.map((queryKey) =>
           queryClient.invalidateQueries({ queryKey }).then(() =>
-            queryClient.refetchQueries({ queryKey, type: "active" }),
+            queryClient.refetchQueries({ queryKey, type: "all" }),
           ),
         ),
       );
 
       await checkForAppUpdate();
+
+      if (window.__APP_SW_REGISTRATION?.active) {
+        window.__APP_SW_REGISTRATION.active.postMessage({ type: "WARM_APP_SHELL" });
+      }
 
       if (getVersionState().updateAvailable) {
         toast.info("Aplicando atualizacao do app...");

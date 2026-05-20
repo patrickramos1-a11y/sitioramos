@@ -5,6 +5,7 @@ type VersionState = {
   checking: boolean;
   lastCheckedAt: number | null;
   error: string | null;
+  serviceWorkerUpdateReady: boolean;
 };
 
 const RELOAD_GUARD_KEY = "sitio-ramos-last-manual-reload";
@@ -14,6 +15,7 @@ const state: VersionState = {
   checking: false,
   lastCheckedAt: null,
   error: null,
+  serviceWorkerUpdateReady: false,
 };
 
 let started = false;
@@ -87,6 +89,10 @@ export async function applyAppUpdate() {
   const previous = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || "0");
   if (now - previous < 15000) return;
   sessionStorage.setItem(RELOAD_GUARD_KEY, String(now));
+  const registration = window.__APP_SW_REGISTRATION__;
+  if (registration?.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+  }
   const url = new URL(window.location.href);
   url.searchParams.set("_r", String(now));
   window.location.replace(url.toString());
@@ -99,6 +105,15 @@ export async function checkForAppUpdate() {
 export function startVersionCheck() {
   if (typeof window === "undefined" || started) return;
   started = true;
+  window.addEventListener("sitio-ramos:sw-update-found", () => {
+    setState({ updateAvailable: true, serviceWorkerUpdateReady: true });
+    if (!notified) {
+      notified = true;
+      toast.info("Atualizacao disponivel", {
+        description: "Use o botao de atualizar no topo para aplicar a nova versao.",
+      });
+    }
+  });
   void checkRemoteVersion();
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void checkRemoteVersion();

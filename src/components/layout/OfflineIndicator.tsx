@@ -4,7 +4,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAppRefresh } from "@/hooks/useAppRefresh";
 
 export function OfflineIndicator({ compact = false }: { compact?: boolean }) {
-  const { online, pending, syncingQueue } = useOfflineSync();
+  const { online, pending, syncingQueue, failed, lastError } = useOfflineSync();
   const { refresh, refreshing, updateAvailable } = useAppRefresh();
   const isBusy = refreshing || syncingQueue;
 
@@ -30,6 +30,15 @@ export function OfflineIndicator({ compact = false }: { compact?: boolean }) {
         >
           <CloudUpload className="h-3 w-3" />
           {pending}
+        </span>
+      )}
+
+      {failed > 0 && (
+        <span
+          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive"
+          title={lastError || "Existem pendencias com erro aguardando nova tentativa"}
+        >
+          {failed} erro{failed === 1 ? "" : "s"}
         </span>
       )}
 

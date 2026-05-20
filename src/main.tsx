@@ -5,6 +5,7 @@ import "./index.css";
 declare global {
   interface Window {
     __APP_BUILD_ASSET__?: string;
+    __APP_SW_REGISTRATION__?: ServiceWorkerRegistration | null;
   }
 }
 
@@ -26,7 +27,26 @@ const isPreviewHost =
 
 if (import.meta.env.PROD && "serviceWorker" in navigator && !isInIframe && !isPreviewHost) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        window.__APP_SW_REGISTRATION__ = registration;
+        if (registration.waiting) {
+          window.dispatchEvent(new CustomEvent("sitio-ramos:sw-update-found"));
+        }
+        registration.addEventListener("updatefound", () => {
+          const worker = registration.installing;
+          if (!worker) return;
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "installed" && navigator.serviceWorker.controller) {
+              window.dispatchEvent(new CustomEvent("sitio-ramos:sw-update-found"));
+            }
+          });
+        });
+      })
+      .catch(() => {
+        window.__APP_SW_REGISTRATION__ = null;
+      });
   });
 }
 

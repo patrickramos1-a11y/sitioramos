@@ -6,6 +6,7 @@ import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 import type { DiaryGeometry } from "@/hooks/useDiaryGeometries";
 import type { PropertyMapLayer, GeoJsonGeometry } from "@/lib/propertyLayers";
+import { readMapPreferences, writeMapPreferences } from "@/lib/mapPreferences";
 
 const DefaultIcon = L.icon({
   iconUrl,
@@ -116,20 +117,40 @@ export function DiaryMapView({
   const mapRef = useRef<L.Map | null>(null);
   const tileRef = useRef<L.TileLayer | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
-  const [layer, setLayer] = useState<keyof typeof LAYERS>("osm");
+  const initialPrefs = useMemo(() => readMapPreferences(), []);
+  const [layer, setLayer] = useState<keyof typeof LAYERS>(initialPrefs.baseLayer);
+  const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+
+  useEffect(() => {
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
 
   // Init map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, {
-      center: [-15.78, -47.93],
-      zoom: 15,
+      center: initialPrefs.lastCenter || [-15.78, -47.93],
+      zoom: initialPrefs.lastZoom || 15,
       scrollWheelZoom: true,
     });
     const cfg = LAYERS.osm;
     tileRef.current = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(map);
     layerGroupRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+    map.on("moveend", () => {
+      const center = map.getCenter();
+      writeMapPreferences({
+        lastCenter: [center.lat, center.lng],
+        lastZoom: map.getZoom(),
+      });
+    });
     // Ensure proper sizing after mount/animations
     setTimeout(() => map.invalidateSize(), 50);
     return () => {
@@ -138,7 +159,7 @@ export function DiaryMapView({
       tileRef.current = null;
       layerGroupRef.current = null;
     };
-  }, []);
+  }, [initialPrefs.lastCenter, initialPrefs.lastZoom]);
 
   // Switch layer
   useEffect(() => {
@@ -148,6 +169,7 @@ export function DiaryMapView({
     tileRef.current = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(
       mapRef.current,
     );
+    writeMapPreferences({ baseLayer: layer });
   }, [layer]);
 
   // Re-render geometries
@@ -285,6 +307,11 @@ export function DiaryMapView({
 
   return (
     <div className={className} style={{ position: "relative" }}>
+      {!online && (
+        <div className="absolute left-2 right-2 top-2 z-[1400] rounded-md border border-amber-300/60 bg-amber-50/95 px-3 py-2 text-[11px] text-amber-900 shadow-sm">
+          Mapa base pode nao carregar sem internet. As camadas e registros salvos continuam disponiveis.
+        </div>
+      )}
       <div className="absolute z-[1000] top-2 right-2 bg-card/90 backdrop-blur rounded-md border border-border shadow-sm flex text-xs overflow-hidden">
         {(Object.keys(LAYERS) as (keyof typeof LAYERS)[]).map((k) => (
           <button
